@@ -4,7 +4,9 @@
 
 Webco Cloud (`webcocloud.net`) is the infrastructure and customer-service platform behind Webco Media-built websites.
 
-The immediate goal is to rebuild Webco Cloud from scratch as a clean, modern static website that works alongside the existing 20i reseller/HostShop platform.
+The public site is a static Astro website on `webcocloud.net`. That site is the current customer-facing shell. It is not the finished platform.
+
+The latest architecture below overrides any earlier assumption that Webco Cloud is only a marketing front end for HostShop or StackCP.
 
 Webco Cloud should not try to look like a generic commodity hosting company. Its job is to make the customer relationship simple:
 
@@ -40,26 +42,110 @@ The project will use:
 - local development in Cursor
 - 20i hosting for production
 - the same GitHub → 20i deployment approach already proven on `drivercompliance.co.uk`
-- 20i HostShop / StackCP for customer accounts, billing, domains, email, hosting and support
+- 20i for hosting, domains, email, SSL and provisioning
+- HostShop / StackCP only as the current temporary customer login and as an internal or advanced fallback
 
-Do not introduce a database, CMS, SaaS backend or external hosting platform unless there is a clear requirement.
+The public site stays static. It has no database and no custom accounts. Do not add those until a later phase in the plan below is explicitly started.
 
 ---
 
-## Core principle
+## Latest architecture
 
-Keep this project simple.
+Webco Cloud is becoming the customer-facing platform.
 
-Webco Cloud v1 is not a new hosting SaaS platform and is not a custom control panel.
+Normal customers should not need to use HostShop or StackCP. Those can remain available to Webco internally, or as an advanced fallback. Do not remove the current HostShop/StackCP client login until Webco Cloud can replace it.
 
-For now:
+### Webco Cloud owns
 
-1. Build a strong public-facing Webco Cloud website.
-2. Link customers cleanly into the existing branded HostShop / StackCP system.
-3. Improve the customer journey and branding around that system.
-4. Leave deeper API automation for a later phase only if it becomes useful.
+- onboarding funnel
+- customer accounts
+- package selection
+- domain selection and search
+- checkout and payment
+- billing and invoices
+- support and the customer relationship
 
-Avoid overengineering.
+### 20i provides
+
+- hosting infrastructure
+- domain provisioning and management
+- email infrastructure
+- SSL and related hosting services
+- provisioning through the 20i Reseller API
+
+Billing should be handled by Webco Cloud. Customers should not be sent through HostShop’s payment-method workflow.
+
+The first commercial funnel is the HGV / transport training-provider website offer:
+
+- Essential Website — £595
+- Training Provider Website — £995
+
+A prospect should be able to:
+
+1. understand the two offers
+2. view an example site for each
+3. clearly select the appropriate package
+4. choose a new domain, or say they already have one
+5. provide business and contact details
+6. pay through a Webco Cloud checkout
+7. trigger automatic provisioning in the background
+8. create an internal work ticket or order so Webco can customise the provisioned site
+
+Do not build this funnel yet. The sections below map what it will need and in what order.
+
+### Backend components required later
+
+These are not to be built in the current phase.
+
+| Component | Role |
+| --- | --- |
+| Public Astro site | The existing site, plus the later offer and onboarding pages. Stays static wherever it does not need a secret or a write. |
+| Platform API | A small server-side application. The only place that holds the 20i Reseller API credential. The static site must never call 20i directly. |
+| Database | Customers, businesses, orders, chosen package, domain choice, contact details, payments, invoices, provisioning jobs, and internal work tickets. |
+| Customer accounts | Sign-in owned by Webco Cloud, so a normal customer does not use HostShop. |
+| Package catalogue | Essential Website, Training Provider Website, and later Managed Care and hosting renewal. |
+| Domain search | 20i domain availability, then the choice between registering a new name and using an existing one. |
+| Checkout | Card payment recorded by Webco Cloud, separate from HostShop stored payment methods. The payment provider is still to be chosen. |
+| Provisioning worker | Background jobs that call the 20i Reseller API after payment: create the site package from a master, register or attach the domain, and arrange email and SSL. |
+| Internal work ticket | An order for Webco to customise the provisioned site: branding, courses, locations, images, forms and SEO. |
+| Billing | Invoices, receipts and renewals inside Webco Cloud. |
+| Support | The customer relationship inside Webco Cloud. HostShop’s help desk is not the normal path. |
+| Staff view | Webco can see orders, payment, provisioning and tickets. HostShop and StackCP stay available for advanced infrastructure work. |
+| Secrets and audit | API keys and payment keys stay off the public site and out of the repository. Provisioning and payment events are logged. |
+
+The static files on 20i cannot safely hold the reseller API key. When API work starts, it needs a server-side caller. A small script on the existing 20i package is the simplest place to prove that. A separate application host is only justified when accounts, checkout or the database actually start.
+
+### Phased implementation
+
+Do not start a phase until it is explicitly requested. Do not pull authentication, billing, provisioning or a database forward to make a later phase easier.
+
+**Phase 0 — Public site. Done.**  
+The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Client Login still opens the existing HostShop customer area at `my.webcocloud.net`. Keep that link until Webco Cloud accounts exist.
+
+**Phase 1 — Domain availability proof of concept. First API work.**  
+Call the 20i Reseller API for domain search / availability only.
+
+- Server-side only.
+- No customer account, payment, provisioning, order record or database.
+- Confirm authentication, the real request and response, failures, and whether the result is good enough for a later “new domain or I already have one” step.
+- A temporary internal page is enough. It is not the public onboarding funnel.
+
+**Phase 2 — Offers and example sites.**  
+Explain Essential Website and Training Provider Website, and show one example site for each. Package selection can be visible. Checkout, accounts and provisioning stay off.
+
+**Phase 3 — Accounts and saved orders.**  
+Introduce the database and Webco Cloud customer accounts. Store the chosen package, the domain choice, and the business and contact details. Still no card payment and no 20i provisioning.
+
+**Phase 4 — Webco Cloud checkout.**  
+Take payment for the two website packages and record the order and invoice in Webco Cloud. Do not use HostShop’s payment-method workflow.
+
+**Phase 5 — Provision and hand over to Webco.**  
+After payment, provision in the background through the 20i Reseller API, then open the internal work ticket so customisation can start. The customer gets a confirmation, not a HostShop or StackCP session.
+
+**Phase 6 — Billing and support.**  
+Move renewals, Managed Care, invoices and support into Webco Cloud. HostShop and StackCP become internal tools or an advanced fallback.
+
+Example sites and the reusable training-provider master can be built with Phase 2, because the funnel needs something real to show. LearnHGV may later link to the Webco Cloud offer. Buying Webco services must still never affect LearnHGV ranking, verification or directory treatment.
 
 ---
 
@@ -177,13 +263,11 @@ The business already has useful infrastructure that should be exploited rather t
 - unlimited MySQL databases where required
 - registrar capability
 - low-cost domain registration and renewals
-- HostShop for recurring billing and customer management
-- HostShop support functionality
-- simple 20i site/package cloning
-- StackCP white-label capability
-- 20i reseller API available for future automation
+- simple 20i site/package cloning, which the later provisioning step should use
+- 20i Reseller API for domain search and, later, provisioning
+- HostShop and StackCP as an internal or advanced fallback, not the normal customer experience
 
-The service should be designed around this existing infrastructure.
+Use 20i’s infrastructure. Do not make HostShop the product the customer has to learn.
 
 ---
 
@@ -227,8 +311,10 @@ Astro is being chosen because it allows:
 - strong performance
 - easy Git-based version control
 - easy cloning / reuse
-- no mandatory runtime server
-- no database requirement
+- no mandatory runtime server for the public site or the training-provider sites
+- no database for those sites
+
+The later Webco Cloud platform is separate. Its database, accounts and API are described in the latest architecture section. They are not part of the Astro site.
 
 The eventual training-provider master architecture may look broadly like:
 
@@ -275,9 +361,7 @@ Potential route structure:
  /support
 ```
 
-`Client Login` should point to the existing Webco Cloud / HostShop / StackCP customer area rather than creating a new authentication system.
-
-Do not build a custom login system in v1.
+`Client Login` currently points at the existing HostShop customer area. That is temporary. Do not build a custom login system until Phase 3.
 
 ---
 
@@ -329,23 +413,27 @@ Webco Cloud is the platform.
 
 Webco Media is the website design/build service.
 
-A future customer journey may be:
+The intended journey is:
 
 ```text
 LearnHGV
     ↓
-Webco Media training-provider website offer
+Webco Cloud offer
     ↓
-Customer chooses / orders website
+Choose Essential (£595) or Training Provider (£995)
     ↓
-Webco Cloud account
+View an example, choose a domain, enter business details, pay
     ↓
-Hosting + domain + email + billing + support
+20i provisions the site in the background
+    ↓
+Webco customises it from the master
+    ↓
+Webco Cloud account for billing, domain, email and support
 ```
 
-Webco Cloud should therefore contain appropriate references to Webco Media where website design/build services are relevant.
+Webco Media still designs and builds. The onboarding funnel for these two packages lives on Webco Cloud, because Webco Cloud owns package selection, domain choice, checkout and the customer relationship.
 
-Do not duplicate the entire Webco Media website-service sales page inside Webco Cloud.
+Refer to Webco Media where the design and build work is relevant. Do not recreate an entire separate sales site.
 
 ---
 
@@ -365,51 +453,17 @@ The commercial relationship must remain clearly separate from LearnHGV verificat
 
 ---
 
-## HostShop / StackCP strategy
+## HostShop / StackCP
 
-The existing 20i platform should remain the engine for:
+HostShop and StackCP are not the long-term customer experience. The current out-of-the-box journey is too difficult for non-technical customers. It can involve creating an account, verifying email, entering details, security setup and payment. Past customers have often needed manual help.
 
-- customer accounts
-- recurring billing
-- invoices
-- domains
-- renewals
-- hosting
-- email
-- support
-- service management
+The customer experience to build towards is:
 
-Do not rebuild these functions in Webco Cloud v1.
+> Choose the package → choose the domain → enter business details → pay.
 
-However, the current out-of-the-box customer journey is too difficult for non-technical customers.
+Until Webco Cloud checkout and accounts exist, Client Login on the public site continues to open the existing HostShop customer area. Do not remove that link in the meantime.
 
-A major future objective is to reduce signup/payment friction.
-
-Current normal HostShop onboarding can involve:
-
-- creating an account
-- verifying email
-- entering customer details
-- security setup
-- payment / purchase
-
-Past Webco customers have often needed manual help through this process.
-
-The desired customer experience is closer to:
-
-> Choose service → enter business details → pay.
-
-Possible later approaches include:
-
-- Webco creating the customer account first
-- assigning services manually
-- using custom work quotes
-- using hidden HostShop products with direct links
-- using the 20i reseller API for deeper automation
-
-Do not build API automation yet.
-
-First understand and improve the existing flow.
+Do not invest in making HostShop the onboarding product. Hidden products, custom quotes and HostShop payment methods are not the planned path. Provisioning goes through the 20i Reseller API. Payment and invoices go through Webco Cloud.
 
 ---
 
@@ -459,21 +513,11 @@ Do not introduce a full backend framework just for contact forms.
 
 ## Databases
 
-20i provides unlimited MySQL databases, but this does not mean every website should use one.
+Two different rules:
 
-Default rule:
+**Customer websites.** Static first. 20i provides MySQL, but a training-provider site does not get a database unless a real feature needs stored data, such as course availability, simple bookings, protected resources or a lightweight portal.
 
-> Static first.
-
-Use PHP/MySQL only when a genuine feature requires persistent application data.
-
-Examples that may justify a database later:
-
-- course availability
-- simple bookings
-- protected resources
-- customer application tracking
-- lightweight client portals
+**Webco Cloud platform.** Accounts, orders, invoices, provisioning state and internal work tickets will need a database. That database is part of Phase 3 in the plan above. Do not create it while the public site and the domain-search proof of concept are the active work.
 
 ---
 
@@ -586,23 +630,25 @@ All layouts must work well on small screens first.
 
 There is currently no requirement for a public CMS.
 
-### No database in v1
+### No database on the public site
 
-There is currently no requirement for persistent site data.
+The current Astro site does not store customer data. The platform database waits for Phase 3.
 
-### No custom authentication
+### No custom authentication yet
 
-Client Login links to the existing Webco customer platform.
+Client Login still links to the existing HostShop customer area. Webco Cloud accounts are Phase 3. Do not add sign-in before then.
 
-### No premature API work
+### API work starts with domain search
 
-Do not build against the 20i API until the normal HostShop / StackCP integration has been assessed and there is a clear need.
+Do not build billing, provisioning or account automation yet. The first 20i Reseller API proof of concept, when requested, is domain availability / search only.
 
 ---
 
-## Suggested first implementation milestone
+## Public site milestone
 
-Create a polished but intentionally small Astro v1 containing:
+This milestone is already built. Keep it working. Do not expand it into the platform.
+
+The public site contains:
 
 1. global layout
 2. header / navigation
@@ -637,9 +683,11 @@ Mark missing values clearly for later configuration.
 
 ---
 
-## Initial Cursor task
+## Initial build
 
-Start by:
+This has been done. The repository is the static Astro site, with `dist/` committed for 20i.
+
+The original task was:
 
 1. inspecting the empty/new repository
 2. scaffolding a clean Astro project
@@ -655,55 +703,11 @@ The objective is to establish a strong, reusable foundation — not to finish ev
 
 ---
 
-## Future phases
+## What not to build yet
 
-These are intentionally **not** part of the first implementation unless explicitly requested.
+The public Astro site stays as it is.
 
-### Phase 2 — HostShop / StackCP refinement
-
-- improve Webco Cloud branding
-- simplify navigation where possible
-- remove irrelevant customer-facing options
-- test purchase / payment / onboarding friction
-- improve support journey
-- test direct product links
-- investigate hidden products
-- investigate custom work quotes
-
-### Phase 3 — Training-provider site master
-
-Build the reusable Astro foundation used for the £595 and £995 website offers.
-
-### Phase 4 — Demo sites
-
-Build two fictional but realistic demo websites:
-
-1. small independent training provider
-2. established multi-course / multi-location provider
-
-These demos should also prove the reusable master architecture.
-
-### Phase 5 — Webco Media sales page
-
-Build the dedicated:
-
-> Websites for HGV & transport training providers
-
-landing page on Webco Media.
-
-### Phase 6 — LearnHGV integration
-
-Add a discreet provider-dashboard link/card to the Webco Media offer.
-
-### Phase 7 — Optional automation
-
-Only after real customers expose actual friction:
-
-- 20i reseller API
-- streamlined provisioning
-- simplified customer dashboard
-- automated customer/account creation
-- deeper billing workflow integration
+Do not start authentication, checkout, billing, provisioning, the 20i API, or a database until that phase is explicitly requested. The first API exception is Phase 1, and only when it is asked for: domain availability / search.
 
 ---
 

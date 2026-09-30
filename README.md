@@ -14,6 +14,4 @@ npm run check
 npm run build
 ```
 
-`dist/` is the static site to upload to the 20i Linux document root. No Node process, database or CMS is required on the server.
-
-Production deploy should follow the GitHub → 20i approach already used for drivercompliance.co.uk. That workflow is not in this repository yet.
+`npm run build` writes the static site to `dist/`. That folder is committed so 20i can deploy it. Point the package document root at `dist`. No Node process, database or CMS is required on the server.

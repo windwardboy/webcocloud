@@ -40,6 +40,8 @@ export const websiteOffers = [
   {
     id: "essential",
     name: "Essential Website",
+    startPackage: "essential",
+    startName: "Webco Essential",
     price: "£595",
     audience: "Independent instructors and smaller providers",
     summary: "A simple, professional site that brings enquiries for one main location.",
@@ -54,6 +56,8 @@ export const websiteOffers = [
   {
     id: "training",
     name: "Training Provider Website",
+    startPackage: "professional",
+    startName: "Webco Professional",
     price: "£995",
     audience: "Established providers with several courses or locations",
     summary: "Room for each course and each training location to have its own page.",

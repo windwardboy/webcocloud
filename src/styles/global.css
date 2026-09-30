@@ -650,10 +650,37 @@ main:has(> .cta-band:last-child) {
 #essential,
 #training,
 #example-essential,
-#example-training,
-#choose-essential,
-#choose-training {
+#example-training {
   scroll-margin-top: 5.5rem;
+}
+
+.choice-card {
+  width: 100%;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.choice-title {
+  font-family: var(--serif);
+  font-size: 1.35rem;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+
+#new-domain,
+#existing-domain {
+  margin-top: 1rem;
+}
+
+.choice-card[aria-pressed="true"] {
+  border-color: var(--accent);
+  box-shadow: inset 0 3px 0 var(--accent);
+}
+
+.start-note {
+  margin-top: 0.9rem;
+  color: var(--muted);
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -91,7 +91,7 @@ A prospect should be able to:
 7. trigger automatic provisioning in the background
 8. create an internal work ticket or order so Webco can customise the provisioned site
 
-Do not build this funnel yet. The sections below map what it will need and in what order.
+The public offer page and the first onboarding step are in place. Business details, payment, provisioning and the internal work ticket are not.
 
 ### Backend components required later
 
@@ -128,10 +128,12 @@ The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Clie
 - Server-side only.
 - No customer account, payment, provisioning, order record or database.
 - Confirm authentication, the real request and response, failures, and whether the result is good enough for a later “new domain or I already have one” step.
-- The check is on the public domains page. It is not registration, checkout or the onboarding funnel.
+- The same endpoint is used on the domains page and, for a new domain, on `/start/`. It does not register the domain.
 
-**Phase 2 — Offers and example sites.**  
-Explain Essential Website and Training Provider Website, and show one example site for each. Package selection can be visible. Checkout, accounts and provisioning stay off.
+**Phase 2 — Offers, examples and domain choice. Done to this point.**  
+`/websites/` explains Essential Website (£595) and the Training Provider Website (£995), and links to the two demonstration sites. Choose this website opens `/start/?package=essential` or `/start/?package=professional`.
+
+`/start/` confirms Webco Essential or Webco Professional, then asks whether the domain is new or already owned. A new domain is checked with the existing domain-search endpoint. An existing domain is typed in. The package, the domain path (`new` or `existing`) and the captured domain are stored in the browser under `localStorage` key `webco-cloud-onboarding`. Nothing is written to a database. There is no account, payment, registration or provisioning, and no next-step button.
 
 **Phase 3 — Accounts and saved orders.**  
 Introduce the database and Webco Cloud customer accounts. Store the chosen package, the domain choice, and the business and contact details. Still no card payment and no 20i provisioning.
@@ -705,9 +707,7 @@ The objective is to establish a strong, reusable foundation — not to finish ev
 
 ## What not to build yet
 
-The public Astro site stays as it is.
-
-Do not start authentication, checkout, billing, provisioning or a database until that phase is explicitly requested. Domain availability search is the only 20i API call in place.
+Do not start authentication, checkout, billing, provisioning or a database until that phase is explicitly requested. The only 20i API call is domain availability search. `/start/` keeps the chosen package and domain in the browser until a later step is built.
 
 ---
 

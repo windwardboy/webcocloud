@@ -68,7 +68,7 @@ const questions = [
                 <a class="button button-quiet" href={offer.exampleUrl} target="_blank" rel="noopener noreferrer">
                   View example
                 </a>
-                <a class="button" href={`#choose-${offer.id}`}>Choose this website</a>
+                <a class="button" href={`/start/?package=${offer.startPackage}`}>Choose this website</a>
               </div>
             </article>
           ))
@@ -107,44 +107,6 @@ const questions = [
         <a class="button button-quiet" href={offers.training.exampleUrl} target="_blank" rel="noopener noreferrer">
           View the Training Provider example
         </a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="choose-essential" aria-labelledby="choose-essential-heading">
-    <div class="wrap">
-      <div class="panel">
-        <div>
-          <p class="eyebrow">{offers.essential.price}</p>
-          <h2 id="choose-essential-heading">{offers.essential.name}</h2>
-        </div>
-        <div>
-          <p>
-            Ask us to build the Essential Website and tell support the package name. We confirm the details and arrange payment with you.
-          </p>
-          <div class="actions">
-            <a class="button" href="/support/">Contact support</a>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="choose-training" aria-labelledby="choose-training-heading">
-    <div class="wrap">
-      <div class="panel">
-        <div>
-          <p class="eyebrow">{offers.training.price}</p>
-          <h2 id="choose-training-heading">{offers.training.name}</h2>
-        </div>
-        <div>
-          <p>
-            Ask us to build the Training Provider Website and tell support the package name. We confirm the details and arrange payment with you.
-          </p>
-          <div class="actions">
-            <a class="button" href="/support/">Contact support</a>
-          </div>
-        </div>
       </div>
     </div>
   </section>

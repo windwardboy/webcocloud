@@ -1,0 +1,165 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import CtaBand from "../components/CtaBand.astro";
+import { websiteOffers } from "../config/site";
+
+const description =
+  "Essential Website at £595, or the Training Provider Website at £995, for HGV and transport training providers.";
+
+const offers = {
+  essential: websiteOffers[0],
+  training: websiteOffers[1],
+};
+
+const questions = [
+  {
+    question: "What if I already have a website?",
+    answer:
+      "Either package can replace the site you have now. Webco Media builds the new one. Webco Cloud then looks after hosting, the domain and email.",
+  },
+  {
+    question: "Can I upgrade later?",
+    answer:
+      "Yes. Start with Essential when you have one location and a straightforward offer. When you need separate course and location pages, we move you onto the Training Provider Website and quote that work.",
+  },
+  {
+    question: "What if I already have a domain?",
+    answer:
+      "We connect the domain you already own to the website and to your business email. A new domain can be registered during setup when you need one.",
+  },
+  {
+    question: "What if I add more courses or locations?",
+    answer:
+      "Essential covers one main location and your core course information. Several courses or locations, each with its own page, are what the Training Provider Website is for.",
+  },
+  {
+    question: "Is booking, a shop, or custom software included?",
+    answer:
+      "Both packages are enquiry websites. Online booking, ecommerce and bespoke systems are quoted separately.",
+  },
+];
+---
+
+<BaseLayout title="Website services" description={description}>
+  <PageHero eyebrow="HGV and transport training" title="Two websites. A clear choice.">
+    <p>
+      Essential is for a smaller provider with one main location. The Training Provider Website is for several courses or locations.
+    </p>
+  </PageHero>
+
+  <section class="section" aria-labelledby="offers-heading">
+    <div class="wrap">
+      <h2 id="offers-heading" class="visually-hidden">Website packages</h2>
+      <div class="cards cards-2">
+        {
+          websiteOffers.map((offer) => (
+            <article class="card offer-card" id={offer.id}>
+              <p class="eyebrow">{offer.audience}</p>
+              <h3>{offer.name}</h3>
+              <p class="price">{offer.price}</p>
+              <p>{offer.summary}</p>
+              <ul class="offer-points">
+                {offer.points.map((point) => (
+                  <li>{point}</li>
+                ))}
+              </ul>
+              <div class="actions">
+                <a class="button button-quiet" href={`#example-${offer.id}`}>View example</a>
+                <a class="button" href={`#choose-${offer.id}`}>Choose this website</a>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="example-essential" aria-labelledby="example-essential-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">{offers.essential.name}</p>
+        <h2 id="example-essential-heading">A smaller provider, one location</h2>
+      </div>
+      <p class="section-intro">
+        The Essential example is a straightforward instructor site. Visitors see the training on offer, the one location, and a clear way to call or send an enquiry. Courses stay on the core pages rather than each having a page of their own.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="example-training" aria-labelledby="example-training-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">{offers.training.name}</p>
+        <h2 id="example-training-heading">Several courses and locations</h2>
+      </div>
+      <p class="section-intro">
+        The Training Provider example gives each course its own page and each training location its own page. Someone searching locally can land on the right place, then follow that course through to an enquiry.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" id="choose-essential" aria-labelledby="choose-essential-heading">
+    <div class="wrap">
+      <div class="panel">
+        <div>
+          <p class="eyebrow">{offers.essential.price}</p>
+          <h2 id="choose-essential-heading">{offers.essential.name}</h2>
+        </div>
+        <div>
+          <p>
+            Ask us to build the Essential Website and tell support the package name. We confirm the details and arrange payment with you.
+          </p>
+          <div class="actions">
+            <a class="button" href="/support/">Contact support</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="choose-training" aria-labelledby="choose-training-heading">
+    <div class="wrap">
+      <div class="panel">
+        <div>
+          <p class="eyebrow">{offers.training.price}</p>
+          <h2 id="choose-training-heading">{offers.training.name}</h2>
+        </div>
+        <div>
+          <p>
+            Ask us to build the Training Provider Website and tell support the package name. We confirm the details and arrange payment with you.
+          </p>
+          <div class="actions">
+            <a class="button" href="/support/">Contact support</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="faq-heading">Common questions</h2>
+      </div>
+      <ul class="qa">
+        {
+          questions.map((item) => (
+            <li>
+              <h3>{item.question}</h3>
+              <p>{item.answer}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <CtaBand
+    title="One location, or several?"
+    text="Choose Essential for a smaller setup. Choose the Training Provider Website when courses or locations need their own pages."
+  >
+    <a class="button" href="#essential">Essential Website</a>
+    <a class="button button-quiet" href="#training">Training Provider Website</a>
+  </CtaBand>
+</BaseLayout>

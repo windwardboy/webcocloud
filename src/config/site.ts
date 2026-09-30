@@ -29,10 +29,41 @@ export const site = {
 
 export const nav = [
   { href: "/", label: "Home" },
+  { href: "/websites/", label: "Websites" },
   { href: "/hosting/", label: "Hosting" },
   { href: "/domains/", label: "Domains" },
   { href: "/email/", label: "Email" },
   { href: "/support/", label: "Support" },
+] as const;
+
+export const websiteOffers = [
+  {
+    id: "essential",
+    name: "Essential Website",
+    price: "£595",
+    audience: "Independent instructors and smaller providers",
+    summary: "A simple, professional site that brings enquiries for one main location.",
+    points: [
+      "One main training location",
+      "Core course and service information",
+      "Enquiry and contact path",
+      "First year of hosting, SSL, domain setup and business email",
+    ],
+  },
+  {
+    id: "training",
+    name: "Training Provider Website",
+    price: "£995",
+    audience: "Established providers with several courses or locations",
+    summary: "Room for each course and each training location to have its own page.",
+    points: [
+      "A page for each course",
+      "A page for each training location",
+      "Stronger local search structure",
+      "A fuller path from a course through to enquiry",
+      "First year of hosting, SSL, domain setup and business email",
+    ],
+  },
 ] as const;
 
 /** Working commercial figures from the project brief. Still subject to review. */

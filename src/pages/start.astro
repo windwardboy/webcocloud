@@ -104,6 +104,9 @@ const packages = Object.fromEntries(
         </div>
 
         <p id="start-saved" class="start-note" role="status"></p>
+        <div class="actions">
+          <a class="button" id="start-continue" href="/start/details/" aria-disabled="true">Continue</a>
+        </div>
       </div>
     </section>
   </div>
@@ -147,8 +150,18 @@ const packages = Object.fromEntries(
     return domain;
   }
 
+  function updateContinue(state) {
+    const link = document.getElementById("start-continue");
+    if (!link) return;
+    const ready = Boolean(chosen && state.domainPath && state.domain);
+    link.setAttribute("aria-disabled", ready ? "false" : "true");
+    if (ready) link.removeAttribute("tabindex");
+    else link.tabIndex = -1;
+  }
+
   function showSaved(state) {
     const note = document.getElementById("start-saved");
+    updateContinue(state);
     if (!note || !chosen) return;
     if (state.domain && state.domainPath) {
       note.textContent = packageData[chosen].name + " will use " + state.domain + ".";
@@ -220,6 +233,10 @@ const packages = Object.fromEntries(
     const form = document.getElementById("domain-search");
     const result = document.getElementById("domain-search-result");
     const button = form.querySelector("button");
+
+    document.getElementById("start-continue").addEventListener("click", (event) => {
+      if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
+    });
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();

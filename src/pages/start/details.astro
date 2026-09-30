@@ -1,0 +1,245 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+
+const description = "Business and contact details for your Webco website order.";
+---
+
+<BaseLayout title="Business details" description={description}>
+  <PageHero eyebrow="Website setup" title="Your business details">
+    <p>These details stay in this browser. This page does not create an account or take payment.</p>
+  </PageHero>
+
+  <section class="section" id="details-missing" hidden>
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Choose a package and domain first</h2>
+        <p class="section-intro">Business details come after the website package and domain have been chosen.</p>
+      </div>
+      <div class="actions">
+        <a class="button" href="/websites/">Choose a website</a>
+      </div>
+    </div>
+  </section>
+
+  <div id="details-flow" hidden>
+    <section class="section" aria-labelledby="order-summary-heading">
+      <div class="wrap">
+        <article class="card">
+          <p class="eyebrow">So far</p>
+          <h2 id="order-summary-heading">Your selection</h2>
+          <dl class="summary">
+            <div>
+              <dt>Package</dt>
+              <dd data-summary="package"></dd>
+            </div>
+            <div>
+              <dt>Price</dt>
+              <dd data-summary="price"></dd>
+            </div>
+            <div>
+              <dt>Domain</dt>
+              <dd data-summary="domain"></dd>
+            </div>
+          </dl>
+        </article>
+      </div>
+    </section>
+
+    <section class="section" aria-labelledby="details-heading">
+      <div class="wrap">
+        <div class="section-head">
+          <h2 id="details-heading">Contact and address</h2>
+        </div>
+        <form id="details-form" class="details-form" novalidate>
+          <div class="domain-field span-2">
+            <label for="business-name">Business / trading name</label>
+            <input id="business-name" name="businessName" type="text" autocomplete="organization" maxlength="120" required />
+            <p class="field-error" data-error-for="businessName"></p>
+          </div>
+          <div class="domain-field">
+            <label for="contact-name">Contact name</label>
+            <input id="contact-name" name="contactName" type="text" autocomplete="name" maxlength="120" required />
+            <p class="field-error" data-error-for="contactName"></p>
+          </div>
+          <div class="domain-field">
+            <label for="email">Email address</label>
+            <input id="email" name="email" type="email" autocomplete="email" maxlength="160" required />
+            <p class="field-error" data-error-for="email"></p>
+          </div>
+          <div class="domain-field">
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" placeholder="07123 456789" required />
+            <p class="field-error" data-error-for="phone"></p>
+          </div>
+          <fieldset class="contact-choice span-2">
+            <legend>Preferred contact method</legend>
+            <label><input type="radio" name="contactMethod" value="email" /> Email</label>
+            <label><input type="radio" name="contactMethod" value="phone" /> Phone</label>
+            <label><input type="radio" name="contactMethod" value="whatsapp" /> WhatsApp</label>
+            <p class="field-error" data-error-for="contactMethod"></p>
+          </fieldset>
+          <div class="domain-field span-2">
+            <label for="address1">Address line 1</label>
+            <input id="address1" name="address1" type="text" autocomplete="address-line1" maxlength="120" required />
+            <p class="field-error" data-error-for="address1"></p>
+          </div>
+          <div class="domain-field span-2">
+            <label for="address2">Address line 2 (optional)</label>
+            <input id="address2" name="address2" type="text" autocomplete="address-line2" maxlength="120" />
+          </div>
+          <div class="domain-field">
+            <label for="town">Town / city</label>
+            <input id="town" name="town" type="text" autocomplete="address-level2" maxlength="80" required />
+            <p class="field-error" data-error-for="town"></p>
+          </div>
+          <div class="domain-field">
+            <label for="county">County (optional)</label>
+            <input id="county" name="county" type="text" autocomplete="address-level1" maxlength="80" />
+          </div>
+          <div class="domain-field">
+            <label for="postcode">Postcode</label>
+            <input id="postcode" name="postcode" type="text" autocomplete="postal-code" autocapitalize="characters" maxlength="10" placeholder="BS1 4ST" required />
+            <p class="field-error" data-error-for="postcode"></p>
+          </div>
+          <div class="domain-field">
+            <label for="company-number">Company number (optional)</label>
+            <input id="company-number" name="companyNumber" type="text" maxlength="8" autocapitalize="characters" />
+            <p class="field-error" data-error-for="companyNumber"></p>
+          </div>
+          <div class="actions span-2">
+            <a class="button button-quiet" id="details-back" href="/start/">Back</a>
+            <button class="button" type="submit">Continue</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script is:inline>
+  const storageKey = "webco-cloud-onboarding";
+  const fields = [
+    "businessName",
+    "contactName",
+    "email",
+    "phone",
+    "contactMethod",
+    "address1",
+    "address2",
+    "town",
+    "county",
+    "postcode",
+    "companyNumber",
+  ];
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function writeDetails(details) {
+    const state = readState();
+    state.details = details;
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
+
+  function normalisePostcode(value) {
+    const compact = String(value || "").toUpperCase().replace(/\s+/g, "");
+    if (!/^[A-Z]{1,2}\d[A-Z\d]?\d[A-Z]{2}$/.test(compact)) return "";
+    return compact.slice(0, -3) + " " + compact.slice(-3);
+  }
+
+  function validPhone(value) {
+    const compact = String(value || "").replace(/[\s()-]/g, "");
+    return /^(?:0\d{10}|\+44\d{10}|0044\d{10})$/.test(compact);
+  }
+
+  function validCompanyNumber(value) {
+    if (!value) return true;
+    return /^(?:\d{8}|[A-Z]{2}\d{6})$/i.test(value);
+  }
+
+  function collect() {
+    const form = document.getElementById("details-form");
+    const data = Object.fromEntries(new FormData(form).entries());
+    fields.forEach((name) => {
+      data[name] = String(data[name] || "").trim();
+    });
+    data.postcode = data.postcode.toUpperCase();
+    data.companyNumber = data.companyNumber.toUpperCase();
+    return data;
+  }
+
+  function errorsFor(data) {
+    const errors = {};
+    if (data.businessName.length < 2) errors.businessName = "Enter the business or trading name.";
+    if (data.contactName.length < 2) errors.contactName = "Enter a contact name.";
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) errors.email = "Enter a valid email address.";
+    if (!validPhone(data.phone)) errors.phone = "Enter a UK phone number, such as 07123 456789.";
+    if (!["email", "phone", "whatsapp"].includes(data.contactMethod)) {
+      errors.contactMethod = "Choose email, phone or WhatsApp.";
+    }
+    if (data.address1.length < 2) errors.address1 = "Enter the first line of the address.";
+    if (data.town.length < 2) errors.town = "Enter the town or city.";
+    if (!normalisePostcode(data.postcode)) errors.postcode = "Enter a UK postcode, such as BS1 4ST.";
+    if (!validCompanyNumber(data.companyNumber)) errors.companyNumber = "Enter a company number, or leave this blank.";
+    return errors;
+  }
+
+  function showErrors(errors) {
+    document.querySelectorAll("[data-error-for]").forEach((item) => {
+      item.textContent = errors[item.getAttribute("data-error-for")] || "";
+    });
+  }
+
+  function fill(details) {
+    const form = document.getElementById("details-form");
+    fields.forEach((name) => {
+      const value = details[name] || "";
+      if (name === "contactMethod") {
+        const input = form.querySelector('input[name="contactMethod"][value="' + value + '"]');
+        if (input) input.checked = true;
+        return;
+      }
+      const input = form.elements[name];
+      if (input) input.value = value;
+    });
+  }
+
+  const state = readState();
+  const ready = Boolean(state.package && state.domainPath && state.domain && state.packageName && state.price);
+  if (!ready) {
+    document.getElementById("details-missing").hidden = false;
+  } else {
+    document.getElementById("details-flow").hidden = false;
+    const pathLabel = state.domainPath === "new" ? "New domain" : "Existing domain";
+    document.querySelector('[data-summary="package"]').textContent = state.packageName;
+    document.querySelector('[data-summary="price"]').textContent = state.price;
+    document.querySelector('[data-summary="domain"]').textContent = pathLabel + ", " + state.domain;
+    document.getElementById("details-back").href = "/start/?package=" + encodeURIComponent(state.package);
+    fill(state.details || {});
+
+    const form = document.getElementById("details-form");
+    form.addEventListener("input", () => writeDetails(collect()));
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      const data = collect();
+      if (data.postcode && normalisePostcode(data.postcode)) data.postcode = normalisePostcode(data.postcode);
+      const errors = errorsFor(data);
+      showErrors(errors);
+      writeDetails(data);
+      if (Object.keys(errors).length) {
+        const first = form.querySelector("[data-error-for='" + Object.keys(errors)[0] + "']");
+        const field = form.querySelector("[name='" + Object.keys(errors)[0] + "']");
+        if (field && field.focus) field.focus();
+        else if (first) first.scrollIntoView();
+        return;
+      }
+      window.location.href = "/start/review/";
+    });
+  }
+</script>

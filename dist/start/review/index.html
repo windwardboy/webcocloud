@@ -1,0 +1,63 @@
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Review — Webco Cloud</title><meta name="description" content="Review the website package, domain and business details before checkout."><link rel="canonical" href="https://webcocloud.net/start/review/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Review — Webco Cloud"><meta property="og:description" content="Review the website package, domain and business details before checkout."><meta property="og:url" content="https://webcocloud.net/start/review/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/PageHero.jUiBgMs1.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/favicon.svg" width="32" height="32" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><nav aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="button" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Client login</a></li></ul></nav></div></header><main id="content"><section class="hero"><div class="wrap"><p class="eyebrow">Website setup</p><h1>Review your details</h1><div class="hero-body"><p>Check the package, domain and business details. Checkout is not connected yet, so this page does not take payment or place an order.</p></div></div></section><section class="section" id="review-missing" hidden><div class="wrap"><div class="section-head"><h2>Nothing to review yet</h2><p class="section-intro">Choose a website and add the business details first.</p></div><div class="actions"><a class="button" href="/websites/">Choose a website</a><a class="button button-quiet" href="/start/details/">Business details</a></div></div></section><section class="section" id="review-flow" hidden><div class="wrap"><article class="card"><h2>Order summary</h2><dl class="summary" id="review-summary"></dl><p class="checkout-note">Checkout is not connected yet. Nothing on this page takes payment, sends an email, or places an order.</p><div class="actions"><a class="button button-quiet" href="/start/details/">Back to details</a></div></article></div></section></main><footer class="site-footer"><div class="wrap footer-inner"><div><p class="footer-brand">Webco Cloud</p><p>Hosting, domains, email and support for websites built by Webco Media.</p></div><div><p class="footer-label">Services</p><ul class="footer-nav"><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li></ul></div><div><p class="footer-label">Customers</p><ul class="footer-nav"><li><a href="/support/">Support</a></li><li><a href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage">Client login</a></li></ul></div></div></footer></body></html><script>
+  const storageKey = "webco-cloud-onboarding";
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function row(label, value) {
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = label;
+    detail.textContent = value;
+    item.append(term, detail);
+    return item;
+  }
+
+  const state = readState();
+  const details = state.details || {};
+  const complete = Boolean(
+    state.package &&
+      state.packageName &&
+      state.price &&
+      state.domainPath &&
+      state.domain &&
+      details.businessName &&
+      details.contactName &&
+      details.email &&
+      details.phone &&
+      details.address1 &&
+      details.town &&
+      details.postcode &&
+      details.contactMethod,
+  );
+
+  if (!complete) {
+    document.getElementById("review-missing").hidden = false;
+  } else {
+    document.getElementById("review-flow").hidden = false;
+    const summary = document.getElementById("review-summary");
+    const method = { email: "Email", phone: "Phone", whatsapp: "WhatsApp" }[details.contactMethod] || details.contactMethod;
+    const address = [details.address1, details.address2, details.town, details.county, details.postcode]
+      .filter(Boolean)
+      .join(", ");
+    const rows = [
+      ["Package", state.packageName],
+      ["Price", state.price],
+      ["Domain", (state.domainPath === "new" ? "New domain" : "Existing domain") + ", " + state.domain],
+      ["Business / trading name", details.businessName],
+      ["Contact name", details.contactName],
+      ["Email address", details.email],
+      ["Phone number", details.phone],
+      ["Preferred contact method", method],
+      ["Address", address],
+    ];
+    if (details.companyNumber) rows.push(["Company number", details.companyNumber]);
+    rows.forEach(([label, value]) => summary.append(row(label, value)));
+  }
+</script>

@@ -72,19 +72,20 @@ export const websiteOffers = [
   },
 ] as const;
 
-/** Working commercial figures from the project brief. Still subject to review. */
+/** Agreed website-package prices. */
 export const commercial = {
-  reviewNote: "These are working prices and are still subject to final commercial review.",
   hostingRenewal: {
-    name: "Website hosting renewal",
-    price: "About £99 a year",
-    summary: "Basic website hosting after the first year.",
+    name: "Standard hosting",
+    price: "£99/year",
+    summary:
+      "The first 12 months of hosting are included. After that, standard hosting is £99/year if Managed Care is not taken.",
   },
   managedCare: {
     name: "Managed Care",
-    price: "£69 a month",
+    essential: "£39/month",
+    professional: "£59/month",
     summary:
-      "Hosting, backups, maintenance, monitoring, support and routine website content changes. This includes hosting, so a separate hosting renewal is not required while Managed Care is active.",
+      "Hosting, maintenance, routine content updates and support. It begins when the website goes live and includes hosting, so a separate hosting renewal is not required while Managed Care is active.",
     allowance:
       "About 30 minutes of routine content changes a month, including reasonable course, pricing and location updates. Unused time does not roll over. Larger changes are quoted separately.",
   },

@@ -1,0 +1,131 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import { commercial } from "../../config/site";
+
+const description = "Choose Managed Care or standard hosting for your Webco website.";
+const standardHosting =
+  "Your first 12 months of hosting are included. After that, standard hosting is £99/year.";
+---
+
+<BaseLayout title="Managed Care" description={description}>
+  <PageHero eyebrow="Website setup" title="Managed Care">
+    <p>
+      Managed Care includes hosting, maintenance, routine content updates and support. It begins when the website goes live.
+    </p>
+  </PageHero>
+
+  <section class="section" id="care-missing" hidden>
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Review your details first</h2>
+        <p class="section-intro">Managed Care is offered after the website package and business details are in place.</p>
+      </div>
+      <div class="actions">
+        <a class="button" href="/start/review/">Review</a>
+        <a class="button button-quiet" href="/websites/">Choose a website</a>
+      </div>
+    </div>
+  </section>
+
+  <div id="care-flow" hidden>
+    <section class="section" aria-labelledby="care-offer-heading">
+      <div class="wrap">
+        <article class="card">
+          <p class="eyebrow" data-care-package></p>
+          <h2 id="care-offer-heading">Managed Care</h2>
+          <p class="price" id="care-price"></p>
+          <p>This includes hosting, so a separate hosting renewal is not required while Managed Care is active.</p>
+        </article>
+
+        <div class="cards cards-2" role="group" aria-label="Managed Care choice">
+          <button class="card choice-card" type="button" data-care="managed" aria-pressed="false">
+            <span class="choice-title">Add Managed Care</span>
+            <p data-care-add></p>
+          </button>
+          <button class="card choice-card" type="button" data-care="standard" aria-pressed="false">
+            <span class="choice-title">No thanks — use standard hosting</span>
+            <p>Keep the website package without a monthly care plan.</p>
+          </button>
+        </div>
+
+        <p id="care-standard" class="checkout-note" hidden>{standardHosting}</p>
+
+        <div class="actions">
+          <a class="button" id="care-continue" href="/start/checkout/" aria-disabled="true">Continue</a>
+          <a class="button button-quiet" href="/start/review/">Back</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</BaseLayout>
+
+<script is:inline define:vars={{ carePrices: { essential: commercial.managedCare.essential, professional: commercial.managedCare.professional } }}>
+  const storageKey = "webco-cloud-onboarding";
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function writeCare(care) {
+    const state = readState();
+    state.care = care;
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
+
+  function updateContinue(ready) {
+    const link = document.getElementById("care-continue");
+    link.setAttribute("aria-disabled", ready ? "false" : "true");
+    if (ready) link.removeAttribute("tabindex");
+    else link.tabIndex = -1;
+  }
+
+  const state = readState();
+  const details = state.details || {};
+  const price = carePrices[state.package];
+  const ready = Boolean(
+    price &&
+      state.packageName &&
+      state.price &&
+      state.domain &&
+      details.businessName &&
+      details.contactName &&
+      details.email,
+  );
+
+  if (!ready) {
+    document.getElementById("care-missing").hidden = false;
+  } else {
+    document.getElementById("care-flow").hidden = false;
+    document.querySelector("[data-care-package]").textContent = state.packageName;
+    document.getElementById("care-price").textContent = price;
+    document.querySelector("[data-care-add]").textContent = "Add " + price + " when the website goes live.";
+    const standardNote = document.getElementById("care-standard");
+    const buttons = document.querySelectorAll("[data-care]");
+
+    function selectChoice(choice) {
+      buttons.forEach((button) => {
+        button.setAttribute("aria-pressed", button.getAttribute("data-care") === choice ? "true" : "false");
+      });
+      standardNote.hidden = choice !== "standard";
+      writeCare(choice === "managed" ? { choice: "managed", price } : { choice: "standard" });
+      updateContinue(true);
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => selectChoice(button.getAttribute("data-care")));
+    });
+
+    document.getElementById("care-continue").addEventListener("click", (event) => {
+      if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
+    });
+
+    if (state.care && (state.care.choice === "managed" || state.care.choice === "standard")) {
+      selectChoice(state.care.choice);
+    }
+  }
+</script>

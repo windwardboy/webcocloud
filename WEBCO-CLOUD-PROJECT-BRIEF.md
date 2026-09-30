@@ -91,7 +91,7 @@ A prospect should be able to:
 7. trigger automatic provisioning in the background
 8. create an internal work ticket or order so Webco can customise the provisioned site
 
-Package selection, domain capture, business details and a read-only review are in place in the browser. Payment, provisioning and the internal work ticket are not.
+Package selection, domain capture, business details, review and the Managed Care choice are in place in the browser. `/start/checkout/` summarises the order. Payment integration, provisioning and the internal work ticket are not.
 
 ### Backend components required later
 
@@ -130,14 +130,16 @@ The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Clie
 - Confirm authentication, the real request and response, failures, and whether the result is good enough for a later “new domain or I already have one” step.
 - The same endpoint is used on the domains page and, for a new domain, on `/start/`. It does not register the domain.
 
-**Phase 2 — Package selection, domain capture, business details and review. Done to this point.**  
+**Phase 2 — Package selection, domain, business details, review and Managed Care. Done to this point.**  
 `/websites/` explains Essential Website (£595) and the Training Provider Website (£995), and links to the two demonstration sites. Choose this website opens `/start/?package=essential` or `/start/?package=professional`.
 
 `/start/` confirms Webco Essential or Webco Professional, then asks whether the domain is new or already owned. A new domain is checked with the existing domain-search endpoint. An existing domain is typed in. Continue is available only after a valid package, a domain path and a valid domain are captured.
 
-`/start/details/` collects the business, contact and UK address, including an optional company number. `/start/review/` shows the package, price, domain and business details, and states that checkout is not connected. Back returns to the previous step without clearing what was entered.
+`/start/details/` collects the business, contact and UK address, including an optional company number. `/start/review/` shows the package, price, domain and business details. Continue goes to `/start/care/`. Back returns to the previous step without clearing what was entered.
 
-All of this is stored in the browser under `localStorage` key `webco-cloud-onboarding`, including a `details` object. Nothing is written to a database. There is no account, payment, registration, provisioning, email or ticket.
+`/start/care/` offers Managed Care for the selected package: **£39/month** with Essential, **£59/month** with Professional. The only other choice is standard hosting. If that is declined, the page states that the first 12 months of hosting are included and standard hosting is then **£99/year**. `/start/checkout/` summarises the package, price, domain, customer and the care choice. It states that payment integration is the next phase. There is no Stripe integration.
+
+All of this is stored in the browser under `localStorage` key `webco-cloud-onboarding`, including `details` and `care`. Nothing is written to a database. There is no account, payment, registration, provisioning, subscription, email or ticket.
 
 **Phase 3 — Accounts and saved orders.**  
 Introduce the database and Webco Cloud customer accounts. Store the chosen package, the domain choice, and the business and contact details. Still no card payment and no 20i provisioning.
@@ -224,36 +226,27 @@ Expected additional capabilities:
 
 This package must be differentiated by business need rather than simply advertised as “more pages”.
 
-### Managed Care — £69/month
+### Managed Care
 
-Optional ongoing service.
+Optional ongoing service. It begins when the website goes live.
 
-Expected inclusions:
+Agreed prices:
 
-- hosting
-- backups
-- maintenance
-- monitoring
-- routine website content changes
-- reasonable course / pricing / location amendments
-- support
+- Essential Website: **£39/month**
+- Training Provider Website (Webco Professional): **£59/month**
 
-Use a clear scope boundary.
+Managed Care includes hosting, maintenance, routine content updates and support. While it is active, a separate hosting renewal is not required.
 
-Current working assumption:
+Current working assumption for the content allowance:
 
 - up to approximately 30 minutes of routine content changes per month
 - unused time does not roll over
 - larger changes are quoted separately
 
-### Hosting after year one
+### Hosting if Managed Care is declined
 
-Current working idea:
-
-- basic website hosting renewal: approximately **£99/year**
-- alternatively the client can use **Managed Care at £69/month**, which includes hosting
-
-These prices are still subject to final commercial review.
+- The first 12 months of hosting are included with the website.
+- After that, standard hosting is **£99/year**.
 
 ---
 
@@ -711,7 +704,7 @@ The objective is to establish a strong, reusable foundation — not to finish ev
 
 ## What not to build yet
 
-Do not start authentication, checkout, billing, provisioning, order emails, tickets or a database until that phase is explicitly requested. The only 20i API call is domain availability search. Package, domain and business details stay in the browser under `webco-cloud-onboarding` until a later step is built.
+Do not start authentication, Stripe or other payment code, billing, provisioning, subscriptions, order emails, tickets or a database until that phase is explicitly requested. The only 20i API call is domain availability search. Package, domain, business details and the Managed Care choice stay in the browser under `webco-cloud-onboarding`. `/start/checkout/` is a summary only. Payment integration is the next phase.
 
 ---
 

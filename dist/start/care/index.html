@@ -1,0 +1,70 @@
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Managed Care — Webco Cloud</title><meta name="description" content="Choose Managed Care or standard hosting for your Webco website."><link rel="canonical" href="https://webcocloud.net/start/care/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Managed Care — Webco Cloud"><meta property="og:description" content="Choose Managed Care or standard hosting for your Webco website."><meta property="og:url" content="https://webcocloud.net/start/care/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/PageHero.jUiBgMs1.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/favicon.svg" width="32" height="32" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><nav aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="button" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Client login</a></li></ul></nav></div></header><main id="content"><section class="hero"><div class="wrap"><p class="eyebrow">Website setup</p><h1>Managed Care</h1><div class="hero-body"><p>Managed Care includes hosting, maintenance, routine content updates and support. It begins when the website goes live.</p></div></div></section><section class="section" id="care-missing" hidden><div class="wrap"><div class="section-head"><h2>Review your details first</h2><p class="section-intro">Managed Care is offered after the website package and business details are in place.</p></div><div class="actions"><a class="button" href="/start/review/">Review</a><a class="button button-quiet" href="/websites/">Choose a website</a></div></div></section><div id="care-flow" hidden><section class="section" aria-labelledby="care-offer-heading"><div class="wrap"><article class="card"><p class="eyebrow" data-care-package></p><h2 id="care-offer-heading">Managed Care</h2><p class="price" id="care-price"></p><p>This includes hosting, so a separate hosting renewal is not required while Managed Care is active.</p></article><div class="cards cards-2" role="group" aria-label="Managed Care choice"><button class="card choice-card" type="button" data-care="managed" aria-pressed="false"><span class="choice-title">Add Managed Care</span><p data-care-add></p></button><button class="card choice-card" type="button" data-care="standard" aria-pressed="false"><span class="choice-title">No thanks — use standard hosting</span><p>Keep the website package without a monthly care plan.</p></button></div><p id="care-standard" class="checkout-note" hidden>Your first 12 months of hosting are included. After that, standard hosting is £99/year.</p><div class="actions"><a class="button" id="care-continue" href="/start/checkout/" aria-disabled="true">Continue</a><a class="button button-quiet" href="/start/review/">Back</a></div></div></section></div></main><footer class="site-footer"><div class="wrap footer-inner"><div><p class="footer-brand">Webco Cloud</p><p>Hosting, domains, email and support for websites built by Webco Media.</p></div><div><p class="footer-label">Services</p><ul class="footer-nav"><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li></ul></div><div><p class="footer-label">Customers</p><ul class="footer-nav"><li><a href="/support/">Support</a></li><li><a href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage">Client login</a></li></ul></div></div></footer></body></html><script>(function(){const carePrices = {"essential":"£39/month","professional":"£59/month"};
+
+  const storageKey = "webco-cloud-onboarding";
+
+  function readState() {
+    try {
+      return JSON.parse(localStorage.getItem(storageKey) || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function writeCare(care) {
+    const state = readState();
+    state.care = care;
+    localStorage.setItem(storageKey, JSON.stringify(state));
+  }
+
+  function updateContinue(ready) {
+    const link = document.getElementById("care-continue");
+    link.setAttribute("aria-disabled", ready ? "false" : "true");
+    if (ready) link.removeAttribute("tabindex");
+    else link.tabIndex = -1;
+  }
+
+  const state = readState();
+  const details = state.details || {};
+  const price = carePrices[state.package];
+  const ready = Boolean(
+    price &&
+      state.packageName &&
+      state.price &&
+      state.domain &&
+      details.businessName &&
+      details.contactName &&
+      details.email,
+  );
+
+  if (!ready) {
+    document.getElementById("care-missing").hidden = false;
+  } else {
+    document.getElementById("care-flow").hidden = false;
+    document.querySelector("[data-care-package]").textContent = state.packageName;
+    document.getElementById("care-price").textContent = price;
+    document.querySelector("[data-care-add]").textContent = "Add " + price + " when the website goes live.";
+    const standardNote = document.getElementById("care-standard");
+    const buttons = document.querySelectorAll("[data-care]");
+
+    function selectChoice(choice) {
+      buttons.forEach((button) => {
+        button.setAttribute("aria-pressed", button.getAttribute("data-care") === choice ? "true" : "false");
+      });
+      standardNote.hidden = choice !== "standard";
+      writeCare(choice === "managed" ? { choice: "managed", price } : { choice: "standard" });
+      updateContinue(true);
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener("click", () => selectChoice(button.getAttribute("data-care")));
+    });
+
+    document.getElementById("care-continue").addEventListener("click", (event) => {
+      if (event.currentTarget.getAttribute("aria-disabled") === "true") event.preventDefault();
+    });
+
+    if (state.care && (state.care.choice === "managed" || state.care.choice === "standard")) {
+      selectChoice(state.care.choice);
+    }
+  }
+})();</script>

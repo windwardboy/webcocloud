@@ -43,6 +43,7 @@ export const websiteOffers = [
     price: "£595",
     audience: "Independent instructors and smaller providers",
     summary: "A simple, professional site that brings enquiries for one main location.",
+    exampleUrl: "https://webco-essential.co.uk/",
     points: [
       "One main training location",
       "Core course and service information",
@@ -56,6 +57,7 @@ export const websiteOffers = [
     price: "£995",
     audience: "Established providers with several courses or locations",
     summary: "Room for each course and each training location to have its own page.",
+    exampleUrl: "https://webco-professional.co.uk/",
     points: [
       "A page for each course",
       "A page for each training location",

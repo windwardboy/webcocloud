@@ -1,0 +1,86 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { commercial, site } from "../config/site";
+import { clientLoginHref, clientLoginIsExternal } from "../lib/links";
+
+const description =
+  "Support for Webco Cloud hosting, domains, email and websites, plus the customer login.";
+const hasContact = site.supportEmail.length > 0 || site.supportPhone.length > 0;
+---
+
+<BaseLayout title="Support" description={description}>
+  <section class="hero">
+    <p class="eyebrow">Support</p>
+    <h1>Help with the website, domain and email</h1>
+    <p class="lede">
+      Existing customers can use the client login for the Webco Cloud customer area. That is where billing, services and support requests are handled.
+    </p>
+    <div class="actions">
+      <a class="button" href={clientLoginHref()}>Client login</a>
+    </div>
+  </section>
+
+  <section class="section" id="client-login" aria-labelledby="login-heading">
+    <h2 id="login-heading">Client login</h2>
+    {
+      clientLoginIsExternal() ? (
+        <p>
+          <a href={site.clientLoginUrl}>Open the Webco Cloud customer area</a>
+        </p>
+      ) : (
+        <p>
+          The customer login link will be published here once the Webco Cloud customer area address is confirmed.
+        </p>
+      )
+    }
+  </section>
+
+  <section class="section" aria-labelledby="ask-heading">
+    <h2 id="ask-heading">What to ask us about</h2>
+    <ul class="plain-list">
+      <li>
+        <h3>The website</h3>
+        <p>Availability, and routine content changes if you are on Managed Care.</p>
+      </li>
+      <li>
+        <h3>The domain and hosting</h3>
+        <p>Renewals, the site staying online, and SSL.</p>
+      </li>
+      <li>
+        <h3>Email setup</h3>
+        <p>The mailboxes we created and the settings we provided.</p>
+      </li>
+    </ul>
+    <p>
+      {commercial.managedCare.allowance} The Managed Care price and hosting renewal are on the <a href="/hosting/#managed-care">hosting page</a>.
+    </p>
+  </section>
+
+  <section class="section" id="contact" aria-labelledby="contact-heading">
+    <h2 id="contact-heading">Contact</h2>
+    {
+      hasContact ? (
+        <ul class="plain-list">
+          {site.supportEmail && (
+            <li>
+              <h3>Email</h3>
+              <p>
+                <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>
+              </p>
+            </li>
+          )}
+          {site.supportPhone && (
+            <li>
+              <h3>Phone</h3>
+              <p>
+                <a href={`tel:${site.supportPhone.replace(/\s+/g, "")}`}>{site.supportPhone}</a>
+              </p>
+            </li>
+          )}
+        </ul>
+      ) : (
+        <p>Support email and phone will be published here before launch.</p>
+      )
+    }
+  </section>
+</BaseLayout>

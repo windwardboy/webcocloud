@@ -1,0 +1,37 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+
+const description =
+  "Domain registration, connection and renewal for websites and email looked after by Webco Cloud.";
+---
+
+<BaseLayout title="Domains" description={description}>
+  <section class="hero">
+    <p class="eyebrow">Domains</p>
+    <h1>Your domain name, kept with the website</h1>
+    <p class="lede">
+      The domain is the address of the website and the business email. Webco Cloud registers it, connects it, and renews it so those keep working together.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="domain-work-heading">
+    <h2 id="domain-work-heading">What we take care of</h2>
+    <ul class="plain-list">
+      <li>
+        <h3>Registration</h3>
+        <p>Where a new domain is part of the website work, it is registered for the business.</p>
+      </li>
+      <li>
+        <h3>An existing domain</h3>
+        <p>A domain you already own can be connected to the website and email.</p>
+      </li>
+      <li>
+        <h3>Renewal</h3>
+        <p>Renewals are billed through your Webco Cloud customer account, with the website service.</p>
+      </li>
+    </ul>
+    <p>
+      Domain prices depend on the name and are confirmed when the domain is ordered. They are not listed as a general tariff here.
+    </p>
+  </section>
+</BaseLayout>

@@ -1,0 +1,80 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { site } from "../config/site";
+import { clientLoginHref } from "../lib/links";
+---
+
+<BaseLayout title={site.name} description={site.description}>
+  <section class="hero">
+    <p class="eyebrow">The platform behind Webco websites</p>
+    <h1>{site.positioning}</h1>
+    <p class="lede">
+      Webco Cloud is for businesses whose websites are built by Webco Media. Hosting, the domain, business email, renewals and support are looked after in one place.
+    </p>
+    <div class="actions">
+      <a class="button" href={clientLoginHref()}>Client login</a>
+      <a class="button button-quiet" href="/support/">Get support</a>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="services-heading">
+    <h2 id="services-heading">What Webco Cloud looks after</h2>
+    <ul class="service-list">
+      <li>
+        <h3><a href="/hosting/">Hosting</a></h3>
+        <p>The website stays online, with SSL, on hosting managed for you.</p>
+      </li>
+      <li>
+        <h3><a href="/domains/">Domains</a></h3>
+        <p>The domain name is registered, connected and renewed with the website.</p>
+      </li>
+      <li>
+        <h3><a href="/email/">Email</a></h3>
+        <p>Professional email addresses on your own domain, set up with clear instructions.</p>
+      </li>
+      <li>
+        <h3><a href="/support/">Support</a></h3>
+        <p>A straightforward place to ask for help with the website, domain and email.</p>
+      </li>
+    </ul>
+  </section>
+
+  <section class="section" aria-labelledby="who-heading">
+    <h2 id="who-heading">Who it is for</h2>
+    <p>
+      The first customers are small and medium UK businesses with a Webco Media website. A particular focus is HGV and transport training providers introduced through LearnHGV.
+    </p>
+    <p>
+      You do not need to manage servers, FTP, databases or DNS. Webco Cloud is the customer-facing home for the website service.
+    </p>
+  </section>
+
+  <section class="section" aria-labelledby="roles-heading">
+    <h2 id="roles-heading">How the names fit together</h2>
+    <ol class="role-list">
+      <li>
+        <p>
+          <strong>LearnHGV</strong> introduces relevant website services to HGV and transport training providers. Buying Webco services does not change LearnHGV ranking, verification or directory treatment. Those stay separate.
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong>Webco Media</strong> designs and builds the website.
+          {
+            site.webcoMediaUrl && (
+              <>
+                {" "}
+                <a href={site.webcoMediaUrl}>Visit Webco Media</a>.
+              </>
+            )
+          }
+        </p>
+      </li>
+      <li>
+        <p>
+          <strong>Webco Cloud</strong> runs hosting, domains, email, billing, renewals and support.
+        </p>
+      </li>
+    </ol>
+  </section>
+</BaseLayout>

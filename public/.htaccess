@@ -1,0 +1,8 @@
+# 20i Linux hosting serves this static site from the document root.
+ErrorDocument 404 /404.html
+
+<IfModule mod_headers.c>
+  <FilesMatch "\.(css|js|svg|webp|avif|woff2)$">
+    Header set Cache-Control "public, max-age=604800"
+  </FilesMatch>
+</IfModule>

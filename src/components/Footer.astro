@@ -1,0 +1,44 @@
+---
+import { nav, site } from "../config/site";
+import { clientLoginHref } from "../lib/links";
+
+const hasLegal = site.legalName.length > 0;
+const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
+---
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <div>
+      <p class="footer-brand">{site.name}</p>
+      <p>
+        Webco Media builds the website. Webco Cloud runs the hosting, domain, email, billing and support.
+      </p>
+      {
+        site.webcoMediaUrl ? (
+          <p>
+            <a href={site.webcoMediaUrl}>Webco Media</a>
+          </p>
+        ) : null
+      }
+      {
+        hasLegal ? (
+          <p>{legalParts.join(" · ")}</p>
+        ) : (
+          <p>Company details will be added here before launch.</p>
+        )
+      }
+    </div>
+    <ul class="footer-nav">
+      {
+        nav.map((item) => (
+          <li>
+            <a href={item.href}>{item.label}</a>
+          </li>
+        ))
+      }
+      <li>
+        <a href={clientLoginHref()}>Client login</a>
+      </li>
+    </ul>
+  </div>
+</footer>

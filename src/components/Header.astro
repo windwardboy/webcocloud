@@ -1,0 +1,41 @@
+---
+import { nav, site } from "../config/site";
+import { clientLoginHref, clientLoginIsExternal, isCurrentPath } from "../lib/links";
+
+const loginHref = clientLoginHref();
+const loginExternal = clientLoginIsExternal();
+---
+
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="logo" href="/">
+      <img src="/favicon.svg" width="28" height="28" alt="" />
+      {site.name}
+    </a>
+    <nav aria-label="Primary">
+      <ul class="nav">
+        {
+          nav.map((item) => (
+            <li>
+              <a
+                href={item.href}
+                aria-current={isCurrentPath(Astro.url.pathname, item.href) ? "page" : undefined}
+              >
+                {item.label}
+              </a>
+            </li>
+          ))
+        }
+        <li>
+          <a
+            class="button"
+            href={loginHref}
+            rel={loginExternal ? "noopener noreferrer" : undefined}
+          >
+            Client login
+          </a>
+        </li>
+      </ul>
+    </nav>
+  </div>
+</header>

@@ -533,6 +533,63 @@ main:has(> .cta-band:last-child) {
   }
 }
 
+.domain-search {
+  gap: 0.35rem;
+  padding: 1.6rem 1.4rem 1.4rem;
+}
+
+.domain-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: end;
+  margin-top: 1rem;
+}
+
+.domain-field {
+  flex: 1 1 16rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.domain-field label {
+  font-weight: 600;
+}
+
+.domain-field input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.domain-search .domain-result {
+  min-height: 1.5rem;
+  margin-top: 0.9rem;
+}
+
+.domain-search .domain-result[data-state="available"] {
+  color: var(--accent-strong);
+  font-weight: 600;
+}
+
+.domain-search .domain-result[data-state="unavailable"] {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.domain-search .domain-result[data-state="error"] {
+  color: var(--muted);
+}
+
+.domain-form .button:disabled {
+  opacity: 0.7;
+}
+
 @media (prefers-reduced-motion: reduce) {
   html {
     scroll-behavior: auto;

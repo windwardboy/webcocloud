@@ -123,12 +123,12 @@ Do not start a phase until it is explicitly requested. Do not pull authenticatio
 The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Client Login still opens the existing HostShop customer area at `my.webcocloud.net`. Keep that link until Webco Cloud accounts exist.
 
 **Phase 1 — Domain availability proof of concept. First API work.**  
-Call the 20i Reseller API for domain search / availability only.
+`public/domain-search.php` checks one domain through the 20i Reseller API. The domains page calls it. The General API key stays in the private server file, not in this repository.
 
 - Server-side only.
 - No customer account, payment, provisioning, order record or database.
 - Confirm authentication, the real request and response, failures, and whether the result is good enough for a later “new domain or I already have one” step.
-- A temporary internal page is enough. It is not the public onboarding funnel.
+- The check is on the public domains page. It is not registration, checkout or the onboarding funnel.
 
 **Phase 2 — Offers and example sites.**  
 Explain Essential Website and Training Provider Website, and show one example site for each. Package selection can be visible. Checkout, accounts and provisioning stay off.
@@ -707,7 +707,7 @@ The objective is to establish a strong, reusable foundation — not to finish ev
 
 The public Astro site stays as it is.
 
-Do not start authentication, checkout, billing, provisioning, the 20i API, or a database until that phase is explicitly requested. The first API exception is Phase 1, and only when it is asked for: domain availability / search.
+Do not start authentication, checkout, billing, provisioning or a database until that phase is explicitly requested. Domain availability search is the only 20i API call in place.
 
 ---
 

@@ -15,6 +15,33 @@ const description =
     </p>
   </PageHero>
 
+  <section class="section" aria-labelledby="domain-search-heading">
+    <div class="wrap">
+      <div class="card domain-search">
+        <h2 id="domain-search-heading">Check a domain</h2>
+        <p>See whether a name such as example.co.uk can be registered. This does not register it.</p>
+        <form id="domain-search" class="domain-form">
+          <div class="domain-field">
+            <label for="domain">Domain name</label>
+            <input
+              id="domain"
+              name="domain"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="253"
+              placeholder="example.co.uk"
+              required
+            />
+          </div>
+          <button class="button" type="submit">Check availability</button>
+        </form>
+        <p id="domain-search-result" class="domain-result" role="status"></p>
+      </div>
+    </div>
+  </section>
+
   <section class="section" aria-labelledby="domain-work-heading">
     <div class="wrap">
       <div class="section-head">
@@ -46,3 +73,46 @@ const description =
     <a class="button button-quiet" href="/support/">Get support</a>
   </CtaBand>
 </BaseLayout>
+
+<script is:inline>
+  const form = document.querySelector("#domain-search");
+  const result = document.querySelector("#domain-search-result");
+  const button = form?.querySelector("button");
+
+  function showResult(state, message) {
+    if (!result) return;
+    result.dataset.state = state;
+    result.textContent = message;
+  }
+
+  form?.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const domain = String(new FormData(form).get("domain") || "").trim();
+    if (!domain || !button) return;
+
+    button.disabled = true;
+    showResult("", "Checking…");
+
+    try {
+      const response = await fetch("/domain-search.php", {
+        method: "POST",
+        headers: { Accept: "application/json" },
+        body: new URLSearchParams({ domain }),
+      });
+      const data = await response.json();
+      if (data.status === "available") {
+        showResult("available", data.domain + " is available.");
+      } else if (data.status === "unavailable") {
+        showResult("unavailable", data.domain + " is not available.");
+      } else if (response.status === 400) {
+        showResult("error", "Enter a domain such as example.co.uk.");
+      } else {
+        showResult("error", "We could not check that domain just now.");
+      }
+    } catch {
+      showResult("error", "We could not check that domain just now.");
+    } finally {
+      button.disabled = false;
+    }
+  });
+</script>

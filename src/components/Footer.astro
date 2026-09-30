@@ -4,15 +4,14 @@ import { clientLoginHref } from "../lib/links";
 
 const hasLegal = site.legalName.length > 0;
 const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
+const serviceLinks = nav.filter((item) => item.href !== "/");
 ---
 
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <div>
       <p class="footer-brand">{site.name}</p>
-      <p>
-        Webco Media builds the website. Webco Cloud runs the hosting, domain, email, billing and support.
-      </p>
+      <p>Hosting, domains, email and support for websites built by Webco Media.</p>
       {
         site.webcoMediaUrl ? (
           <p>
@@ -20,25 +19,26 @@ const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].f
           </p>
         ) : null
       }
-      {
-        hasLegal ? (
-          <p>{legalParts.join(" · ")}</p>
-        ) : (
-          <p>Company details will be added here before launch.</p>
-        )
-      }
+      {hasLegal ? <p class="legal">{legalParts.join(" · ")}</p> : null}
     </div>
-    <ul class="footer-nav">
-      {
-        nav.map((item) => (
-          <li>
-            <a href={item.href}>{item.label}</a>
-          </li>
-        ))
-      }
-      <li>
-        <a href={clientLoginHref()}>Client login</a>
-      </li>
-    </ul>
+    <div>
+      <p class="footer-label">Services</p>
+      <ul class="footer-nav">
+        {
+          serviceLinks.map((item) => (
+            <li>
+              <a href={item.href}>{item.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <div>
+      <p class="footer-label">Customers</p>
+      <ul class="footer-nav">
+        <li><a href="/support/">Support</a></li>
+        <li><a href={clientLoginHref()}>Client login</a></li>
+      </ul>
+    </div>
   </div>
 </footer>

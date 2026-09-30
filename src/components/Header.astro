@@ -1,5 +1,5 @@
 ---
-import { nav, site } from "../config/site";
+import { nav } from "../config/site";
 import { clientLoginHref, clientLoginIsExternal, isCurrentPath } from "../lib/links";
 
 const loginHref = clientLoginHref();
@@ -9,8 +9,8 @@ const loginExternal = clientLoginIsExternal();
 <header class="site-header">
   <div class="wrap header-inner">
     <a class="logo" href="/">
-      <img src="/favicon.svg" width="28" height="28" alt="" />
-      {site.name}
+      <img src="/favicon.svg" width="32" height="32" alt="" />
+      <span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span>
     </a>
     <nav aria-label="Primary">
       <ul class="nav">

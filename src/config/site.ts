@@ -6,7 +6,6 @@
  * company registration details, or legal addresses.
  *
  * Pending:
- * - clientLoginUrl — Webco Cloud HostShop / StackCP customer login
  * - webcoMediaUrl — public Webco Media website
  * - supportEmail
  * - supportPhone
@@ -19,7 +18,7 @@ export const site = {
     "Webco Cloud looks after hosting, domains, business email, renewals and support for websites built by Webco Media.",
   positioning:
     "Websites, hosting, email, domains and support — managed in one place.",
-  clientLoginUrl: "",
+  clientLoginUrl: "https://my.webcocloud.net/basket-summary-login?r=%2Fmanage",
   webcoMediaUrl: "",
   supportEmail: "",
   supportPhone: "",

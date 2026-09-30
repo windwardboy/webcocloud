@@ -10,7 +10,7 @@ const standardHosting =
 
 <BaseLayout title="Checkout" description={description}>
   <PageHero eyebrow="Website setup" title="Checkout">
-    <p>Payment integration is the next phase. This page does not take payment or place an order.</p>
+    <p>Payment integration is the next phase. This page can save a draft order. It does not take payment.</p>
   </PageHero>
 
   <section class="section" id="checkout-missing" hidden>
@@ -31,10 +31,12 @@ const standardHosting =
       <article class="card">
         <h2>Order summary</h2>
         <dl class="summary" id="checkout-summary"></dl>
-        <p class="checkout-note">Payment integration is the next phase. Nothing on this page takes payment, starts a subscription, or places an order.</p>
+        <p class="checkout-note">Payment integration is the next phase. Saving a draft stores this order and does not take payment.</p>
         <div class="actions">
+          <button class="button" type="button" id="save-draft">Save draft order</button>
           <a class="button button-quiet" href="/start/care/">Back</a>
         </div>
+        <p id="draft-result" class="start-note" role="status"></p>
       </article>
     </div>
   </section>
@@ -93,5 +95,36 @@ const standardHosting =
       rows.push(["Hosting", "Standard hosting. " + standardHosting]);
     }
     rows.forEach(([label, value]) => summary.append(row(label, value)));
+
+    const result = document.getElementById("draft-result");
+    const button = document.getElementById("save-draft");
+    if (typeof state.draftOrderId === "string" && /^wc_[a-f0-9]{20}$/.test(state.draftOrderId)) {
+      result.textContent = "Draft order " + state.draftOrderId + ". Payment is not taken.";
+    }
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      result.textContent = "Saving the draft…";
+      try {
+        const response = await fetch("/draft-order.php", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Accept: "application/json" },
+          body: JSON.stringify(readState()),
+        });
+        const data = await response.json();
+        if (!response.ok || typeof data.orderId !== "string" || !/^wc_[a-f0-9]{20}$/.test(data.orderId)) {
+          result.textContent = "The draft order could not be saved.";
+          return;
+        }
+        const next = readState();
+        next.draftOrderId = data.orderId;
+        localStorage.setItem(storageKey, JSON.stringify(next));
+        result.textContent = "Draft order " + data.orderId + ". Payment is not taken.";
+      } catch {
+        result.textContent = "The draft order could not be saved.";
+      } finally {
+        button.disabled = false;
+      }
+    });
   }
 </script>

@@ -45,7 +45,7 @@ The project will use:
 - 20i for hosting, domains, email, SSL and provisioning
 - HostShop / StackCP only as the current temporary customer login and as an internal or advanced fallback
 
-The public site stays static. It has no database and no custom accounts. Do not add those until a later phase in the plan below is explicitly started.
+The public pages stay static. A small PHP layer can store a draft order in MySQL. There are still no custom accounts.
 
 ---
 
@@ -91,7 +91,7 @@ A prospect should be able to:
 7. trigger automatic provisioning in the background
 8. create an internal work ticket or order so Webco can customise the provisioned site
 
-Package selection, domain capture, business details, review and the Managed Care choice are in place in the browser. `/start/checkout/` summarises the order. Payment integration, provisioning and the internal work ticket are not.
+Package selection, domain capture, business details, review and the Managed Care choice are in place in the browser. `/start/checkout/` summarises the order and can save a draft through `/draft-order.php`. Payment integration, provisioning and the internal work ticket are not.
 
 ### Backend components required later
 
@@ -137,12 +137,12 @@ The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Clie
 
 `/start/details/` collects the business, contact and UK address, including an optional company number. `/start/review/` shows the package, price, domain and business details. Continue goes to `/start/care/`. Back returns to the previous step without clearing what was entered.
 
-`/start/care/` offers Managed Care for the selected package: **£39/month** with Essential, **£59/month** with Professional. The only other choice is standard hosting. If that is declined, the page states that the first 12 months of hosting are included and standard hosting is then **£99/year**. `/start/checkout/` summarises the package, price, domain, customer and the care choice. It states that payment integration is the next phase. There is no Stripe integration.
+`/start/care/` offers Managed Care for the selected package: **£39/month** with Essential, **£59/month** with Professional. The only other choice is standard hosting. If that is declined, the page states that the first 12 months of hosting are included and standard hosting is then **£99/year**. `/start/checkout/` summarises the package, price, domain, customer and the care choice, and can save a draft order. It states that payment integration is the next phase. There is no Stripe integration.
 
-All of this is stored in the browser under `localStorage` key `webco-cloud-onboarding`, including `details` and `care`. Nothing is written to a database. There is no account, payment, registration, provisioning, subscription, email or ticket.
+The same choices stay in the browser under `localStorage` key `webco-cloud-onboarding`, including `details` and `care`. Saving a draft sends that record to `/draft-order.php`, which writes one `draft` row and returns the order ID. There is no account, payment, registration, provisioning, subscription, email or ticket.
 
 **Phase 3 — Accounts and saved orders.**  
-Introduce the database and Webco Cloud customer accounts. Store the chosen package, the domain choice, and the business and contact details. Still no card payment and no 20i provisioning.
+The MySQL connection and `orders` table now exist for draft orders only. Customer accounts are not started. Still no card payment and no 20i provisioning.
 
 **Phase 4 — Webco Cloud checkout.**  
 Take payment for the two website packages and record the order and invoice in Webco Cloud. Do not use HostShop’s payment-method workflow.
@@ -516,7 +516,7 @@ Two different rules:
 
 **Customer websites.** Static first. 20i provides MySQL, but a training-provider site does not get a database unless a real feature needs stored data, such as course availability, simple bookings, protected resources or a lightweight portal.
 
-**Webco Cloud platform.** Accounts, orders, invoices, provisioning state and internal work tickets will need a database. That database is part of Phase 3 in the plan above. Do not create it while the public site and the domain-search proof of concept are the active work.
+**Webco Cloud platform.** Accounts, invoices, provisioning state and internal work tickets will need more of the database. The first piece is in place: `public/lib/db.php` connects with credentials from the private secrets file, and `orders` stores a draft from the current onboarding record. Do not add accounts, Stripe, subscriptions or provisioning on top of that until those phases are requested.
 
 ---
 
@@ -629,9 +629,9 @@ All layouts must work well on small screens first.
 
 There is currently no requirement for a public CMS.
 
-### No database on the public site
+### Draft orders only
 
-The current Astro site does not store customer data. The platform database waits for Phase 3.
+The Astro pages do not connect to MySQL. `draft-order.php` stores a draft order. Accounts and payment are not part of that.
 
 ### No custom authentication yet
 
@@ -704,7 +704,7 @@ The objective is to establish a strong, reusable foundation — not to finish ev
 
 ## What not to build yet
 
-Do not start authentication, Stripe or other payment code, billing, provisioning, subscriptions, order emails, tickets or a database until that phase is explicitly requested. The only 20i API call is domain availability search. Package, domain, business details and the Managed Care choice stay in the browser under `webco-cloud-onboarding`. `/start/checkout/` is a summary only. Payment integration is the next phase.
+Do not start authentication, Stripe or other payment code, billing, provisioning, subscriptions, order emails or tickets until that phase is explicitly requested. The only 20i API call is domain availability search. Package, domain, business details and the Managed Care choice stay in the browser under `webco-cloud-onboarding`. `/draft-order.php` can store that record as a draft and return an order ID. Payment integration is the next phase.
 
 ---
 

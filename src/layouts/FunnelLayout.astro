@@ -2,6 +2,8 @@
 import FunnelChrome from "../components/FunnelChrome.astro";
 import { site } from "../config/site";
 import { canonicalUrl } from "../lib/links";
+import interUrl from "../fonts/inter-latin-wght-normal.woff2?url";
+import frauncesUrl from "../fonts/fraunces-latin-wght-normal.woff2?url";
 import "../styles/global.css";
 
 interface Props {
@@ -33,6 +35,8 @@ const organization = {
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="preload" href={interUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={frauncesUrl} as="font" type="font/woff2" crossorigin />
     <meta name="theme-color" content="#0c6b62" />
     {noindex && <meta name="robots" content="noindex" />}
     <meta property="og:title" content={pageTitle} />

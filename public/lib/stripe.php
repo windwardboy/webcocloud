@@ -50,7 +50,7 @@ function webco_create_checkout_session(array $order, string $publicId): ?string
         . '&session_id={CHECKOUT_SESSION_ID}';
     $cancelUrl = WEBCO_PUBLIC_ORIGIN . '/start/checkout/cancel/?order=' . $orderQuery;
 
-    $body = webco_stripe_form([
+    $fields = [
         'mode' => 'subscription',
         'client_reference_id' => $publicId,
         'customer_email' => $email,
@@ -62,7 +62,16 @@ function webco_create_checkout_session(array $order, string $publicId): ?string
         'line_items[0][quantity]' => '1',
         'line_items[1][price]' => $prices[1],
         'line_items[1][quantity]' => '1',
-    ]);
+    ];
+    if ($careChoice === 'managed') {
+        $fields['subscription_data[trial_period_days]'] = '30';
+    } elseif ($careChoice === 'standard') {
+        $fields['subscription_data[trial_end]'] = (string) webco_stripe_calendar_year_timestamp(time());
+    } else {
+        return null;
+    }
+
+    $body = webco_stripe_form($fields);
 
     $url = webco_stripe_post_session($secret, $body, $publicId);
     $secret = '';
@@ -103,6 +112,24 @@ function webco_stripe_line_prices(string $packageCode, string $careChoice): ?arr
     }
 
     return [$website, $recurring];
+}
+
+/**
+ * The same UTC clock time one calendar year later.
+ * 29 February lands on 28 February when the next year is not a leap year.
+ */
+function webco_stripe_calendar_year_timestamp(int $now): int
+{
+    $start = (new DateTimeImmutable('@' . $now))->setTimezone(new DateTimeZone('UTC'));
+    $year = (int) $start->format('Y') + 1;
+    $month = (int) $start->format('n');
+    $day = (int) $start->format('j');
+    $lastDay = (int) $start->setDate($year, $month, 1)->format('t');
+    if ($day > $lastDay) {
+        $day = $lastDay;
+    }
+
+    return $start->setDate($year, $month, $day)->getTimestamp();
 }
 
 function webco_stripe_secret(): ?string

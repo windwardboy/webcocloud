@@ -4,7 +4,7 @@ import { commercial } from "../../config/site";
 
 const description = "Choose Managed Care or standard hosting for your Webco website.";
 const standardHosting =
-  "Your first 12 months of hosting are included. After that, standard hosting is £99/year.";
+  "The website build is paid today. Standard hosting is £99 a year, with the first payment one year after checkout, then each year.";
 ---
 
 <FunnelLayout title="Managed Care" description={description} step={4}>
@@ -22,12 +22,12 @@ const standardHosting =
       <p class="eyebrow" data-care-package></p>
       <h2 id="care-offer-heading">Managed Care</h2>
       <p class="price" id="care-price"></p>
-      <p>Includes hosting while it is active.</p>
+      <p>Includes hosting. First payment 30 days after checkout, then monthly.</p>
     </aside>
 
     <div class="funnel-step">
       <h1>Managed Care</h1>
-      <p class="funnel-lead">Includes hosting, maintenance and support. It starts when the website goes live.</p>
+      <p class="funnel-lead">The website build is paid today. Managed Care includes hosting, maintenance and support.</p>
       <div class="cards cards-2" role="group" aria-label="Managed Care choice">
         <button class="card choice-card" type="button" data-care="managed" aria-pressed="false">
           <span class="choice-title">Add Managed Care</span>
@@ -35,7 +35,7 @@ const standardHosting =
         </button>
         <button class="card choice-card" type="button" data-care="standard" aria-pressed="false">
           <span class="choice-title">No thanks — use standard hosting</span>
-          <p>Keep the website package without a monthly care plan.</p>
+          <p>The website build is paid today. Hosting is £99 a year, first charged one year after checkout.</p>
         </button>
       </div>
       <p id="care-standard" class="checkout-note" hidden>{standardHosting}</p>
@@ -91,7 +91,7 @@ const standardHosting =
     document.getElementById("care-flow").hidden = false;
     document.querySelector("[data-care-package]").textContent = state.packageName;
     document.getElementById("care-price").textContent = price;
-    document.querySelector("[data-care-add]").textContent = "Add " + price + " when the website goes live.";
+    document.querySelector("[data-care-add]").textContent = "Add " + price + ". First payment 30 days after checkout, then monthly.";
     const standardNote = document.getElementById("care-standard");
     const buttons = document.querySelectorAll("[data-care]");
 

@@ -115,6 +115,16 @@ function webco_stripe_secret(): ?string
     return $secret;
 }
 
+function webco_stripe_webhook_secret(): ?string
+{
+    $secret = webco_stripe_constant('WEBCO_STRIPE_WEBHOOK_SECRET');
+    if ($secret === null || !preg_match('/^whsec_[A-Za-z0-9+\/=_-]{8,200}$/', $secret)) {
+        return null;
+    }
+
+    return $secret;
+}
+
 function webco_stripe_price_id(string $name): ?string
 {
     $priceId = webco_stripe_constant($name);

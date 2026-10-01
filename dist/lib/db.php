@@ -159,16 +159,145 @@ function webco_ensure_orders_table(PDO $db): bool
                 company_number VARCHAR(8) NULL,
                 care_choice VARCHAR(16) NOT NULL,
                 care_price_pence INT UNSIGNED NULL,
+                stripe_checkout_session_id VARCHAR(255) NULL,
+                stripe_customer_id VARCHAR(255) NULL,
+                stripe_subscription_id VARCHAR(255) NULL,
+                paid_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
-                UNIQUE KEY orders_public_id (public_id)
+                UNIQUE KEY orders_public_id (public_id),
+                UNIQUE KEY orders_stripe_checkout_session_id (stripe_checkout_session_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        if (!webco_ensure_order_payment_columns($db)) {
+            return false;
+        }
     } catch (PDOException) {
         return false;
     }
 
     return true;
+}
+
+/**
+ * The live table was created before these columns existed.
+ * CREATE TABLE IF NOT EXISTS does not add them, so this alters the table.
+ */
+function webco_ensure_order_payment_columns(PDO $db): bool
+{
+    $columns = [
+        'stripe_checkout_session_id' => 'VARCHAR(255) NULL',
+        'stripe_customer_id' => 'VARCHAR(255) NULL',
+        'stripe_subscription_id' => 'VARCHAR(255) NULL',
+        'paid_at' => 'TIMESTAMP NULL DEFAULT NULL',
+    ];
+
+    try {
+        $existing = [];
+        $described = $db->query('SHOW COLUMNS FROM orders');
+        if ($described === false) {
+            return false;
+        }
+        foreach ($described->fetchAll() as $column) {
+            $name = strtolower((string) ($column['Field'] ?? ''));
+            if ($name !== '') {
+                $existing[$name] = true;
+            }
+        }
+
+        foreach ($columns as $name => $definition) {
+            if (isset($existing[$name])) {
+                continue;
+            }
+            $db->exec('ALTER TABLE orders ADD COLUMN ' . $name . ' ' . $definition);
+        }
+
+        $indexed = false;
+        $indexes = $db->query('SHOW INDEX FROM orders');
+        if ($indexes === false) {
+            return false;
+        }
+        foreach ($indexes->fetchAll() as $index) {
+            if (($index['Key_name'] ?? '') === 'orders_stripe_checkout_session_id') {
+                $indexed = true;
+                break;
+            }
+        }
+        if (!$indexed) {
+            $db->exec(
+                'ALTER TABLE orders ADD UNIQUE KEY orders_stripe_checkout_session_id (stripe_checkout_session_id)'
+            );
+        }
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Moves a draft to paid once. A repeat for the same Checkout Session does not write again.
+ *
+ * @return 'paid'|'already'|'missing'|'error'
+ */
+function webco_mark_order_paid(
+    PDO $db,
+    string $publicId,
+    string $sessionId,
+    ?string $customerId,
+    ?string $subscriptionId
+): string {
+    if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return 'error';
+    }
+    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId) || strlen($sessionId) > 255) {
+        return 'error';
+    }
+
+    try {
+        $update = $db->prepare(
+            'UPDATE orders
+             SET status = \'paid\',
+                 stripe_checkout_session_id = :session_id,
+                 stripe_customer_id = :customer_id,
+                 stripe_subscription_id = :subscription_id,
+                 paid_at = CURRENT_TIMESTAMP
+             WHERE public_id = :public_id
+               AND status = \'draft\''
+        );
+        $update->execute([
+            'session_id' => $sessionId,
+            'customer_id' => $customerId,
+            'subscription_id' => $subscriptionId,
+            'public_id' => $publicId,
+        ]);
+        if ($update->rowCount() === 1) {
+            return 'paid';
+        }
+
+        $select = $db->prepare(
+            'SELECT status, stripe_checkout_session_id
+             FROM orders
+             WHERE public_id = :public_id'
+        );
+        $select->execute(['public_id' => $publicId]);
+        $row = $select->fetch();
+        if ($row === false) {
+            return 'missing';
+        }
+        if (($row['status'] ?? '') === 'paid') {
+            return 'already';
+        }
+    } catch (PDOException $exception) {
+        $sqlState = $exception->errorInfo[0] ?? '';
+        if ($sqlState === '23000') {
+            return 'already';
+        }
+
+        return 'error';
+    }
+
+    return 'error';
 }
 
 /**

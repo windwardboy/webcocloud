@@ -6,13 +6,35 @@ const description = "Payment status for a Webco Cloud website order.";
 
 <FunnelLayout title="Your order" description={description} noindex phase="payment">
   <section class="funnel-shell">
-    <h1 id="payment-heading">Checking your payment</h1>
-    <p id="payment-lead" class="funnel-lead">Checking this order.</p>
-    <article class="card">
-      <p id="payment-message" class="checkout-note" role="status">Checking this order.</p>
-      <dl class="summary" id="payment-summary" hidden></dl>
-      <p id="payment-next" class="start-note" hidden></p>
-    </article>
+    <div id="payment-status">
+      <h1 id="payment-heading">Checking your payment</h1>
+      <p id="payment-lead" class="funnel-lead">Checking this order.</p>
+      <article class="card">
+        <p id="payment-message" class="checkout-note" role="status">Checking this order.</p>
+        <dl class="summary" id="payment-summary" hidden></dl>
+        <p id="payment-next" class="start-note" hidden></p>
+      </article>
+    </div>
+    <div id="payment-paid" hidden>
+      <p class="payment-mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9" stroke-width="1.6"></circle>
+          <path d="M7.8 12.4l2.7 2.7 5.7-6.2"></path>
+        </svg>
+      </p>
+      <h1>Payment received</h1>
+      <p class="funnel-lead">Thank you. Your website order is confirmed.</p>
+      <section class="card payment-steps" aria-labelledby="payment-next-heading">
+        <h2 id="payment-next-heading">What happens next</h2>
+        <ol>
+          <li>Check your inbox for the secure website brief link.</li>
+          <li>Complete the brief and upload content, photos and documents in your own time. Your progress can be saved.</li>
+          <li>After you submit it, Webco will review everything and contact you personally.</li>
+        </ol>
+      </section>
+      <dl class="summary payment-order" id="payment-paid-summary"></dl>
+      <p class="payment-due">No further payment is due today.</p>
+    </div>
     <div class="funnel-dock actions">
       <a class="button button-quiet" href="/support/">Support</a>
       <button class="button" type="button" id="payment-refresh" hidden>Check again</button>
@@ -20,11 +42,67 @@ const description = "Payment status for a Webco Cloud website order.";
   </section>
 </FunnelLayout>
 
+<style>
+  .payment-mark {
+    display: grid;
+    place-items: center;
+    width: 3.25rem;
+    height: 3.25rem;
+    margin: 0.2rem 0 0.85rem;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-strong);
+  }
+
+  .payment-mark svg {
+    width: 1.7rem;
+    height: 1.7rem;
+  }
+
+  #payment-paid h1 {
+    font-size: clamp(2rem, 4vw, 2.55rem);
+  }
+
+  .payment-steps {
+    margin-top: 1.1rem;
+  }
+
+  .payment-steps h2 {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  .payment-steps ol {
+    margin: 0.7rem 0 0;
+    padding-left: 1.2rem;
+  }
+
+  .payment-steps li + li {
+    margin-top: 0.45rem;
+  }
+
+  .payment-order {
+    margin-top: 1rem;
+    color: var(--muted);
+    font-size: 0.95rem;
+    gap: 0.65rem;
+  }
+
+  .payment-due {
+    margin: 0.85rem 0 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+  }
+</style>
+
 <script is:inline>
+  const statusPanel = document.getElementById("payment-status");
+  const paidPanel = document.getElementById("payment-paid");
   const lead = document.getElementById("payment-lead");
   const heading = document.getElementById("payment-heading");
   const message = document.getElementById("payment-message");
   const summary = document.getElementById("payment-summary");
+  const paidSummary = document.getElementById("payment-paid-summary");
   const next = document.getElementById("payment-next");
   const refresh = document.getElementById("payment-refresh");
   const requestedId = new URLSearchParams(window.location.search).get("order") || "";
@@ -39,7 +117,13 @@ const description = "Payment status for a Webco Cloud website order.";
     return item;
   }
 
+  function showStatus() {
+    statusPanel.hidden = false;
+    paidPanel.hidden = true;
+  }
+
   function showUnknown() {
+    showStatus();
     lead.textContent = "Contact support if you need help with this return.";
     heading.textContent = "We could not confirm this order";
     message.textContent = "We could not find an order for this return. If you have just paid, contact support and keep any receipt from Stripe.";
@@ -51,6 +135,7 @@ const description = "Payment status for a Webco Cloud website order.";
   }
 
   function showDraft(orderId) {
+    showStatus();
     lead.textContent = "Payment is being confirmed.";
     heading.textContent = "Payment is being confirmed";
     message.textContent = "Payment is being confirmed. Check again in a moment. You do not need to pay again while this is in progress.";
@@ -74,13 +159,9 @@ const description = "Payment status for a Webco Cloud website order.";
     } else if (data.care === "standard") {
       rows.push(row("Hosting", "Annual hosting"));
     }
-    lead.textContent = "Payment received.";
-    heading.textContent = "Payment received";
-    message.textContent = "Payment has been received for this order.";
-    summary.hidden = false;
-    summary.replaceChildren(...rows);
-    next.hidden = false;
-    next.textContent = "Webco will email you a secure website-brief link. You can complete it and upload material in your own time. You do not need to pay again.";
+    statusPanel.hidden = true;
+    paidPanel.hidden = false;
+    paidSummary.replaceChildren(...rows);
     refresh.hidden = true;
   }
 
@@ -101,6 +182,7 @@ const description = "Payment status for a Webco Cloud website order.";
   }
 
   async function checkOrder() {
+    showStatus();
     lead.textContent = "Checking this order.";
     heading.textContent = "Checking your payment";
     message.textContent = "Checking this order.";
@@ -108,6 +190,7 @@ const description = "Payment status for a Webco Cloud website order.";
     summary.replaceChildren();
     next.hidden = true;
     next.textContent = "";
+    paidSummary.replaceChildren();
     refresh.disabled = true;
     if (!/^wc_[a-f0-9]{20}$/.test(requestedId)) {
       showUnknown();

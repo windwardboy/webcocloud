@@ -32,26 +32,65 @@ function webco_mail_customer_brief(
         $name = 'there';
     }
 
-    $body = "Hello {$name},\r\n"
+    $message = webco_mail_customer_brief_message($name, $orderPublicId, $briefUrl);
+
+    return webco_mail_deliver_html(
+        $to,
+        'Your Webco website brief',
+        $message['text'],
+        $message['html'],
+        webco_mail_address(webco_mail_secret('WEBCO_NOTIFY_EMAIL'))
+    );
+}
+
+/**
+ * @return array{text: string, html: string}
+ */
+function webco_mail_customer_brief_message(string $name, string $orderPublicId, string $briefUrl): array
+{
+    $safeName = webco_mail_html($name);
+    $safeOrder = webco_mail_html($orderPublicId);
+    $safeUrl = webco_mail_html($briefUrl);
+
+    $text = "Hello {$name},\r\n"
         . "\r\n"
         . "Payment for order {$orderPublicId} has been received.\r\n"
         . "\r\n"
-        . "Use this secure link to complete your website brief and upload logos, photos or documents. "
-        . "You can save your progress and come back to it later:\r\n"
+        . "Complete your website brief when you are ready. You can save your progress and come back later. "
+        . "After you submit it, Webco will review everything and contact you personally.\r\n"
         . "\r\n"
+        . "Complete your website brief:\r\n"
         . $briefUrl . "\r\n"
         . "\r\n"
-        . "After you submit the brief, Webco will contact you personally.\r\n"
+        . "Order reference: {$orderPublicId}\r\n"
         . "\r\n"
         . "Webco Cloud\r\n"
         . "https://webcocloud.net\r\n";
 
-    return webco_mail_deliver(
-        $to,
-        'Your Webco website brief',
-        $body,
-        webco_mail_address(webco_mail_secret('WEBCO_NOTIFY_EMAIL'))
-    );
+    $html = '<!DOCTYPE html><html lang="en-GB"><body style="margin:0;background:#f3f6f5;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6f5;">'
+        . '<tr><td align="center" style="padding:32px 16px;">'
+        . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;">'
+        . '<tr><td style="padding:28px 28px 8px;border-top:4px solid #0c6b62;font-family:Segoe UI,Helvetica,Arial,sans-serif;">'
+        . '<p style="margin:0;color:#0c6b62;font-size:13px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">Webco Cloud</p>'
+        . '<h1 style="margin:12px 0 0;color:#122028;font-family:Georgia,Palatino,serif;font-size:28px;font-weight:600;line-height:1.2;">Payment received</h1>'
+        . '<p style="margin:12px 0 0;color:#3e4e58;font-size:16px;line-height:1.5;">Hello ' . $safeName . ', thank you. Your website order is confirmed.</p>'
+        . '</td></tr>'
+        . '<tr><td style="padding:20px 28px 8px;font-family:Segoe UI,Helvetica,Arial,sans-serif;">'
+        . '<a href="' . $safeUrl . '" style="display:inline-block;padding:12px 18px;background:#0c6b62;color:#f7fbfa;border-radius:999px;font-size:16px;font-weight:700;line-height:1.2;text-decoration:none;">Complete your website brief</a>'
+        . '</td></tr>'
+        . '<tr><td style="padding:8px 28px 0;color:#122028;font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;">'
+        . '<p style="margin:12px 0 0;">You can save your progress and come back to the brief later.</p>'
+        . '<p style="margin:12px 0 0;">After you submit it, Webco will review everything and contact you personally.</p>'
+        . '</td></tr>'
+        . '<tr><td style="padding:20px 28px 28px;color:#3e4e58;font-family:Segoe UI,Helvetica,Arial,sans-serif;font-size:14px;line-height:1.4;">'
+        . 'Order reference<br><strong style="color:#122028;">' . $safeOrder . '</strong>'
+        . '</td></tr></table></td></tr></table></body></html>';
+
+    return [
+        'text' => $text,
+        'html' => $html,
+    ];
 }
 
 function webco_mail_internal_project(
@@ -116,6 +155,50 @@ function webco_mail_deliver(string $to, string $subject, string $body, ?string $
     }
 
     return mail($to, $subject, $body, implode("\r\n", $headers), '-f' . $from);
+}
+
+function webco_mail_deliver_html(string $to, string $subject, string $text, string $html, ?string $replyTo): bool
+{
+    $from = webco_mail_address(webco_mail_secret('WEBCO_MAIL_FROM'));
+    if ($from === null || $text === '' || $html === '' || preg_match('/[\r\n]/', $subject) === 1) {
+        return false;
+    }
+    if ($replyTo !== null && webco_mail_address($replyTo) !== $replyTo) {
+        return false;
+    }
+
+    $boundary = 'webco_' . bin2hex(random_bytes(16));
+    if (str_contains($text, $boundary) || str_contains($html, $boundary)) {
+        return false;
+    }
+
+    $body = '--' . $boundary . "\r\n"
+        . "Content-Type: text/plain; charset=UTF-8\r\n"
+        . "Content-Transfer-Encoding: quoted-printable\r\n"
+        . "\r\n"
+        . quoted_printable_encode($text) . "\r\n"
+        . '--' . $boundary . "\r\n"
+        . "Content-Type: text/html; charset=UTF-8\r\n"
+        . "Content-Transfer-Encoding: quoted-printable\r\n"
+        . "\r\n"
+        . quoted_printable_encode($html) . "\r\n"
+        . '--' . $boundary . "--\r\n";
+
+    $headers = [
+        'MIME-Version: 1.0',
+        'Content-Type: multipart/alternative; boundary="' . $boundary . '"',
+        'From: Webco Cloud <' . $from . '>',
+    ];
+    if ($replyTo !== null) {
+        $headers[] = 'Reply-To: ' . $replyTo;
+    }
+
+    return mail($to, $subject, $body, implode("\r\n", $headers), '-f' . $from);
+}
+
+function webco_mail_html(string $value): string
+{
+    return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 }
 
 function webco_mail_secret(string $name): ?string

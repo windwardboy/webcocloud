@@ -1,57 +1,42 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHero from "../../components/PageHero.astro";
+import FunnelLayout from "../../layouts/FunnelLayout.astro";
 
 const description = "Business and contact details for your Webco website order.";
 ---
 
-<BaseLayout title="Business details" description={description}>
-  <PageHero eyebrow="Website setup" title="Your business details">
-    <p>These details stay in this browser. This page does not create an account or take payment.</p>
-  </PageHero>
-
-  <section class="section" id="details-missing" hidden>
-    <div class="wrap">
-      <div class="section-head">
-        <h2>Choose a package and domain first</h2>
-        <p class="section-intro">Business details come after the website package and domain have been chosen.</p>
-      </div>
-      <div class="actions">
-        <a class="button" href="/websites/">Choose a website</a>
-      </div>
+<FunnelLayout title="Business details" description={description} step={2}>
+  <section class="funnel-shell" id="details-missing" hidden>
+    <h1>Choose a package and domain first</h1>
+    <p class="funnel-lead">Business details come after the website package and domain have been chosen.</p>
+    <div class="funnel-dock actions">
+      <a class="button" href="/websites/">Choose a website</a>
     </div>
   </section>
 
-  <div id="details-flow" hidden>
-    <section class="section" aria-labelledby="order-summary-heading">
-      <div class="wrap">
-        <article class="card">
-          <p class="eyebrow">So far</p>
-          <h2 id="order-summary-heading">Your selection</h2>
-          <dl class="summary">
-            <div>
-              <dt>Package</dt>
-              <dd data-summary="package"></dd>
-            </div>
-            <div>
-              <dt>Price</dt>
-              <dd data-summary="price"></dd>
-            </div>
-            <div>
-              <dt>Domain</dt>
-              <dd data-summary="domain"></dd>
-            </div>
-          </dl>
-        </article>
-      </div>
-    </section>
-
-    <section class="section" aria-labelledby="details-heading">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="details-heading">Contact and address</h2>
+  <div class="funnel-split" id="details-flow" hidden>
+    <aside class="card funnel-summary">
+      <p class="eyebrow">So far</p>
+      <h2 id="order-summary-heading">Your selection</h2>
+      <dl class="summary">
+        <div>
+          <dt>Package</dt>
+          <dd data-summary="package"></dd>
         </div>
-        <form id="details-form" class="details-form" novalidate>
+        <div>
+          <dt>Price</dt>
+          <dd data-summary="price"></dd>
+        </div>
+        <div>
+          <dt>Domain</dt>
+          <dd data-summary="domain"></dd>
+        </div>
+      </dl>
+    </aside>
+
+    <div class="funnel-step">
+      <h1 id="details-heading">Business details</h1>
+      <p class="funnel-lead">These details stay in this browser. This step does not take payment.</p>
+      <form id="details-form" class="details-form" novalidate>
           <div class="domain-field span-2">
             <label for="business-name">Business / trading name</label>
             <input id="business-name" name="businessName" type="text" autocomplete="organization" maxlength="120" required />
@@ -107,15 +92,14 @@ const description = "Business and contact details for your Webco website order."
             <input id="company-number" name="companyNumber" type="text" maxlength="8" autocapitalize="characters" />
             <p class="field-error" data-error-for="companyNumber"></p>
           </div>
-          <div class="actions span-2">
+          <div class="funnel-dock actions span-2">
             <a class="button button-quiet" id="details-back" href="/start/">Back</a>
             <button class="button" type="submit">Continue</button>
           </div>
         </form>
-      </div>
-    </section>
+    </div>
   </div>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline>
   const storageKey = "webco-cloud-onboarding";

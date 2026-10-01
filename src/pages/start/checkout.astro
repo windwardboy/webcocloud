@@ -1,6 +1,5 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHero from "../../components/PageHero.astro";
+import FunnelLayout from "../../layouts/FunnelLayout.astro";
 import { commercial } from "../../config/site";
 
 const description = "Summary of the website order. Payment continues on Stripe Checkout.";
@@ -8,43 +7,31 @@ const standardHosting =
   "Your first 12 months of hosting are included. After that, standard hosting is £99/year.";
 ---
 
-<BaseLayout title="Checkout" description={description}>
-  <PageHero eyebrow="Website setup" title="Checkout">
-    <p>
-      The order is saved first, then you continue to Stripe to pay. Returning from Stripe does not mark the order as paid.
-    </p>
-  </PageHero>
-
-  <section class="section" id="checkout-missing" hidden>
-    <div class="wrap">
-      <div class="section-head">
-        <h2>Choose hosting care first</h2>
-        <p class="section-intro">The summary appears after the website, business details and Managed Care choice are saved in this browser.</p>
-      </div>
-      <div class="actions">
-        <a class="button" href="/start/care/">Managed Care</a>
-        <a class="button button-quiet" href="/websites/">Choose a website</a>
-      </div>
+<FunnelLayout title="Checkout" description={description} step={5}>
+  <section class="funnel-shell" id="checkout-missing" hidden>
+    <h1>Choose hosting care first</h1>
+    <p class="funnel-lead">The summary appears after the website, business details and Managed Care choice are saved in this browser.</p>
+    <div class="funnel-dock actions">
+      <a class="button" href="/start/care/">Managed Care</a>
+      <a class="button button-quiet" href="/websites/">Choose a website</a>
     </div>
   </section>
 
-  <section class="section" id="checkout-flow" hidden>
-    <div class="wrap">
-      <article class="card">
-        <h2>Order summary</h2>
-        <dl class="summary" id="checkout-summary"></dl>
-        <p class="checkout-note">
-          Continue to Stripe Checkout to pay. The website and care choices on this page are not used as the price.
-        </p>
-        <div class="actions">
-          <button class="button" type="button" id="save-draft">Continue to payment</button>
-          <a class="button button-quiet" href="/start/care/">Back</a>
-        </div>
-        <p id="draft-result" class="start-note" role="status"></p>
-      </article>
+  <section class="funnel-shell" id="checkout-flow" hidden>
+    <h1>Payment</h1>
+    <p class="funnel-lead">The order is saved, then you pay on Stripe. Coming back here does not mark it paid.</p>
+    <article class="card">
+      <h2>Order summary</h2>
+      <dl class="summary" id="checkout-summary"></dl>
+      <p class="checkout-note">The prices charged are the ones saved with the order.</p>
+      <p id="draft-result" class="start-note" role="status"></p>
+    </article>
+    <div class="funnel-dock actions">
+      <button class="button" type="button" id="save-draft">Continue to payment</button>
+      <a class="button button-quiet" href="/start/care/">Back</a>
     </div>
   </section>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline define:vars={{ standardHosting, carePrices: { essential: commercial.managedCare.essential, professional: commercial.managedCare.professional } }}>
   const storageKey = "webco-cloud-onboarding";

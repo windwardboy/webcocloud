@@ -1,6 +1,5 @@
 ---
-import BaseLayout from "../layouts/BaseLayout.astro";
-import PageHero from "../components/PageHero.astro";
+import FunnelLayout from "../layouts/FunnelLayout.astro";
 import { websiteOffers } from "../config/site";
 
 const description =
@@ -14,105 +13,91 @@ const packages = Object.fromEntries(
 );
 ---
 
-<BaseLayout title="Start your website" description={description}>
-  <PageHero eyebrow="Website setup" title="Your package, then your domain">
-    <p>Choose a new domain or use one you already own. This step does not register a domain or take payment.</p>
-  </PageHero>
-
-  <section class="section" id="start-missing" hidden>
-    <div class="wrap">
-      <div class="section-head">
-        <h2>Choose a website first</h2>
-        <p class="section-intro">The package is selected on the website services page.</p>
-      </div>
-      <div class="actions">
-        <a class="button" href="/websites/#essential">Essential Website</a>
-        <a class="button button-quiet" href="/websites/#training">Training Provider Website</a>
-      </div>
+<FunnelLayout title="Start your website" description={description} step={1}>
+  <section class="funnel-shell" id="start-missing" hidden>
+    <h1>Choose a website first</h1>
+    <p class="funnel-lead">The package is selected on the website services page.</p>
+    <div class="funnel-dock actions">
+      <a class="button" href="/websites/#essential">Essential Website</a>
+      <a class="button button-quiet" href="/websites/#training">Training Provider Website</a>
     </div>
   </section>
 
-  <div id="start-flow" hidden>
-    <section class="section" aria-labelledby="package-heading">
-      <div class="wrap">
-        <article class="card offer-card">
-          <p class="eyebrow">Selected package</p>
-          <h2 id="package-heading" data-package-name>Webco Essential</h2>
-          <p class="price" data-package-price>£595</p>
-        </article>
+  <div class="funnel-split" id="start-flow" hidden>
+    <aside class="card funnel-summary">
+      <p class="eyebrow">Selected package</p>
+      <h2 id="package-heading" data-package-name>Webco Essential</h2>
+      <p class="price" data-package-price>£595</p>
+    </aside>
+
+    <div class="funnel-step">
+      <h1 id="domain-choice-heading">Your domain</h1>
+      <p class="funnel-lead">Choose a new domain or use one you already own. This does not register it.</p>
+      <div class="cards cards-2" role="group" aria-label="Domain choice">
+        <button class="card choice-card" type="button" data-path="new" aria-pressed="false">
+          <span class="choice-title">I need a new domain</span>
+          <p>Search for a name and see if it can be registered.</p>
+        </button>
+        <button class="card choice-card" type="button" data-path="existing" aria-pressed="false">
+          <span class="choice-title">I already have a domain</span>
+          <p>Tell us the domain you want this website to use.</p>
+        </button>
       </div>
-    </section>
 
-    <section class="section" aria-labelledby="domain-choice-heading">
-      <div class="wrap">
-        <div class="section-head">
-          <h2 id="domain-choice-heading">What would you like to do with your domain?</h2>
-        </div>
-        <div class="cards cards-2" role="group" aria-label="Domain choice">
-          <button class="card choice-card" type="button" data-path="new" aria-pressed="false">
-            <span class="choice-title">I need a new domain</span>
-            <p>Search for a name and see if it can be registered.</p>
-          </button>
-          <button class="card choice-card" type="button" data-path="existing" aria-pressed="false">
-            <span class="choice-title">I already have a domain</span>
-            <p>Tell us the domain you want this website to use.</p>
-          </button>
-        </div>
-
-        <div id="new-domain" class="card domain-search" hidden>
-          <h3 id="domain-search-heading">Check a domain</h3>
-          <p>See whether a name such as example.co.uk can be registered. This does not register it.</p>
-          <form id="domain-search" class="domain-form">
-            <div class="domain-field">
-              <label for="domain">Domain name</label>
-              <input
-                id="domain"
-                name="domain"
-                type="text"
-                inputmode="url"
-                autocomplete="off"
-                spellcheck="false"
-                maxlength="253"
-                placeholder="example.co.uk"
-                required
-              />
-            </div>
-            <button class="button" type="submit">Check availability</button>
-          </form>
-          <p id="domain-search-result" class="domain-result" role="status"></p>
-        </div>
-
-        <div id="existing-domain" class="card domain-search" hidden>
-          <h3>Your domain</h3>
-          <form id="existing-domain-form" class="domain-form">
-            <div class="domain-field">
-              <label for="existing-domain-name">Domain name</label>
-              <input
-                id="existing-domain-name"
-                name="domain"
-                type="text"
-                inputmode="url"
-                autocomplete="off"
-                spellcheck="false"
-                maxlength="253"
-                placeholder="example.co.uk"
-                required
-              />
-            </div>
-          </form>
-          <p id="existing-domain-result" class="domain-result" role="status"></p>
-        </div>
-
-        <p id="start-saved" class="start-note" role="status"></p>
-        <div class="actions">
-          <a class="button" id="start-continue" href="/start/details/" aria-disabled="true">Continue</a>
-        </div>
+      <div id="new-domain" class="card domain-search" hidden>
+        <h3 id="domain-search-heading">Check a domain</h3>
+        <p>See whether a name such as example.co.uk can be registered. This does not register it.</p>
+        <form id="domain-search" class="domain-form">
+          <div class="domain-field">
+            <label for="domain">Domain name</label>
+            <input
+              id="domain"
+              name="domain"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="253"
+              placeholder="example.co.uk"
+              required
+            />
+          </div>
+          <button class="button" type="submit">Check availability</button>
+        </form>
+        <p id="domain-search-result" class="domain-result" role="status"></p>
       </div>
-    </section>
+
+      <div id="existing-domain" class="card domain-search" hidden>
+        <h3>Your domain</h3>
+        <form id="existing-domain-form" class="domain-form">
+          <div class="domain-field">
+            <label for="existing-domain-name">Domain name</label>
+            <input
+              id="existing-domain-name"
+              name="domain"
+              type="text"
+              inputmode="url"
+              autocomplete="off"
+              spellcheck="false"
+              maxlength="253"
+              placeholder="example.co.uk"
+              required
+            />
+          </div>
+        </form>
+        <p id="existing-domain-result" class="domain-result" role="status"></p>
+      </div>
+
+      <p id="start-saved" class="start-note" role="status"></p>
+    </div>
+
+    <div class="funnel-dock actions">
+      <a class="button" id="start-continue" href="/start/details/" aria-disabled="true">Continue</a>
+    </div>
   </div>
 
   <script id="start-packages" type="application/json" set:html={JSON.stringify(packages)}></script>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline>
   const storageKey = "webco-cloud-onboarding";

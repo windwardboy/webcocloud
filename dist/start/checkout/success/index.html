@@ -1,4 +1,72 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your order — Webco Cloud</title><meta name="description" content="Payment status for a Webco Cloud website order."><link rel="canonical" href="https://webcocloud.net/start/checkout/success/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta name="robots" content="noindex"><meta property="og:title" content="Your order — Webco Cloud"><meta property="og:description" content="Payment status for a Webco Cloud website order."><meta property="og:url" content="https://webcocloud.net/start/checkout/success/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/PageHero.jUiBgMs1.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/favicon.svg" width="32" height="32" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><nav aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="button" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Client login</a></li></ul></nav></div></header><main id="content"><section class="hero"><div class="wrap"><p class="eyebrow">Website setup</p><h1>Your order</h1><div class="hero-body"><p id="payment-lead">Checking this order.</p></div></div></section><section class="section"><div class="wrap"><article class="card"><h2 id="payment-heading">Checking your payment</h2><p id="payment-message" class="checkout-note" role="status">Checking this order.</p><dl class="summary" id="payment-summary" hidden></dl><p id="payment-next" class="start-note" hidden></p><div class="actions"><button class="button" type="button" id="payment-refresh" hidden>Check again</button><a class="button button-quiet" href="/support/">Support</a></div></article></div></section></main><footer class="site-footer"><div class="wrap footer-inner"><div><p class="footer-brand">Webco Cloud</p><p>Hosting, domains, email and support for websites built by Webco Media.</p></div><div><p class="footer-label">Services</p><ul class="footer-nav"><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li></ul></div><div><p class="footer-label">Customers</p><ul class="footer-nav"><li><a href="/support/">Support</a></li><li><a href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage">Client login</a></li></ul></div></div></footer></body></html><script>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"><title>Your order — Webco Cloud</title><meta name="description" content="Payment status for a Webco Cloud website order."><link rel="canonical" href="https://webcocloud.net/start/checkout/success/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta name="robots" content="noindex"><meta property="og:title" content="Your order — Webco Cloud"><meta property="og:description" content="Payment status for a Webco Cloud website order."><meta property="og:url" content="https://webcocloud.net/start/checkout/success/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.CQoFBhHy.css"></head><body class="funnel"><a class="skip" href="#content">Skip to content</a><header class="funnel-header"><div class="funnel-header-bar"><a class="logo" href="/"><img src="/favicon.svg" width="28" height="28" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><p class="funnel-phase">Payment</p></div></header><main id="content"><section class="funnel-shell"><h1 id="payment-heading">Checking your payment</h1><p id="payment-lead" class="funnel-lead">Checking this order.</p><article class="card"><p id="payment-message" class="checkout-note" role="status">Checking this order.</p><dl class="summary" id="payment-summary" hidden></dl><p id="payment-next" class="start-note" hidden></p></article><div class="funnel-dock actions"><button class="button" type="button" id="payment-refresh" hidden>Check again</button><a class="button button-quiet" href="/support/">Support</a></div></section></main><script>
+      const fieldSelector =
+        "input:not([type=radio]):not([type=checkbox]):not([type=hidden]):not([type=button]):not([type=submit]), textarea, select";
+
+      function isField(node) {
+        return node instanceof HTMLElement && node.matches(fieldSelector);
+      }
+
+      function coveredBottom(field) {
+        let bottom = field.getBoundingClientRect().bottom;
+        const group = field.closest(".domain-field, fieldset");
+        if (group) {
+          const error = group.querySelector(".field-error");
+          if (error && error.textContent.trim()) bottom = Math.max(bottom, error.getBoundingClientRect().bottom);
+        }
+        const form = field.closest("form");
+        const result = form && form.nextElementSibling;
+        if (result && result.classList.contains("domain-result") && result.textContent.trim() && !result.hidden) {
+          bottom = Math.max(bottom, result.getBoundingClientRect().bottom);
+        }
+        return bottom;
+      }
+
+      function reveal(field) {
+        const viewport = window.visualViewport;
+        const topLimit = (viewport ? viewport.offsetTop : 0) + 76;
+        const bottomLimit = (viewport ? viewport.offsetTop + viewport.height : window.innerHeight) - 12;
+        const top = field.getBoundingClientRect().top;
+        const bottom = coveredBottom(field);
+        if (bottom > bottomLimit) window.scrollBy(0, bottom - bottomLimit + 10);
+        else if (top < topLimit) window.scrollBy(0, top - topLimit);
+      }
+
+      const narrow = window.matchMedia("(max-width: 47.99rem)");
+
+      function syncDock() {
+        const typing = document.body.classList.contains("funnel-keyboard") && narrow.matches;
+        document.querySelectorAll(".funnel-dock").forEach((dock) => {
+          dock.toggleAttribute("inert", typing);
+        });
+      }
+
+      let keyboardTimer = 0;
+      document.addEventListener("focusin", (event) => {
+        if (!isField(event.target)) return;
+        window.clearTimeout(keyboardTimer);
+        document.body.classList.add("funnel-keyboard");
+        syncDock();
+        requestAnimationFrame(() => reveal(event.target));
+      });
+      document.addEventListener("focusout", (event) => {
+        if (!isField(event.target)) return;
+        window.clearTimeout(keyboardTimer);
+        keyboardTimer = window.setTimeout(() => {
+          if (!isField(document.activeElement)) {
+            document.body.classList.remove("funnel-keyboard");
+            syncDock();
+          }
+        }, 80);
+      });
+      if (window.visualViewport) {
+        window.visualViewport.addEventListener("resize", () => {
+          if (!isField(document.activeElement)) return;
+          document.body.classList.add("funnel-keyboard");
+          syncDock();
+          reveal(document.activeElement);
+        });
+      }
+    </script></body></html><script>
   const lead = document.getElementById("payment-lead");
   const heading = document.getElementById("payment-heading");
   const message = document.getElementById("payment-message");

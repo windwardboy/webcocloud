@@ -1,6 +1,5 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHero from "../../components/PageHero.astro";
+import FunnelLayout from "../../layouts/FunnelLayout.astro";
 import { commercial } from "../../config/site";
 
 const description = "Choose Managed Care or standard hosting for your Webco website.";
@@ -8,57 +7,46 @@ const standardHosting =
   "Your first 12 months of hosting are included. After that, standard hosting is £99/year.";
 ---
 
-<BaseLayout title="Managed Care" description={description}>
-  <PageHero eyebrow="Website setup" title="Managed Care">
-    <p>
-      Managed Care includes hosting, maintenance, routine content updates and support. It begins when the website goes live.
-    </p>
-  </PageHero>
-
-  <section class="section" id="care-missing" hidden>
-    <div class="wrap">
-      <div class="section-head">
-        <h2>Review your details first</h2>
-        <p class="section-intro">Managed Care is offered after the website package and business details are in place.</p>
-      </div>
-      <div class="actions">
-        <a class="button" href="/start/review/">Review</a>
-        <a class="button button-quiet" href="/websites/">Choose a website</a>
-      </div>
+<FunnelLayout title="Managed Care" description={description} step={4}>
+  <section class="funnel-shell" id="care-missing" hidden>
+    <h1>Review your details first</h1>
+    <p class="funnel-lead">Managed Care is offered after the website package and business details are in place.</p>
+    <div class="funnel-dock actions">
+      <a class="button" href="/start/review/">Review</a>
+      <a class="button button-quiet" href="/websites/">Choose a website</a>
     </div>
   </section>
 
-  <div id="care-flow" hidden>
-    <section class="section" aria-labelledby="care-offer-heading">
-      <div class="wrap">
-        <article class="card">
-          <p class="eyebrow" data-care-package></p>
-          <h2 id="care-offer-heading">Managed Care</h2>
-          <p class="price" id="care-price"></p>
-          <p>This includes hosting, so a separate hosting renewal is not required while Managed Care is active.</p>
-        </article>
+  <div class="funnel-split" id="care-flow" hidden>
+    <aside class="card funnel-summary">
+      <p class="eyebrow" data-care-package></p>
+      <h2 id="care-offer-heading">Managed Care</h2>
+      <p class="price" id="care-price"></p>
+      <p>Includes hosting while it is active.</p>
+    </aside>
 
-        <div class="cards cards-2" role="group" aria-label="Managed Care choice">
-          <button class="card choice-card" type="button" data-care="managed" aria-pressed="false">
-            <span class="choice-title">Add Managed Care</span>
-            <p data-care-add></p>
-          </button>
-          <button class="card choice-card" type="button" data-care="standard" aria-pressed="false">
-            <span class="choice-title">No thanks — use standard hosting</span>
-            <p>Keep the website package without a monthly care plan.</p>
-          </button>
-        </div>
-
-        <p id="care-standard" class="checkout-note" hidden>{standardHosting}</p>
-
-        <div class="actions">
-          <a class="button" id="care-continue" href="/start/checkout/" aria-disabled="true">Continue</a>
-          <a class="button button-quiet" href="/start/review/">Back</a>
-        </div>
+    <div class="funnel-step">
+      <h1>Managed Care</h1>
+      <p class="funnel-lead">Includes hosting, maintenance and support. It starts when the website goes live.</p>
+      <div class="cards cards-2" role="group" aria-label="Managed Care choice">
+        <button class="card choice-card" type="button" data-care="managed" aria-pressed="false">
+          <span class="choice-title">Add Managed Care</span>
+          <p data-care-add></p>
+        </button>
+        <button class="card choice-card" type="button" data-care="standard" aria-pressed="false">
+          <span class="choice-title">No thanks — use standard hosting</span>
+          <p>Keep the website package without a monthly care plan.</p>
+        </button>
       </div>
-    </section>
+      <p id="care-standard" class="checkout-note" hidden>{standardHosting}</p>
+    </div>
+
+    <div class="funnel-dock actions">
+      <a class="button" id="care-continue" href="/start/checkout/" aria-disabled="true">Continue</a>
+      <a class="button button-quiet" href="/start/review/">Back</a>
+    </div>
   </div>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline define:vars={{ carePrices: { essential: commercial.managedCare.essential, professional: commercial.managedCare.professional } }}>
   const storageKey = "webco-cloud-onboarding";

@@ -1,0 +1,40 @@
+---
+interface Props {
+  step?: number;
+  phase?: "flow" | "payment";
+}
+
+const { step = 1, phase = "flow" } = Astro.props;
+
+const steps = [
+  { n: 1, label: "Package" },
+  { n: 2, label: "Details" },
+  { n: 3, label: "Review" },
+  { n: 4, label: "Care" },
+  { n: 5, label: "Payment" },
+];
+---
+
+<header class="funnel-header">
+  <div class="funnel-header-bar">
+    <a class="logo" href="/">
+      <img src="/favicon.svg" width="28" height="28" alt="" />
+      <span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span>
+    </a>
+    {phase === "payment" && <p class="funnel-phase">Payment</p>}
+  </div>
+  {
+    phase === "flow" && (
+      <ol class="funnel-progress" aria-label="Order progress">
+        {steps.map((item) => (
+          <li class:list={[{ "is-complete": item.n < step }]} aria-current={item.n === step ? "step" : undefined}>
+            <span class="funnel-step-index" aria-hidden="true">
+              {item.n}
+            </span>
+            <span class="funnel-step-label">{item.label}</span>
+          </li>
+        ))}
+      </ol>
+    )
+  }
+</header>

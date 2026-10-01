@@ -1,28 +1,23 @@
 ---
-import BaseLayout from "../../../layouts/BaseLayout.astro";
-import PageHero from "../../../components/PageHero.astro";
+import FunnelLayout from "../../../layouts/FunnelLayout.astro";
 
 const description = "Stripe Checkout was cancelled. The Webco order is not marked paid.";
 ---
 
-<BaseLayout title="Payment cancelled" description={description} noindex>
-  <PageHero eyebrow="Website setup" title="Payment was not completed">
-    <p>Stripe returned you here before the payment was finished. This order is not marked paid.</p>
-  </PageHero>
-
-  <section class="section">
-    <div class="wrap">
-      <article class="card">
-        <h2>Order reference</h2>
-        <p id="order-reference" class="checkout-note">No order reference was included on this return.</p>
-        <div class="actions">
-          <a class="button" href="/start/checkout/">Return to checkout</a>
-          <a class="button button-quiet" href="/support/">Support</a>
-        </div>
-      </article>
+<FunnelLayout title="Payment cancelled" description={description} noindex phase="payment">
+  <section class="funnel-shell">
+    <h1>Payment was not completed</h1>
+    <p class="funnel-lead">Stripe returned you here before the payment was finished. This order is not marked paid.</p>
+    <article class="card">
+      <h2>Order reference</h2>
+      <p id="order-reference" class="checkout-note">No order reference was included on this return.</p>
+    </article>
+    <div class="funnel-dock actions">
+      <a class="button" href="/start/checkout/">Return to checkout</a>
+      <a class="button button-quiet" href="/support/">Support</a>
     </div>
   </section>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline>
   const result = document.getElementById("order-reference");

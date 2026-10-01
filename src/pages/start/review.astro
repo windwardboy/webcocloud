@@ -1,42 +1,33 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHero from "../../components/PageHero.astro";
+import FunnelLayout from "../../layouts/FunnelLayout.astro";
 
 const description = "Review the website package, domain and business details before checkout.";
 ---
 
-<BaseLayout title="Review" description={description}>
-  <PageHero eyebrow="Website setup" title="Review your details">
-    <p>Check the package, domain and business details. Checkout is not connected yet, so this page does not take payment or place an order.</p>
-  </PageHero>
-
-  <section class="section" id="review-missing" hidden>
-    <div class="wrap">
-      <div class="section-head">
-        <h2>Nothing to review yet</h2>
-        <p class="section-intro">Choose a website and add the business details first.</p>
-      </div>
-      <div class="actions">
-        <a class="button" href="/websites/">Choose a website</a>
-        <a class="button button-quiet" href="/start/details/">Business details</a>
-      </div>
+<FunnelLayout title="Review" description={description} step={3}>
+  <section class="funnel-shell" id="review-missing" hidden>
+    <h1>Nothing to review yet</h1>
+    <p class="funnel-lead">Choose a website and add the business details first.</p>
+    <div class="funnel-dock actions">
+      <a class="button" href="/websites/">Choose a website</a>
+      <a class="button button-quiet" href="/start/details/">Business details</a>
     </div>
   </section>
 
-  <section class="section" id="review-flow" hidden>
-    <div class="wrap">
-      <article class="card">
-        <h2>Order summary</h2>
-        <dl class="summary" id="review-summary"></dl>
-        <p class="checkout-note">Checkout is not connected yet. Nothing on this page takes payment, sends an email, or places an order.</p>
-        <div class="actions">
-          <a class="button" href="/start/care/">Continue</a>
-          <a class="button button-quiet" href="/start/details/">Back to details</a>
-        </div>
-      </article>
+  <section class="funnel-shell" id="review-flow" hidden>
+    <h1>Review</h1>
+    <p class="funnel-lead">Check the package, domain and business details.</p>
+    <article class="card">
+      <h2>Order summary</h2>
+      <dl class="summary" id="review-summary"></dl>
+      <p class="checkout-note">Nothing is paid on this page.</p>
+    </article>
+    <div class="funnel-dock actions">
+      <a class="button" href="/start/care/">Continue</a>
+      <a class="button button-quiet" href="/start/details/">Back</a>
     </div>
   </section>
-</BaseLayout>
+</FunnelLayout>
 
 <script is:inline>
   const storageKey = "webco-cloud-onboarding";

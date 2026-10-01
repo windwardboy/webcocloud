@@ -572,6 +572,11 @@ main:has(> .cta-band:last-child) {
   margin-top: 0.9rem;
 }
 
+.funnel .domain-search .domain-result:empty {
+  min-height: 0;
+  margin-top: 0;
+}
+
 .domain-search .domain-result[data-state="available"] {
   color: var(--accent-strong);
   font-weight: 600;
@@ -778,6 +783,10 @@ html:has(body.funnel) {
   background: var(--surface);
   border-bottom: 1px solid var(--line);
   border-top: 3px solid var(--accent);
+}
+
+.funnel [hidden] {
+  display: none !important;
 }
 
 .funnel-header-bar {
@@ -1119,6 +1128,18 @@ html:has(body.funnel) {
 }
 
 @media (min-width: 48rem) {
+  .funnel-track-wide .funnel-header-bar,
+  .funnel-track-narrow .funnel-header-bar {
+    width: min(68rem, calc(100% - 2 * var(--gutter)));
+    min-height: 3.15rem;
+    margin-inline: auto;
+    padding: 0.7rem 0 0.4rem;
+  }
+
+  .funnel-track-narrow .funnel-header-bar {
+    width: min(40rem, calc(100% - 2 * var(--gutter)));
+  }
+
   .funnel-track-wide .funnel-progress,
   .funnel-track-narrow .funnel-progress {
     width: min(68rem, calc(100% - 2 * var(--gutter)));
@@ -1163,6 +1184,9 @@ html:has(body.funnel) {
     top: 6.25rem;
     grid-column: 2;
     grid-row: 1;
+    align-self: start;
+    height: auto;
+    min-height: 0;
   }
 
   .funnel-split > .funnel-dock {

@@ -10,9 +10,10 @@ interface Props {
   noindex?: boolean;
   step?: number;
   phase?: "flow" | "payment";
+  track?: "wide" | "narrow";
 }
 
-const { title, description, noindex = false, step = 1, phase = "flow" } = Astro.props;
+const { title, description, noindex = false, step = 1, phase = "flow", track = "wide" } = Astro.props;
 const pageTitle = title === site.name ? site.name : `${title} — ${site.name}`;
 const canonical = canonicalUrl(Astro.url.pathname);
 const organization = {
@@ -41,7 +42,7 @@ const organization = {
     <meta property="og:site_name" content={site.name} />
     <script type="application/ld+json" set:html={JSON.stringify(organization)} />
   </head>
-  <body class="funnel">
+  <body class:list={["funnel", track === "narrow" ? "funnel-track-narrow" : "funnel-track-wide"]}>
     <a class="skip" href="#content">Skip to content</a>
     <FunnelChrome step={step} phase={phase} />
     <main id="content">
@@ -82,8 +83,15 @@ const organization = {
 
       const narrow = window.matchMedia("(max-width: 47.99rem)");
 
-      function syncDock() {
-        const typing = document.body.classList.contains("funnel-keyboard") && narrow.matches;
+      function keyboardOpen() {
+        const viewport = window.visualViewport;
+        if (!viewport) return isField(document.activeElement);
+        return window.innerHeight - viewport.height - viewport.offsetTop > 80;
+      }
+
+      function syncTyping() {
+        const typing = narrow.matches && isField(document.activeElement) && keyboardOpen();
+        document.body.classList.toggle("funnel-keyboard", typing);
         document.querySelectorAll(".funnel-dock").forEach((dock) => {
           dock.toggleAttribute("inert", typing);
         });
@@ -93,26 +101,21 @@ const organization = {
       document.addEventListener("focusin", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        document.body.classList.add("funnel-keyboard");
-        syncDock();
-        requestAnimationFrame(() => reveal(event.target));
+        keyboardTimer = window.setTimeout(() => {
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard")) reveal(event.target);
+        }, 50);
       });
       document.addEventListener("focusout", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        keyboardTimer = window.setTimeout(() => {
-          if (!isField(document.activeElement)) {
-            document.body.classList.remove("funnel-keyboard");
-            syncDock();
-          }
-        }, 80);
+        keyboardTimer = window.setTimeout(syncTyping, 80);
       });
       if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", () => {
-          if (!isField(document.activeElement)) return;
-          document.body.classList.add("funnel-keyboard");
-          syncDock();
-          reveal(document.activeElement);
+          const active = document.activeElement;
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard") && isField(active)) reveal(active);
         });
       }
     </script>

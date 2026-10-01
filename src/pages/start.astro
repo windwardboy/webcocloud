@@ -18,8 +18,8 @@ const packages = Object.fromEntries(
     <h1>Choose a website first</h1>
     <p class="funnel-lead">The package is selected on the website services page.</p>
     <div class="funnel-dock actions">
-      <a class="button" href="/websites/#essential">Essential Website</a>
       <a class="button button-quiet" href="/websites/#training">Training Provider Website</a>
+      <a class="button" href="/websites/#essential">Essential Website</a>
     </div>
   </section>
 
@@ -45,7 +45,7 @@ const packages = Object.fromEntries(
       </div>
 
       <div id="new-domain" class="card domain-search" hidden>
-        <h3 id="domain-search-heading">Check a domain</h3>
+        <h3 id="domain-search-heading">Check a domain for this website</h3>
         <p>See whether a name such as example.co.uk can be registered. This does not register it.</p>
         <form id="domain-search" class="domain-form">
           <div class="domain-field">
@@ -68,10 +68,11 @@ const packages = Object.fromEntries(
       </div>
 
       <div id="existing-domain" class="card domain-search" hidden>
-        <h3>Your domain</h3>
+        <h3>Domain for this website</h3>
+        <p>This is the domain the website will use. A name you already checked is filled in here.</p>
         <form id="existing-domain-form" class="domain-form">
           <div class="domain-field">
-            <label for="existing-domain-name">Domain name</label>
+            <label for="existing-domain-name">Website domain</label>
             <input
               id="existing-domain-name"
               name="domain"
@@ -144,12 +145,23 @@ const packages = Object.fromEntries(
     else link.tabIndex = -1;
   }
 
+  function domainStrong(domain) {
+    const strong = document.createElement("strong");
+    strong.className = "domain-value";
+    strong.textContent = domain;
+    return strong;
+  }
+
   function showSaved(state) {
     const note = document.getElementById("start-saved");
     updateContinue(state);
     if (!note || !chosen) return;
     if (state.domain && state.domainPath) {
-      note.textContent = packageData[chosen].name + " will use " + state.domain + ".";
+      note.replaceChildren(
+        document.createTextNode(packageData[chosen].name + " will use "),
+        domainStrong(state.domain),
+        document.createTextNode("."),
+      );
       return;
     }
     note.textContent = "";
@@ -175,13 +187,25 @@ const packages = Object.fromEntries(
     const choiceButtons = document.querySelectorAll("[data-path]");
 
     function selectPath(path) {
+      const searchInput = document.getElementById("domain");
+      const searchResult = document.getElementById("domain-search-result");
+      const previous = readState();
       choiceButtons.forEach((button) => {
         button.setAttribute("aria-pressed", button.getAttribute("data-path") === path ? "true" : "false");
       });
       newPanel.hidden = path !== "new";
       existingPanel.hidden = path !== "existing";
-      const current = writeState({ domainPath: path, domain: readState().domainPath === path ? readState().domain : "" });
-      showSaved(current);
+      const carried = normaliseDomain(searchInput.value) || normaliseDomain(existingInput.value) || normaliseDomain(previous.domain);
+      if (path === "existing") {
+        if (carried && !normaliseDomain(existingInput.value)) existingInput.value = carried;
+        existingInput.dispatchEvent(new Event("input"));
+        return;
+      }
+      if (carried && !normaliseDomain(searchInput.value)) searchInput.value = carried;
+      const typed = normaliseDomain(searchInput.value);
+      const stillConfirmed = previous.domainPath === "new" && previous.domain === typed;
+      const checkedHere = searchResult.dataset.state === "available" && typed !== "" && searchResult.textContent.indexOf(typed) === 0;
+      showSaved(writeState({ domainPath: "new", domain: stillConfirmed || checkedHere ? typed : "" }));
     }
 
     choiceButtons.forEach((button) => {
@@ -198,7 +222,7 @@ const packages = Object.fromEntries(
         existingResult.dataset.state = "";
       } else if (domain) {
         existingResult.dataset.state = "available";
-        existingResult.textContent = domain + " will be used with this website.";
+        existingResult.replaceChildren(domainStrong(domain), document.createTextNode(" will be used with this website."));
       } else {
         existingResult.dataset.state = "error";
         existingResult.textContent = "Enter a domain such as example.co.uk.";
@@ -239,7 +263,8 @@ const packages = Object.fromEntries(
         const data = await response.json();
         if (data.status === "available") {
           result.dataset.state = "available";
-          result.textContent = data.domain + " is available.";
+          result.replaceChildren(domainStrong(data.domain), document.createTextNode(" is available."));
+          if (!normaliseDomain(existingInput.value)) existingInput.value = data.domain;
           showSaved(writeState({ domainPath: "new", domain: data.domain }));
         } else if (data.status === "unavailable") {
           result.dataset.state = "unavailable";

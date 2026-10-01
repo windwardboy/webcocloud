@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"><title>Review — Webco Cloud</title><meta name="description" content="Review the website package, domain and business details before checkout."><link rel="canonical" href="https://webcocloud.net/start/review/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Review — Webco Cloud"><meta property="og:description" content="Review the website package, domain and business details before checkout."><meta property="og:url" content="https://webcocloud.net/start/review/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.CQoFBhHy.css"></head><body class="funnel"><a class="skip" href="#content">Skip to content</a><header class="funnel-header"><div class="funnel-header-bar"><a class="logo" href="/"><img src="/favicon.svg" width="28" height="28" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a></div><ol class="funnel-progress" aria-label="Order progress"><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">1</span><span class="funnel-step-label">Package</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">2</span><span class="funnel-step-label">Details</span></li><li aria-current="step"><span class="funnel-step-index" aria-hidden="true">3</span><span class="funnel-step-label">Review</span></li><li><span class="funnel-step-index" aria-hidden="true">4</span><span class="funnel-step-label">Care</span></li><li><span class="funnel-step-index" aria-hidden="true">5</span><span class="funnel-step-label">Payment</span></li></ol></header><main id="content"><section class="funnel-shell" id="review-missing" hidden><h1>Nothing to review yet</h1><p class="funnel-lead">Choose a website and add the business details first.</p><div class="funnel-dock actions"><a class="button" href="/websites/">Choose a website</a><a class="button button-quiet" href="/start/details/">Business details</a></div></section><section class="funnel-shell" id="review-flow" hidden><h1>Review</h1><p class="funnel-lead">Check the package, domain and business details.</p><article class="card"><h2>Order summary</h2><dl class="summary" id="review-summary"></dl><p class="checkout-note">Nothing is paid on this page.</p></article><div class="funnel-dock actions"><a class="button" href="/start/care/">Continue</a><a class="button button-quiet" href="/start/details/">Back</a></div></section></main><script>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"><title>Review — Webco Cloud</title><meta name="description" content="Review the website package, domain and business details before checkout."><link rel="canonical" href="https://webcocloud.net/start/review/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Review — Webco Cloud"><meta property="og:description" content="Review the website package, domain and business details before checkout."><meta property="og:url" content="https://webcocloud.net/start/review/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.CAETohzI.css"></head><body class="funnel funnel-track-narrow"><a class="skip" href="#content">Skip to content</a><header class="funnel-header"><div class="funnel-header-bar"><a class="logo" href="/"><img src="/favicon.svg" width="28" height="28" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a></div><ol class="funnel-progress" aria-label="Order progress"><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">1</span><span class="funnel-step-label">Package</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">2</span><span class="funnel-step-label">Details</span></li><li aria-current="step"><span class="funnel-step-index" aria-hidden="true">3</span><span class="funnel-step-label">Review</span></li><li><span class="funnel-step-index" aria-hidden="true">4</span><span class="funnel-step-label">Care</span></li><li><span class="funnel-step-index" aria-hidden="true">5</span><span class="funnel-step-label">Payment</span></li></ol></header><main id="content"><section class="funnel-shell" id="review-missing" hidden><h1>Nothing to review yet</h1><p class="funnel-lead">Choose a website and add the business details first.</p><div class="funnel-dock actions"><a class="button button-quiet" href="/start/details/">Business details</a><a class="button" href="/websites/">Choose a website</a></div></section><section class="funnel-shell" id="review-flow" hidden><h1>Review</h1><p class="funnel-lead">Check the package, domain and business details.</p><article class="card"><h2>Order summary</h2><dl class="summary" id="review-summary"></dl><p class="checkout-note">Nothing is paid on this page.</p></article><div class="funnel-dock actions"><a class="button button-quiet" href="/start/details/">Back</a><a class="button" href="/start/care/">Continue</a></div></section></main><script>
       const fieldSelector =
         "input:not([type=radio]):not([type=checkbox]):not([type=hidden]):not([type=button]):not([type=submit]), textarea, select";
 
@@ -33,8 +33,15 @@
 
       const narrow = window.matchMedia("(max-width: 47.99rem)");
 
-      function syncDock() {
-        const typing = document.body.classList.contains("funnel-keyboard") && narrow.matches;
+      function keyboardOpen() {
+        const viewport = window.visualViewport;
+        if (!viewport) return isField(document.activeElement);
+        return window.innerHeight - viewport.height - viewport.offsetTop > 80;
+      }
+
+      function syncTyping() {
+        const typing = narrow.matches && isField(document.activeElement) && keyboardOpen();
+        document.body.classList.toggle("funnel-keyboard", typing);
         document.querySelectorAll(".funnel-dock").forEach((dock) => {
           dock.toggleAttribute("inert", typing);
         });
@@ -44,26 +51,21 @@
       document.addEventListener("focusin", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        document.body.classList.add("funnel-keyboard");
-        syncDock();
-        requestAnimationFrame(() => reveal(event.target));
+        keyboardTimer = window.setTimeout(() => {
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard")) reveal(event.target);
+        }, 50);
       });
       document.addEventListener("focusout", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        keyboardTimer = window.setTimeout(() => {
-          if (!isField(document.activeElement)) {
-            document.body.classList.remove("funnel-keyboard");
-            syncDock();
-          }
-        }, 80);
+        keyboardTimer = window.setTimeout(syncTyping, 80);
       });
       if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", () => {
-          if (!isField(document.activeElement)) return;
-          document.body.classList.add("funnel-keyboard");
-          syncDock();
-          reveal(document.activeElement);
+          const active = document.activeElement;
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard") && isField(active)) reveal(active);
         });
       }
     </script></body></html><script>
@@ -114,18 +116,35 @@
     const address = [details.address1, details.address2, details.town, details.county, details.postcode]
       .filter(Boolean)
       .join(", ");
-    const rows = [
+    function addRows(target, pairs) {
+      pairs.forEach(([label, value]) => target.append(row(label, value)));
+    }
+    addRows(summary, [
       ["Package", state.packageName],
       ["Price", state.price],
-      ["Domain", (state.domainPath === "new" ? "New domain" : "Existing domain") + ", " + state.domain],
       ["Business / trading name", details.businessName],
+    ]);
+    const domainItem = row("Domain", "");
+    const domainValue = domainItem.querySelector("dd");
+    const domainName = document.createElement("strong");
+    domainName.className = "domain-value";
+    domainName.textContent = state.domain;
+    domainValue.append(document.createTextNode((state.domainPath === "new" ? "New domain, " : "Existing domain, ")), domainName);
+    summary.insertBefore(domainItem, summary.children[2] || null);
+    const contact = document.createElement("div");
+    contact.className = "review-group";
+    addRows(contact, [
       ["Contact name", details.contactName],
       ["Email address", details.email],
       ["Phone number", details.phone],
       ["Preferred contact method", method],
-      ["Address", address],
-    ];
-    if (details.companyNumber) rows.push(["Company number", details.companyNumber]);
-    rows.forEach(([label, value]) => summary.append(row(label, value)));
+    ]);
+    summary.append(contact);
+    const place = document.createElement("div");
+    place.className = "review-group";
+    const placeRows = [["Address", address]];
+    if (details.companyNumber) placeRows.push(["Company number", details.companyNumber]);
+    addRows(place, placeRows);
+    summary.append(place);
   }
 </script>

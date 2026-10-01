@@ -4,13 +4,13 @@ import FunnelLayout from "../../layouts/FunnelLayout.astro";
 const description = "Review the website package, domain and business details before checkout.";
 ---
 
-<FunnelLayout title="Review" description={description} step={3}>
+<FunnelLayout title="Review" description={description} step={3} track="narrow">
   <section class="funnel-shell" id="review-missing" hidden>
     <h1>Nothing to review yet</h1>
     <p class="funnel-lead">Choose a website and add the business details first.</p>
     <div class="funnel-dock actions">
-      <a class="button" href="/websites/">Choose a website</a>
       <a class="button button-quiet" href="/start/details/">Business details</a>
+      <a class="button" href="/websites/">Choose a website</a>
     </div>
   </section>
 
@@ -23,8 +23,8 @@ const description = "Review the website package, domain and business details bef
       <p class="checkout-note">Nothing is paid on this page.</p>
     </article>
     <div class="funnel-dock actions">
-      <a class="button" href="/start/care/">Continue</a>
       <a class="button button-quiet" href="/start/details/">Back</a>
+      <a class="button" href="/start/care/">Continue</a>
     </div>
   </section>
 </FunnelLayout>
@@ -77,18 +77,35 @@ const description = "Review the website package, domain and business details bef
     const address = [details.address1, details.address2, details.town, details.county, details.postcode]
       .filter(Boolean)
       .join(", ");
-    const rows = [
+    function addRows(target, pairs) {
+      pairs.forEach(([label, value]) => target.append(row(label, value)));
+    }
+    addRows(summary, [
       ["Package", state.packageName],
       ["Price", state.price],
-      ["Domain", (state.domainPath === "new" ? "New domain" : "Existing domain") + ", " + state.domain],
       ["Business / trading name", details.businessName],
+    ]);
+    const domainItem = row("Domain", "");
+    const domainValue = domainItem.querySelector("dd");
+    const domainName = document.createElement("strong");
+    domainName.className = "domain-value";
+    domainName.textContent = state.domain;
+    domainValue.append(document.createTextNode((state.domainPath === "new" ? "New domain, " : "Existing domain, ")), domainName);
+    summary.insertBefore(domainItem, summary.children[2] || null);
+    const contact = document.createElement("div");
+    contact.className = "review-group";
+    addRows(contact, [
       ["Contact name", details.contactName],
       ["Email address", details.email],
       ["Phone number", details.phone],
       ["Preferred contact method", method],
-      ["Address", address],
-    ];
-    if (details.companyNumber) rows.push(["Company number", details.companyNumber]);
-    rows.forEach(([label, value]) => summary.append(row(label, value)));
+    ]);
+    summary.append(contact);
+    const place = document.createElement("div");
+    place.className = "review-group";
+    const placeRows = [["Address", address]];
+    if (details.companyNumber) placeRows.push(["Company number", details.companyNumber]);
+    addRows(place, placeRows);
+    summary.append(place);
   }
 </script>

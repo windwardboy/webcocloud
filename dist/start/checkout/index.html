@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"><title>Checkout — Webco Cloud</title><meta name="description" content="Summary of the website order. Payment continues on Stripe Checkout."><link rel="canonical" href="https://webcocloud.net/start/checkout/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Checkout — Webco Cloud"><meta property="og:description" content="Summary of the website order. Payment continues on Stripe Checkout."><meta property="og:url" content="https://webcocloud.net/start/checkout/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.CQoFBhHy.css"></head><body class="funnel"><a class="skip" href="#content">Skip to content</a><header class="funnel-header"><div class="funnel-header-bar"><a class="logo" href="/"><img src="/favicon.svg" width="28" height="28" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a></div><ol class="funnel-progress" aria-label="Order progress"><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">1</span><span class="funnel-step-label">Package</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">2</span><span class="funnel-step-label">Details</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">3</span><span class="funnel-step-label">Review</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">4</span><span class="funnel-step-label">Care</span></li><li aria-current="step"><span class="funnel-step-index" aria-hidden="true">5</span><span class="funnel-step-label">Payment</span></li></ol></header><main id="content"><section class="funnel-shell" id="checkout-missing" hidden><h1>Choose hosting care first</h1><p class="funnel-lead">The summary appears after the website, business details and Managed Care choice are saved in this browser.</p><div class="funnel-dock actions"><a class="button" href="/start/care/">Managed Care</a><a class="button button-quiet" href="/websites/">Choose a website</a></div></section><section class="funnel-shell" id="checkout-flow" hidden><h1>Payment</h1><p class="funnel-lead">You pay the website build today. Managed Care or hosting is billed later. Coming back here does not mark the order paid.</p><article class="card"><h2>Order summary</h2><dl class="summary" id="checkout-summary"></dl><p class="checkout-note">Today's payment is the website build. The later care or hosting charge follows the schedule below.</p><p id="draft-result" class="start-note" role="status"></p></article><div class="funnel-dock actions"><button class="button" type="button" id="save-draft">Continue to payment</button><a class="button button-quiet" href="/start/care/">Back</a></div></section></main><script>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, interactive-widget=resizes-content"><title>Checkout — Webco Cloud</title><meta name="description" content="Summary of the website order. Payment continues on Stripe Checkout."><link rel="canonical" href="https://webcocloud.net/start/checkout/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta property="og:title" content="Checkout — Webco Cloud"><meta property="og:description" content="Summary of the website order. Payment continues on Stripe Checkout."><meta property="og:url" content="https://webcocloud.net/start/checkout/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.CAETohzI.css"></head><body class="funnel funnel-track-narrow"><a class="skip" href="#content">Skip to content</a><header class="funnel-header"><div class="funnel-header-bar"><a class="logo" href="/"><img src="/favicon.svg" width="28" height="28" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a></div><ol class="funnel-progress" aria-label="Order progress"><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">1</span><span class="funnel-step-label">Package</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">2</span><span class="funnel-step-label">Details</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">3</span><span class="funnel-step-label">Review</span></li><li class="is-complete"><span class="funnel-step-index" aria-hidden="true">4</span><span class="funnel-step-label">Care</span></li><li aria-current="step"><span class="funnel-step-index" aria-hidden="true">5</span><span class="funnel-step-label">Payment</span></li></ol></header><main id="content"><section class="funnel-shell" id="checkout-missing" hidden><h1>Choose hosting care first</h1><p class="funnel-lead">The summary appears after the website, business details and Managed Care choice are saved in this browser.</p><div class="funnel-dock actions"><a class="button button-quiet" href="/websites/">Choose a website</a><a class="button" href="/start/care/">Managed Care</a></div></section><section class="funnel-shell" id="checkout-flow" hidden><h1>Payment</h1><p class="funnel-lead">You pay the website build today. Managed Care or hosting is billed later. Coming back here does not mark the order paid.</p><article class="card"><h2>Order summary</h2><dl class="summary" id="checkout-summary"></dl><p class="checkout-note">Today's payment is the website build. The later care or hosting charge follows the schedule below.</p><p id="draft-result" class="start-note" role="status"></p></article><div class="funnel-dock actions"><a class="button button-quiet" href="/start/care/">Back</a><button class="button" type="button" id="save-draft">Continue to payment</button></div></section></main><script>
       const fieldSelector =
         "input:not([type=radio]):not([type=checkbox]):not([type=hidden]):not([type=button]):not([type=submit]), textarea, select";
 
@@ -33,8 +33,15 @@
 
       const narrow = window.matchMedia("(max-width: 47.99rem)");
 
-      function syncDock() {
-        const typing = document.body.classList.contains("funnel-keyboard") && narrow.matches;
+      function keyboardOpen() {
+        const viewport = window.visualViewport;
+        if (!viewport) return isField(document.activeElement);
+        return window.innerHeight - viewport.height - viewport.offsetTop > 80;
+      }
+
+      function syncTyping() {
+        const typing = narrow.matches && isField(document.activeElement) && keyboardOpen();
+        document.body.classList.toggle("funnel-keyboard", typing);
         document.querySelectorAll(".funnel-dock").forEach((dock) => {
           dock.toggleAttribute("inert", typing);
         });
@@ -44,26 +51,21 @@
       document.addEventListener("focusin", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        document.body.classList.add("funnel-keyboard");
-        syncDock();
-        requestAnimationFrame(() => reveal(event.target));
+        keyboardTimer = window.setTimeout(() => {
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard")) reveal(event.target);
+        }, 50);
       });
       document.addEventListener("focusout", (event) => {
         if (!isField(event.target)) return;
         window.clearTimeout(keyboardTimer);
-        keyboardTimer = window.setTimeout(() => {
-          if (!isField(document.activeElement)) {
-            document.body.classList.remove("funnel-keyboard");
-            syncDock();
-          }
-        }, 80);
+        keyboardTimer = window.setTimeout(syncTyping, 80);
       });
       if (window.visualViewport) {
         window.visualViewport.addEventListener("resize", () => {
-          if (!isField(document.activeElement)) return;
-          document.body.classList.add("funnel-keyboard");
-          syncDock();
-          reveal(document.activeElement);
+          const active = document.activeElement;
+          syncTyping();
+          if (document.body.classList.contains("funnel-keyboard") && isField(active)) reveal(active);
         });
       }
     </script></body></html><script>(function(){const standardHosting = "£99 a year. First payment one year after checkout, then each year. Not charged today.";

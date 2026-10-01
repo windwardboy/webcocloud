@@ -7,13 +7,13 @@ const standardHosting =
   "£99 a year. First payment one year after checkout, then each year. Not charged today.";
 ---
 
-<FunnelLayout title="Checkout" description={description} step={5}>
+<FunnelLayout title="Checkout" description={description} step={5} track="narrow">
   <section class="funnel-shell" id="checkout-missing" hidden>
     <h1>Choose hosting care first</h1>
     <p class="funnel-lead">The summary appears after the website, business details and Managed Care choice are saved in this browser.</p>
     <div class="funnel-dock actions">
-      <a class="button" href="/start/care/">Managed Care</a>
       <a class="button button-quiet" href="/websites/">Choose a website</a>
+      <a class="button" href="/start/care/">Managed Care</a>
     </div>
   </section>
 
@@ -27,8 +27,8 @@ const standardHosting =
       <p id="draft-result" class="start-note" role="status"></p>
     </article>
     <div class="funnel-dock actions">
-      <button class="button" type="button" id="save-draft">Continue to payment</button>
       <a class="button button-quiet" href="/start/care/">Back</a>
+      <button class="button" type="button" id="save-draft">Continue to payment</button>
     </div>
   </section>
 </FunnelLayout>

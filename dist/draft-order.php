@@ -1,15 +1,16 @@
 <?php
 /**
- * Temporary draft-order endpoint.
- * Accepts the browser onboarding record and stores one draft row.
- * Does not take payment.
+ * Saves one draft order, then opens a Stripe Checkout Session for it.
+ * Prices come from the saved package and care choice.
+ * The order stays draft. A Checkout redirect is not payment.
  */
 
 declare(strict_types=1);
 
 ini_set('display_errors', '0');
 
-require __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/db.php';
+require_once __DIR__ . '/lib/stripe.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'draft-order.php') {
     handle_draft_order_request();
@@ -55,7 +56,12 @@ function handle_draft_order_request(): void
         respond(500, ['status' => 'error']);
     }
 
-    respond(201, ['orderId' => $orderId]);
+    $checkoutUrl = webco_create_checkout_session($order, $orderId);
+    if ($checkoutUrl === null) {
+        respond(502, ['status' => 'error', 'orderId' => $orderId]);
+    }
+
+    respond(201, ['orderId' => $orderId, 'checkoutUrl' => $checkoutUrl]);
 }
 
 /**

@@ -3,14 +3,16 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 import PageHero from "../../components/PageHero.astro";
 import { commercial } from "../../config/site";
 
-const description = "Summary of the website order. Payment is not connected yet.";
+const description = "Summary of the website order. Payment continues on Stripe Checkout.";
 const standardHosting =
   "Your first 12 months of hosting are included. After that, standard hosting is £99/year.";
 ---
 
 <BaseLayout title="Checkout" description={description}>
   <PageHero eyebrow="Website setup" title="Checkout">
-    <p>Payment integration is the next phase. This page can save a draft order. It does not take payment.</p>
+    <p>
+      The order is saved first, then you continue to Stripe to pay. Returning from Stripe does not mark the order as paid.
+    </p>
   </PageHero>
 
   <section class="section" id="checkout-missing" hidden>
@@ -31,9 +33,11 @@ const standardHosting =
       <article class="card">
         <h2>Order summary</h2>
         <dl class="summary" id="checkout-summary"></dl>
-        <p class="checkout-note">Payment integration is the next phase. Saving a draft stores this order and does not take payment.</p>
+        <p class="checkout-note">
+          Continue to Stripe Checkout to pay. The website and care choices on this page are not used as the price.
+        </p>
         <div class="actions">
-          <button class="button" type="button" id="save-draft">Save draft order</button>
+          <button class="button" type="button" id="save-draft">Continue to payment</button>
           <a class="button button-quiet" href="/start/care/">Back</a>
         </div>
         <p id="draft-result" class="start-note" role="status"></p>
@@ -98,13 +102,35 @@ const standardHosting =
 
     const result = document.getElementById("draft-result");
     const button = document.getElementById("save-draft");
-    if (typeof state.draftOrderId === "string" && /^wc_[a-f0-9]{20}$/.test(state.draftOrderId)) {
-      result.textContent = "Draft order " + state.draftOrderId + ". Payment is not taken.";
+
+    function rememberOrder(orderId) {
+      if (typeof orderId !== "string" || !/^wc_[a-f0-9]{20}$/.test(orderId)) {
+        return;
+      }
+      const next = readState();
+      next.draftOrderId = orderId;
+      localStorage.setItem(storageKey, JSON.stringify(next));
+    }
+
+    function isStripeCheckoutUrl(value) {
+      if (typeof value !== "string" || value.length > 2048) {
+        return false;
+      }
+      try {
+        const url = new URL(value);
+        return (
+          url.protocol === "https:" &&
+          url.hostname === "checkout.stripe.com" &&
+          url.pathname.includes("/cs_test_")
+        );
+      } catch {
+        return false;
+      }
     }
 
     button.addEventListener("click", async () => {
       button.disabled = true;
-      result.textContent = "Saving the draft…";
+      result.textContent = "Saving the order…";
       try {
         const response = await fetch("/draft-order.php", {
           method: "POST",
@@ -112,17 +138,16 @@ const standardHosting =
           body: JSON.stringify(readState()),
         });
         const data = await response.json();
-        if (!response.ok || typeof data.orderId !== "string" || !/^wc_[a-f0-9]{20}$/.test(data.orderId)) {
-          result.textContent = "The draft order could not be saved.";
+        rememberOrder(data.orderId);
+        if (!response.ok || !isStripeCheckoutUrl(data.checkoutUrl)) {
+          result.textContent = "The order could not be sent to payment.";
+          button.disabled = false;
           return;
         }
-        const next = readState();
-        next.draftOrderId = data.orderId;
-        localStorage.setItem(storageKey, JSON.stringify(next));
-        result.textContent = "Draft order " + data.orderId + ". Payment is not taken.";
+        result.textContent = "Opening Stripe Checkout…";
+        window.location.assign(data.checkoutUrl);
       } catch {
-        result.textContent = "The draft order could not be saved.";
-      } finally {
+        result.textContent = "The order could not be sent to payment.";
         button.disabled = false;
       }
     });

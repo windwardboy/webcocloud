@@ -1,0 +1,33 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import PageHero from "../../../components/PageHero.astro";
+
+const description = "Stripe Checkout was cancelled. The Webco order is not marked paid.";
+---
+
+<BaseLayout title="Payment cancelled" description={description} noindex>
+  <PageHero eyebrow="Website setup" title="Payment was not completed">
+    <p>Stripe returned you here before the payment was finished. This order is not marked paid.</p>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap">
+      <article class="card">
+        <h2>Order reference</h2>
+        <p id="order-reference" class="checkout-note">No order reference was included on this return.</p>
+        <div class="actions">
+          <a class="button" href="/start/checkout/">Return to checkout</a>
+          <a class="button button-quiet" href="/support/">Support</a>
+        </div>
+      </article>
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  const result = document.getElementById("order-reference");
+  const orderId = new URLSearchParams(window.location.search).get("order") || "";
+  if (/^wc_[a-f0-9]{20}$/.test(orderId)) {
+    result.textContent = "Order reference " + orderId + ".";
+  }
+</script>

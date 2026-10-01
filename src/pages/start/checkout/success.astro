@@ -1,0 +1,35 @@
+---
+import BaseLayout from "../../../layouts/BaseLayout.astro";
+import PageHero from "../../../components/PageHero.astro";
+
+const description = "Stripe has returned you to Webco Cloud. This page does not confirm payment.";
+---
+
+<BaseLayout title="Payment return" description={description} noindex>
+  <PageHero eyebrow="Website setup" title="Back from Stripe">
+    <p>
+      This page does not confirm payment. The order stays unpaid until Webco Cloud matches the Stripe result to it.
+    </p>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap">
+      <article class="card">
+        <h2>Order reference</h2>
+        <p id="order-reference" class="checkout-note">No order reference was included on this return.</p>
+        <p class="start-note">The session id in the address is not proof that the payment succeeded.</p>
+        <div class="actions">
+          <a class="button button-quiet" href="/support/">Support</a>
+        </div>
+      </article>
+    </div>
+  </section>
+</BaseLayout>
+
+<script is:inline>
+  const result = document.getElementById("order-reference");
+  const orderId = new URLSearchParams(window.location.search).get("order") || "";
+  if (/^wc_[a-f0-9]{20}$/.test(orderId)) {
+    result.textContent = "Order reference " + orderId + ".";
+  }
+</script>

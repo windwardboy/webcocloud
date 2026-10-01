@@ -7,7 +7,13 @@ export default defineConfig({
   site: "https://webcocloud.net",
   output: "static",
   trailingSlash: "always",
-  integrations: [sitemap()],
+  integrations: [
+    sitemap({
+      filter: (page) =>
+        !page.includes("/start/checkout/success/") &&
+        !page.includes("/start/checkout/cancel/"),
+    }),
+  ],
   build: {
     format: "directory",
   },

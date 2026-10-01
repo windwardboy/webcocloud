@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+Disallow: /admin.php
+Disallow: /brief.php
+Disallow: /brief-upload.php
 
 Sitemap: https://webcocloud.net/sitemap-index.xml

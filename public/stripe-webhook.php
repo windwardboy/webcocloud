@@ -5,6 +5,7 @@
  * The signing secret stays in the private secrets file as WEBCO_STRIPE_WEBHOOK_SECRET.
  * The browser success URL is not consulted and is not proof of payment.
  * An order is marked paid only after the signature is valid and the saved draft matches.
+ * A paid order then gets one project. That step does not change the paid update.
  */
 
 declare(strict_types=1);
@@ -12,6 +13,7 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 
 require_once __DIR__ . '/lib/stripe.php';
+require_once __DIR__ . '/lib/projects.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'stripe-webhook.php') {
     webco_handle_stripe_webhook();
@@ -86,6 +88,12 @@ function webco_handle_stripe_webhook(): void
     );
     if ($result === 'error') {
         webco_webhook_respond(500, ['status' => 'error']);
+    }
+
+    if ($result === 'paid' || $result === 'already') {
+        if (webco_ensure_paid_project($db, $payment['public_id']) !== 'ok') {
+            webco_webhook_respond(500, ['status' => 'error']);
+        }
     }
 
     webco_webhook_respond(200, ['received' => true]);

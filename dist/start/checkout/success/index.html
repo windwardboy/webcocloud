@@ -1,7 +1,116 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Payment return — Webco Cloud</title><meta name="description" content="Stripe has returned you to Webco Cloud. This page does not confirm payment."><link rel="canonical" href="https://webcocloud.net/start/checkout/success/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta name="robots" content="noindex"><meta property="og:title" content="Payment return — Webco Cloud"><meta property="og:description" content="Stripe has returned you to Webco Cloud. This page does not confirm payment."><meta property="og:url" content="https://webcocloud.net/start/checkout/success/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/PageHero.jUiBgMs1.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/favicon.svg" width="32" height="32" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><nav aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="button" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Client login</a></li></ul></nav></div></header><main id="content"><section class="hero"><div class="wrap"><p class="eyebrow">Website setup</p><h1>Back from Stripe</h1><div class="hero-body"><p>This page does not confirm payment. The order stays unpaid until Webco Cloud matches the Stripe result to it.</p></div></div></section><section class="section"><div class="wrap"><article class="card"><h2>Order reference</h2><p id="order-reference" class="checkout-note">No order reference was included on this return.</p><p class="start-note">The session id in the address is not proof that the payment succeeded.</p><div class="actions"><a class="button button-quiet" href="/support/">Support</a></div></article></div></section></main><footer class="site-footer"><div class="wrap footer-inner"><div><p class="footer-brand">Webco Cloud</p><p>Hosting, domains, email and support for websites built by Webco Media.</p></div><div><p class="footer-label">Services</p><ul class="footer-nav"><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li></ul></div><div><p class="footer-label">Customers</p><ul class="footer-nav"><li><a href="/support/">Support</a></li><li><a href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage">Client login</a></li></ul></div></div></footer></body></html><script>
-  const result = document.getElementById("order-reference");
-  const orderId = new URLSearchParams(window.location.search).get("order") || "";
-  if (/^wc_[a-f0-9]{20}$/.test(orderId)) {
-    result.textContent = "Order reference " + orderId + ".";
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your order — Webco Cloud</title><meta name="description" content="Payment status for a Webco Cloud website order."><link rel="canonical" href="https://webcocloud.net/start/checkout/success/"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><meta name="theme-color" content="#0c6b62"><meta name="robots" content="noindex"><meta property="og:title" content="Your order — Webco Cloud"><meta property="og:description" content="Payment status for a Webco Cloud website order."><meta property="og:url" content="https://webcocloud.net/start/checkout/success/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/PageHero.jUiBgMs1.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/favicon.svg" width="32" height="32" alt=""><span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span></a><nav aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="button" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Client login</a></li></ul></nav></div></header><main id="content"><section class="hero"><div class="wrap"><p class="eyebrow">Website setup</p><h1>Your order</h1><div class="hero-body"><p id="payment-lead">Checking this order.</p></div></div></section><section class="section"><div class="wrap"><article class="card"><h2 id="payment-heading">Checking your payment</h2><p id="payment-message" class="checkout-note" role="status">Checking this order.</p><dl class="summary" id="payment-summary" hidden></dl><p id="payment-next" class="start-note" hidden></p><div class="actions"><button class="button" type="button" id="payment-refresh" hidden>Check again</button><a class="button button-quiet" href="/support/">Support</a></div></article></div></section></main><footer class="site-footer"><div class="wrap footer-inner"><div><p class="footer-brand">Webco Cloud</p><p>Hosting, domains, email and support for websites built by Webco Media.</p></div><div><p class="footer-label">Services</p><ul class="footer-nav"><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li></ul></div><div><p class="footer-label">Customers</p><ul class="footer-nav"><li><a href="/support/">Support</a></li><li><a href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage">Client login</a></li></ul></div></div></footer></body></html><script>
+  const lead = document.getElementById("payment-lead");
+  const heading = document.getElementById("payment-heading");
+  const message = document.getElementById("payment-message");
+  const summary = document.getElementById("payment-summary");
+  const next = document.getElementById("payment-next");
+  const refresh = document.getElementById("payment-refresh");
+  const requestedId = new URLSearchParams(window.location.search).get("order") || "";
+
+  function row(label, value) {
+    const item = document.createElement("div");
+    const term = document.createElement("dt");
+    const detail = document.createElement("dd");
+    term.textContent = label;
+    detail.textContent = value;
+    item.append(term, detail);
+    return item;
   }
+
+  function showUnknown() {
+    lead.textContent = "Contact support if you need help with this return.";
+    heading.textContent = "We could not confirm this order";
+    message.textContent = "We could not find an order for this return. If you have just paid, contact support and keep any receipt from Stripe.";
+    summary.hidden = true;
+    summary.replaceChildren();
+    next.hidden = true;
+    next.textContent = "";
+    refresh.hidden = true;
+  }
+
+  function showDraft(orderId) {
+    lead.textContent = "Payment is being confirmed.";
+    heading.textContent = "Payment is being confirmed";
+    message.textContent = "Payment is being confirmed. Check again in a moment. You do not need to pay again while this is in progress.";
+    summary.hidden = false;
+    summary.replaceChildren(row("Order reference", orderId));
+    next.hidden = true;
+    next.textContent = "";
+    refresh.hidden = false;
+  }
+
+  function showPaid(data) {
+    const rows = [row("Order reference", data.orderId)];
+    if (data.packageName === "Webco Essential" || data.packageName === "Webco Professional") {
+      rows.push(row("Website package", data.packageName));
+    }
+    if (/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(data.domain || "")) {
+      rows.push(row("Domain", data.domain));
+    }
+    if (data.care === "managed") {
+      rows.push(row("Hosting", "Managed Care"));
+    } else if (data.care === "standard") {
+      rows.push(row("Hosting", "Annual hosting"));
+    }
+    lead.textContent = "Payment received.";
+    heading.textContent = "Payment received";
+    message.textContent = "Payment has been received for this order.";
+    summary.hidden = false;
+    summary.replaceChildren(...rows);
+    next.hidden = false;
+    next.textContent = "Webco will use these details to start the website. You do not need to pay again.";
+    refresh.hidden = true;
+  }
+
+  function applyStatus(data) {
+    if (!data || typeof data !== "object") {
+      showUnknown();
+      return;
+    }
+    if (data.status === "draft" && data.orderId === requestedId) {
+      showDraft(data.orderId);
+      return;
+    }
+    if (data.status === "paid" && data.orderId === requestedId) {
+      showPaid(data);
+      return;
+    }
+    showUnknown();
+  }
+
+  async function checkOrder() {
+    lead.textContent = "Checking this order.";
+    heading.textContent = "Checking your payment";
+    message.textContent = "Checking this order.";
+    summary.hidden = true;
+    summary.replaceChildren();
+    next.hidden = true;
+    next.textContent = "";
+    refresh.disabled = true;
+    if (!/^wc_[a-f0-9]{20}$/.test(requestedId)) {
+      showUnknown();
+      refresh.disabled = false;
+      return;
+    }
+    try {
+      const response = await fetch("/order-status.php?order=" + encodeURIComponent(requestedId), {
+        headers: { Accept: "application/json" },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        showUnknown();
+        return;
+      }
+      applyStatus(data);
+    } catch {
+      showUnknown();
+    } finally {
+      refresh.disabled = false;
+    }
+  }
+
+  refresh.addEventListener("click", () => {
+    checkOrder();
+  });
+  checkOrder();
 </script>

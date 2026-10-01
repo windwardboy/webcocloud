@@ -301,6 +301,42 @@ function webco_mark_order_paid(
 }
 
 /**
+ * Reads the fields the success page is allowed to show.
+ * Returns null when the order is missing or the lookup fails.
+ *
+ * @return array{status: string, package_name: string, domain_name: string, care_choice: string}|null
+ */
+function webco_find_order_display(PDO $db, string $publicId): ?array
+{
+    if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return null;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'SELECT status, package_name, domain_name, care_choice
+             FROM orders
+             WHERE public_id = :public_id'
+        );
+        $statement->execute(['public_id' => $publicId]);
+        $row = $statement->fetch();
+    } catch (PDOException) {
+        return null;
+    }
+
+    if ($row === false) {
+        return null;
+    }
+
+    return [
+        'status' => (string) ($row['status'] ?? ''),
+        'package_name' => (string) ($row['package_name'] ?? ''),
+        'domain_name' => (string) ($row['domain_name'] ?? ''),
+        'care_choice' => (string) ($row['care_choice'] ?? ''),
+    ];
+}
+
+/**
  * @param array{
  *   package_code: string,
  *   package_name: string,

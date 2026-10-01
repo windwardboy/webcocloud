@@ -12,7 +12,11 @@ const loginExternal = clientLoginIsExternal();
       <img src="/favicon.svg" width="32" height="32" alt="" />
       <span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span>
     </a>
-    <nav aria-label="Primary">
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
+      <span class="visually-hidden">Menu</span>
+      <span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>
+    </button>
+    <nav id="primary-nav" class="primary-nav" aria-label="Primary">
       <ul class="nav">
         {
           nav.map((item) => (
@@ -38,4 +42,38 @@ const loginExternal = clientLoginIsExternal();
       </ul>
     </nav>
   </div>
+  <script is:inline>
+    (function () {
+      var header = document.currentScript.closest(".site-header");
+      var toggle = header.querySelector(".nav-toggle");
+      var narrow = window.matchMedia("(max-width: 47.99rem)");
+      header.classList.add("has-js");
+
+      function setOpen(open) {
+        header.classList.toggle("nav-open", open);
+        toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      }
+
+      toggle.addEventListener("click", function () {
+        setOpen(toggle.getAttribute("aria-expanded") !== "true");
+      });
+      header.addEventListener("keydown", function (event) {
+        if (event.key === "Escape" && toggle.getAttribute("aria-expanded") === "true") {
+          setOpen(false);
+          toggle.focus();
+        }
+      });
+      header.querySelectorAll(".primary-nav a").forEach(function (link) {
+        link.addEventListener("click", function () {
+          setOpen(false);
+        });
+      });
+      document.addEventListener("click", function (event) {
+        if (!header.contains(event.target)) setOpen(false);
+      });
+      narrow.addEventListener("change", function () {
+        setOpen(false);
+      });
+    })();
+  </script>
 </header>

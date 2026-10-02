@@ -216,8 +216,73 @@ check(is_array($fields) && $fields['trial_end'] === null && $fields['livemode'] 
 check(webco_stripe_livemode_column(true) === 1, 'a live Stripe object maps to stripe_livemode 1');
 check(webco_stripe_livemode_column('false') === null, 'livemode is not inferred from a string');
 
+$limitDb = test_db();
+$limitFirst = add_order($limitDb, ['care_choice' => 'standard']);
+$limitSecond = add_order($limitDb, ['care_choice' => 'standard']);
+$limitCalls = 0;
+$limited = webco_reconcile_orders($limitDb, static function (array $order) use (&$limitCalls, $trialEnd): array {
+    $limitCalls++;
+
+    return ['ok' => true, 'livemode' => 0, 'status' => 'trialing', 'trial_end' => $trialEnd];
+}, false, 1);
+$limitFirstRow = order_row($limitDb, $limitFirst);
+$limitSecondRow = order_row($limitDb, $limitSecond);
+check($limitCalls === 1 && count($limited) === 1, 'a limit of 1 processes one candidate');
+check(($limited[0]['public_id'] ?? '') === $limitFirstRow['public_id'], 'limit keeps the oldest candidate');
+check($limitSecondRow['hosting_status'] === null && $limitSecondRow['stripe_livemode'] === null, 'limit leaves the remaining candidate unread');
+add_order($limitDb, ['status' => 'checkout_created']);
+check(webco_reconcile_candidate_count($limitDb) === 2, 'candidate count includes only unreconciled paid orders');
+
+$targetDb = test_db();
+$targetSkip = add_order($targetDb, ['care_choice' => 'standard']);
+$targetKeep = add_order($targetDb, ['care_choice' => 'managed']);
+$targetPublic = (string) order_row($targetDb, $targetKeep)['public_id'];
+$targetCalls = 0;
+$targeted = webco_reconcile_orders($targetDb, static function (array $order) use (&$targetCalls, $trialEnd): array {
+    $targetCalls++;
+
+    return ['ok' => true, 'livemode' => 0, 'status' => 'trialing', 'trial_end' => $trialEnd];
+}, false, null, $targetPublic);
+check($targetCalls === 1 && count($targeted) === 1, 'a public order id processes only that order');
+check(($targeted[0]['public_id'] ?? '') === $targetPublic, 'the targeted order is the one reported');
+check(order_row($targetDb, $targetSkip)['hosting_status'] === null, 'a targeted preview does not read the other order');
+check(webco_reconcile_find_order($targetDb, 'wc_' . str_repeat('e', 20)) === null, 'an unknown public id is not a candidate read');
+
+$progressDb = test_db();
+$progressFirst = add_order($progressDb, ['care_choice' => 'standard']);
+$progressSecond = add_order($progressDb, ['care_choice' => 'standard']);
+$progressFirstPublic = (string) order_row($progressDb, $progressFirst)['public_id'];
+$progressSecondPublic = (string) order_row($progressDb, $progressSecond)['public_id'];
+$reported = [];
+$reportedBeforeNext = false;
+webco_reconcile_orders($progressDb, static function (array $order) use (&$reported, &$reportedBeforeNext, $progressFirstPublic, $progressSecondPublic, $trialEnd): array {
+    if (($order['public_id'] ?? '') === $progressSecondPublic) {
+        $reportedBeforeNext = $reported === [$progressFirstPublic];
+    }
+
+    return ['ok' => true, 'livemode' => 0, 'status' => 'trialing', 'trial_end' => $trialEnd];
+}, false, null, null, static function (array $result) use (&$reported): void {
+    $reported[] = (string) ($result['public_id'] ?? '');
+});
+check($reported === [$progressFirstPublic, $progressSecondPublic], 'progress reports candidates in order');
+check($reportedBeforeNext, 'the first candidate is reported before the next Stripe read');
+
+$defaultOptions = webco_reconcile_cli_options(['provision-reconcile.php']);
+$limitOptions = webco_reconcile_cli_options(['provision-reconcile.php', '--limit=1']);
+$orderOptions = webco_reconcile_cli_options(['provision-reconcile.php', '--order=' . $targetPublic]);
+$applyOptions = webco_reconcile_cli_options(['provision-reconcile.php', '--apply']);
+$limitedApply = webco_reconcile_cli_options(['provision-reconcile.php', '--apply', '--limit=1']);
+check(($defaultOptions['ok'] ?? false) === true && ($defaultOptions['apply'] ?? true) === false, 'no arguments stay in preview');
+check(($limitOptions['limit'] ?? 0) === 1 && ($limitOptions['apply'] ?? true) === false, '--limit=1 is accepted for preview');
+check(($orderOptions['public_id'] ?? '') === $targetPublic && ($orderOptions['apply'] ?? true) === false, '--order accepts one public id');
+check(($applyOptions['apply'] ?? false) === true && $applyOptions['limit'] === null, '--apply is explicit');
+check(($limitedApply['ok'] ?? true) === false, '--limit cannot be combined with --apply');
+
 $cli = (string) file_get_contents(dirname(__DIR__) . '/bin/provision-reconcile.php');
 check(str_contains($cli, '--apply'), 'apply mode is an explicit flag');
+check(str_contains($cli, '--limit=1'), 'preview can limit the number of candidates');
+check(str_contains($cli, '--order='), 'preview can target one order');
+check(str_contains($cli, 'fflush(STDOUT)'), 'progress is flushed as each candidate is processed');
 check(str_contains($cli, "PHP_SAPI !== 'cli'"), 'reconciliation refuses a web request');
 check(!str_contains($cli, 'api.20i.com'), 'reconciliation CLI does not call 20i');
 
@@ -229,6 +294,9 @@ $missingDb = null;
 $trialDb = null;
 $repeatDb = null;
 $unpaidDb = null;
+$limitDb = null;
+$targetDb = null;
+$progressDb = null;
 gc_collect_cycles();
 foreach ($paths as $path) {
     if (is_file($path)) {

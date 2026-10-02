@@ -15,60 +15,233 @@ require_once __DIR__ . '/stripe.php';
 
 /**
  * Preview by default. Apply writes only null fields on rows that are still paid.
+ * $onResult is called after each candidate so a CLI can print before the next read.
  *
  * @param callable(array<string, mixed>): array{ok: bool, reason?: string, livemode?: int, status?: string, trial_end?: ?int} $retrieve
+ * @param callable(array<string, mixed>): void|null $onResult
  * @return list<array<string, mixed>>
  */
-function webco_reconcile_orders(PDO $db, callable $retrieve, bool $apply): array
-{
-    $rows = webco_reconcile_candidates($db);
+function webco_reconcile_orders(
+    PDO $db,
+    callable $retrieve,
+    bool $apply,
+    ?int $limit = null,
+    ?string $publicId = null,
+    ?callable $onResult = null
+): array {
+    $rows = webco_reconcile_candidates($db, $limit, $publicId);
     if ($rows === null) {
-        return [[
+        $result = [
             'public_id' => '',
             'action' => 'unchanged',
             'reason' => 'database_error',
             'current' => null,
             'proposed' => null,
-        ]];
+        ];
+        if ($onResult !== null) {
+            $onResult($result);
+        }
+
+        return [$result];
     }
 
     $results = [];
     foreach ($rows as $row) {
-        $results[] = webco_reconcile_one($db, $row, $retrieve, $apply);
+        $result = webco_reconcile_one($db, $row, $retrieve, $apply);
+        $results[] = $result;
+        if ($onResult !== null) {
+            $onResult($result);
+        }
     }
 
     return $results;
 }
 
 /**
- * @return list<array<string, mixed>>|null
+ * @param list<string> $argv
+ * @return array{ok: bool, error: string, apply: bool, limit: ?int, public_id: ?string}
  */
-function webco_reconcile_candidates(PDO $db): ?array
+function webco_reconcile_cli_options(array $argv): array
+{
+    $apply = false;
+    $limit = null;
+    $publicId = null;
+    $empty = [
+        'ok' => false,
+        'error' => '',
+        'apply' => false,
+        'limit' => null,
+        'public_id' => null,
+    ];
+
+    foreach (array_slice($argv, 1) as $arg) {
+        if ($arg === '--apply') {
+            if ($apply) {
+                $empty['error'] = 'preview is the default; --apply may be given once';
+
+                return $empty;
+            }
+            $apply = true;
+            continue;
+        }
+        if (str_starts_with($arg, '--limit=')) {
+            if ($limit !== null) {
+                $empty['error'] = '--limit may be given once';
+
+                return $empty;
+            }
+            $raw = substr($arg, strlen('--limit='));
+            if (!preg_match('/^[1-9][0-9]{0,3}$/', $raw)) {
+                $empty['error'] = '--limit must be a positive integer, as in --limit=1';
+
+                return $empty;
+            }
+            $limit = (int) $raw;
+            continue;
+        }
+        if (str_starts_with($arg, '--order=')) {
+            if ($publicId !== null) {
+                $empty['error'] = '--order may be given once';
+
+                return $empty;
+            }
+            $raw = substr($arg, strlen('--order='));
+            if (!preg_match('/^wc_[a-f0-9]{20}$/', $raw)) {
+                $empty['error'] = '--order must be one public order id, as in --order=wc_xxx';
+
+                return $empty;
+            }
+            $publicId = $raw;
+            continue;
+        }
+
+        $empty['error'] = 'preview is the default; arguments are --apply, --limit=N, and --order=wc_xxx';
+
+        return $empty;
+    }
+
+    if ($apply && $limit !== null) {
+        $empty['error'] = '--limit is preview only';
+
+        return $empty;
+    }
+    if ($limit !== null && $publicId !== null) {
+        $empty['error'] = 'use either --limit or --order';
+
+        return $empty;
+    }
+
+    return [
+        'ok' => true,
+        'error' => '',
+        'apply' => $apply,
+        'limit' => $limit,
+        'public_id' => $publicId,
+    ];
+}
+
+function webco_reconcile_candidate_count(PDO $db): ?int
 {
     try {
         $statement = $db->query(
-            'SELECT id, public_id, status, care_choice,
-                    stripe_checkout_session_id, stripe_subscription_id,
-                    stripe_livemode, care_status, care_trial_ends_at,
-                    hosting_status, hosting_included_until
+            'SELECT COUNT(*) AS candidate_count
              FROM orders
-             WHERE status = \'paid\'
-               AND (
-                    stripe_livemode IS NULL
-                    OR hosting_status IS NULL
-                    OR (care_choice = \'managed\' AND (care_status IS NULL OR care_trial_ends_at IS NULL))
-                    OR (care_choice = \'standard\' AND hosting_included_until IS NULL)
-               )
-             ORDER BY id'
+             WHERE ' . webco_reconcile_candidate_where()
         );
         if ($statement === false) {
             return null;
+        }
+        $row = $statement->fetch();
+        if (!is_array($row)) {
+            return null;
+        }
+
+        return (int) ($row['candidate_count'] ?? 0);
+    } catch (PDOException) {
+        return null;
+    }
+}
+
+/**
+ * @return list<array<string, mixed>>|null
+ */
+function webco_reconcile_candidates(PDO $db, ?int $limit = null, ?string $publicId = null): ?array
+{
+    if ($limit !== null && $limit < 1) {
+        return [];
+    }
+    if ($publicId !== null && !preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return [];
+    }
+
+    $sql = 'SELECT id, public_id, status, care_choice,
+                   stripe_checkout_session_id, stripe_subscription_id,
+                   stripe_livemode, care_status, care_trial_ends_at,
+                   hosting_status, hosting_included_until
+            FROM orders
+            WHERE ' . webco_reconcile_candidate_where();
+    if ($publicId !== null) {
+        $sql .= ' AND public_id = :public_id';
+    }
+    $sql .= ' ORDER BY id';
+    if ($limit !== null) {
+        $sql .= ' LIMIT ' . $limit;
+    }
+
+    try {
+        $statement = $db->prepare($sql);
+        if ($publicId !== null) {
+            $statement->execute(['public_id' => $publicId]);
+        } else {
+            $statement->execute();
         }
 
         return $statement->fetchAll();
     } catch (PDOException) {
         return null;
     }
+}
+
+/**
+ * Read one order without requiring it to be a reconciliation candidate.
+ * False means the read failed. Null means there is no such order.
+ *
+ * @return array<string, mixed>|false|null
+ */
+function webco_reconcile_find_order(PDO $db, string $publicId): array|false|null
+{
+    if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return null;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'SELECT id, public_id, status, care_choice,
+                    stripe_checkout_session_id, stripe_subscription_id,
+                    stripe_livemode, care_status, care_trial_ends_at,
+                    hosting_status, hosting_included_until
+             FROM orders
+             WHERE public_id = :public_id
+             LIMIT 1'
+        );
+        $statement->execute(['public_id' => $publicId]);
+        $row = $statement->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+
+    return is_array($row) ? $row : null;
+}
+
+function webco_reconcile_candidate_where(): string
+{
+    return 'status = \'paid\'
+              AND (
+                   stripe_livemode IS NULL
+                   OR hosting_status IS NULL
+                   OR (care_choice = \'managed\' AND (care_status IS NULL OR care_trial_ends_at IS NULL))
+                   OR (care_choice = \'standard\' AND hosting_included_until IS NULL)
+              )';
 }
 
 /**

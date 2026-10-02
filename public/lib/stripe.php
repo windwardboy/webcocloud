@@ -179,6 +179,77 @@ function webco_local_subscription_state(string $careChoice, string $stripeStatus
     return null;
 }
 
+function webco_stripe_livemode_column(mixed $livemode): ?int
+{
+    if ($livemode === false) {
+        return 0;
+    }
+    if ($livemode === true) {
+        return 1;
+    }
+
+    return null;
+}
+
+/**
+ * @param array<mixed> $session
+ * @return array{livemode: int, subscription_id: ?string}|null
+ */
+function webco_stripe_session_subscription(array $session): ?array
+{
+    $livemode = webco_stripe_livemode_column($session['livemode'] ?? null);
+    if ($livemode === null) {
+        return null;
+    }
+
+    $subscription = $session['subscription'] ?? null;
+    if (is_array($subscription)) {
+        $subscription = $subscription['id'] ?? null;
+    }
+    if ($subscription === null || $subscription === '') {
+        return [
+            'livemode' => $livemode,
+            'subscription_id' => null,
+        ];
+    }
+    if (!is_string($subscription) || strlen($subscription) > 255 || !preg_match('/^sub_[A-Za-z0-9]{8,240}$/', $subscription)) {
+        return null;
+    }
+    $subscriptionId = $subscription;
+
+    return [
+        'livemode' => $livemode,
+        'subscription_id' => $subscriptionId,
+    ];
+}
+
+/**
+ * @param array<mixed> $subscription
+ * @return array{livemode: int, status: string, trial_end: ?int}|null
+ */
+function webco_stripe_subscription_fields(array $subscription): ?array
+{
+    $livemode = webco_stripe_livemode_column($subscription['livemode'] ?? null);
+    $status = $subscription['status'] ?? '';
+    if ($livemode === null || !is_string($status) || $status === '') {
+        return null;
+    }
+
+    $trialEnd = $subscription['trial_end'] ?? null;
+    if (is_string($trialEnd) && preg_match('/^\d+$/', $trialEnd)) {
+        $trialEnd = (int) $trialEnd;
+    }
+    if (!is_int($trialEnd) || $trialEnd < 1) {
+        $trialEnd = null;
+    }
+
+    return [
+        'livemode' => $livemode,
+        'status' => $status,
+        'trial_end' => $trialEnd,
+    ];
+}
+
 function webco_map_stripe_subscription_status(string $status): ?string
 {
     if ($status === 'trialing' || $status === 'active' || $status === 'past_due') {
@@ -320,6 +391,56 @@ function webco_stripe_fetch_subscription(string $subscriptionId): ?array
         'status' => $status,
         'trial_end' => $trialEnd,
     ];
+}
+
+/**
+ * Read-only Checkout Session fields used to find a subscription.
+ * Null when the request fails or the signed mode flag is absent.
+ *
+ * @return array{livemode: int, subscription_id: ?string}|null
+ */
+function webco_stripe_get_session_subscription(string $sessionId): ?array
+{
+    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+        return null;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return null;
+    }
+    $response = webco_stripe_api($secret, 'GET', '/v1/checkout/sessions/' . rawurlencode($sessionId), null, null);
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+
+    return webco_stripe_session_subscription($response['body']);
+}
+
+/**
+ * Read-only subscription mode, status and trial end.
+ * A missing trial end is returned as null. The request itself failing returns null.
+ *
+ * @return array{livemode: int, status: string, trial_end: ?int}|null
+ */
+function webco_stripe_get_subscription_fields(string $subscriptionId): ?array
+{
+    if (!preg_match('/^sub_[A-Za-z0-9]{8,240}$/', $subscriptionId)) {
+        return null;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return null;
+    }
+    $response = webco_stripe_api($secret, 'GET', '/v1/subscriptions/' . rawurlencode($subscriptionId), null, null);
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+
+    return webco_stripe_subscription_fields($response['body']);
 }
 
 /**

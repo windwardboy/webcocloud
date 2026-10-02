@@ -167,6 +167,7 @@ function webco_ensure_orders_table(PDO $db): bool
                 care_trial_ends_at DATETIME NULL,
                 hosting_status VARCHAR(16) NULL,
                 hosting_included_until DATETIME NULL,
+                stripe_livemode TINYINT(1) NULL,
                 paid_at TIMESTAMP NULL DEFAULT NULL,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 PRIMARY KEY (id),
@@ -293,6 +294,7 @@ function webco_ensure_order_state_columns(PDO $db): bool
         'care_trial_ends_at' => 'DATETIME NULL',
         'hosting_status' => 'VARCHAR(16) NULL',
         'hosting_included_until' => 'DATETIME NULL',
+        'stripe_livemode' => 'TINYINT(1) NULL',
     ];
 
     try {
@@ -327,6 +329,14 @@ function webco_ensure_order_state_columns(PDO $db): bool
             'orders',
             'orders_hosting_status_check',
             'hosting_status IS NULL OR hosting_status IN (\'included\', \'trialing\', \'active\', \'past_due\', \'cancelled\')'
+        )) {
+            return false;
+        }
+        if (!webco_ensure_check_constraint(
+            $db,
+            'orders',
+            'orders_stripe_livemode_check',
+            'stripe_livemode IS NULL OR stripe_livemode IN (0, 1)'
         )) {
             return false;
         }
@@ -633,6 +643,7 @@ function webco_checkout_action(
  *   subscription_id: string,
  *   payment_intent_id: ?string,
  *   website_amount_pence: int,
+ *   stripe_livemode: int,
  *   care_status: ?string,
  *   care_trial_ends_at: ?string,
  *   hosting_status: string,
@@ -657,6 +668,10 @@ function webco_record_checkout_payment(PDO $db, array $payment): string
         return 'error';
     }
     if (!webco_payment_intent_id_valid($payment['payment_intent_id'])) {
+        return 'error';
+    }
+    $livemode = $payment['stripe_livemode'] ?? null;
+    if ($livemode !== 0 && $livemode !== 1) {
         return 'error';
     }
     if ($payment['website_amount_pence'] < 1) {
@@ -715,6 +730,7 @@ function webco_record_checkout_payment(PDO $db, array $payment): string
                  stripe_customer_id = :customer_id,
                  stripe_subscription_id = :subscription_id,
                  payment_intent_id = :payment_intent_id,
+                 stripe_livemode = :stripe_livemode,
                  care_status = :care_status,
                  care_trial_ends_at = :care_trial_ends_at,
                  hosting_status = :hosting_status,
@@ -729,6 +745,7 @@ function webco_record_checkout_payment(PDO $db, array $payment): string
             'customer_id' => $payment['customer_id'],
             'subscription_id' => $payment['subscription_id'],
             'payment_intent_id' => $payment['payment_intent_id'],
+            'stripe_livemode' => $livemode,
             'care_status' => $payment['care_status'],
             'care_trial_ends_at' => $payment['care_trial_ends_at'],
             'hosting_status' => $payment['hosting_status'],

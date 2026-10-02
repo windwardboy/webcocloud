@@ -159,6 +159,7 @@ $db->exec(
         care_trial_ends_at TEXT,
         hosting_status TEXT,
         hosting_included_until TEXT,
+        stripe_livemode INTEGER,
         paid_at TEXT
     )'
 );
@@ -199,6 +200,7 @@ $payment = [
     'customer_id' => 'cus_' . str_repeat('e', 14),
     'subscription_id' => 'sub_' . str_repeat('f', 14),
     'payment_intent_id' => 'pi_' . str_repeat('a', 16),
+    'stripe_livemode' => 0,
     'website_amount_pence' => 59500,
     'care_status' => $standard['care_status'],
     'care_trial_ends_at' => $standard['care_trial_ends_at'],
@@ -215,7 +217,7 @@ check(($stillOpen['status'] ?? '') === 'checkout_created', 'mismatched session l
 check(webco_record_checkout_payment($db, $payment) === 'paid', 'matching website fee marks the order paid');
 check(webco_record_checkout_payment($db, $payment) === 'already', 'repeat payment for the same session does not write again');
 $stored = $db->query(
-    'SELECT status, care_status, hosting_status, hosting_included_until, payment_intent_id
+    'SELECT status, care_status, hosting_status, hosting_included_until, payment_intent_id, stripe_livemode
      FROM orders WHERE public_id = ' . $db->quote($publicId)
 )->fetch();
 check(($stored['status'] ?? '') === 'paid', 'order status is paid');
@@ -223,6 +225,11 @@ check(($stored['care_status'] ?? null) === null, 'standard hosting stores no car
 check(($stored['hosting_status'] ?? '') === 'trialing', 'standard hosting stores the included-year trial');
 check(($stored['hosting_included_until'] ?? '') === $trialAt, 'standard hosting stores the trial end');
 check(($stored['payment_intent_id'] ?? '') === $payment['payment_intent_id'], 'payment intent is stored');
+check((int) ($stored['stripe_livemode'] ?? -1) === 0, 'test checkout stores stripe_livemode 0');
+$db->prepare('UPDATE orders SET stripe_livemode = 1 WHERE public_id = :id')->execute(['id' => $publicId]);
+check(webco_record_checkout_payment($db, $payment) === 'already', 'a repeat paid event does not write again');
+$kept = $db->query('SELECT stripe_livemode FROM orders WHERE public_id = ' . $db->quote($publicId))->fetch();
+check((int) ($kept['stripe_livemode'] ?? -1) === 1, 'a repeat paid event does not overwrite stripe_livemode');
 
 $managedId = 'wc_' . str_repeat('b', 20);
 $managedSession = 'cs_test_' . str_repeat('d', 16);

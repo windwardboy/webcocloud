@@ -53,7 +53,8 @@ function test_db(): array
             care_choice TEXT,
             hosting_status TEXT,
             hosting_included_until TEXT,
-            care_status TEXT
+            care_status TEXT,
+            stripe_livemode INTEGER
         )'
     );
     $db->exec(
@@ -96,6 +97,7 @@ function insert_case(PDO $db, array $order, array $project = []): int
         'hosting_status' => 'trialing',
         'hosting_included_until' => '2027-10-02 17:25:00',
         'care_status' => null,
+        'stripe_livemode' => 1,
     ], $order);
     $row['public_id'] = $publicId;
 
@@ -103,11 +105,11 @@ function insert_case(PDO $db, array $order, array $project = []): int
         'INSERT INTO orders (
             public_id, status, package_code, package_name, domain_path, domain_name,
             business_name, contact_name, email, phone, care_choice, hosting_status,
-            hosting_included_until, care_status
+            hosting_included_until, care_status, stripe_livemode
          ) VALUES (
             :public_id, :status, :package_code, :package_name, :domain_path, :domain_name,
             :business_name, :contact_name, :email, :phone, :care_choice, :hosting_status,
-            :hosting_included_until, :care_status
+            :hosting_included_until, :care_status, :stripe_livemode
          )'
     );
     $statement->execute($row);
@@ -333,6 +335,19 @@ foreach ($batchLog as $entry) {
 }
 check(in_array($batchReady, $discovered, true), 'discovered project is logged');
 check(!in_array($batchBusy, $discovered, true), 'in_progress project is not logged as discovered');
+
+$nullMode = insert_case($db, ['stripe_livemode' => null, 'domain_name' => 'unknown-mode.example']);
+$testMode = insert_case($db, ['stripe_livemode' => 0, 'domain_name' => 'test-mode.example']);
+$liveMode = insert_case($db, ['stripe_livemode' => 1, 'domain_name' => 'live-mode.example']);
+$nullRun = webco_provision_dry_run_project($db, $nullMode, static function (array $entry): void {
+});
+$testRun = webco_provision_dry_run_project($db, $testMode, static function (array $entry): void {
+});
+$liveRun = webco_provision_dry_run_project($db, $liveMode, static function (array $entry): void {
+});
+check(($nullRun['outcome'] ?? '') === 'skipped' && status_of($db, $nullMode) === 'ready', 'stripe_livemode NULL is not eligible');
+check(($testRun['outcome'] ?? '') === 'skipped' && status_of($db, $testMode) === 'ready', 'stripe_livemode 0 is not eligible');
+check(($liveRun['outcome'] ?? '') === 'dry_run' && status_of($db, $liveMode) === 'ready', 'stripe_livemode 1 is eligible when the order is paid and ready');
 
 $db = null;
 $other = null;

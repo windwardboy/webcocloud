@@ -199,6 +199,7 @@ function webco_apply_checkout_completed(PDO $db, array $event): string
         'customer_id' => $payment['customer_id'],
         'subscription_id' => $subscriptionId,
         'payment_intent_id' => $payment['payment_intent_id'],
+        'stripe_livemode' => $payment['stripe_livemode'],
         'website_amount_pence' => $collected,
         'care_status' => $local['care_status'],
         'care_trial_ends_at' => $local['care_trial_ends_at'],
@@ -293,7 +294,7 @@ function webco_stripe_signature_valid(string $payload, string $header, string $s
  * without a database write, or false when the signed event is malformed.
  *
  * @param array<mixed> $event
- * @return array{public_id: string, session_id: string, customer_id: ?string, subscription_id: ?string, payment_intent_id: ?string}|false|null
+ * @return array{public_id: string, session_id: string, customer_id: ?string, subscription_id: ?string, payment_intent_id: ?string, stripe_livemode: int}|false|null
  */
 function webco_checkout_payment_from_event(array $event): array|false|null
 {
@@ -310,6 +311,10 @@ function webco_checkout_payment_from_event(array $event): array|false|null
     $customer = webco_optional_stripe_id($object['customer'] ?? null, 'cus_');
     $subscription = webco_optional_stripe_id($object['subscription'] ?? null, 'sub_');
     $paymentIntent = webco_optional_stripe_id($object['payment_intent'] ?? null, 'pi_');
+    $livemode = webco_stripe_livemode_column($object['livemode'] ?? null);
+    if ($livemode === null) {
+        return null;
+    }
     if ($customer === false || $subscription === false || $paymentIntent === false) {
         return false;
     }
@@ -320,6 +325,7 @@ function webco_checkout_payment_from_event(array $event): array|false|null
         'customer_id' => $customer,
         'subscription_id' => $subscription,
         'payment_intent_id' => $paymentIntent,
+        'stripe_livemode' => $livemode,
     ];
 }
 

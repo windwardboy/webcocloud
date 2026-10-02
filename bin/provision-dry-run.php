@@ -5,8 +5,10 @@
  * Run from the server shell or a cron job:
  *   php bin/provision-dry-run.php
  *
- * This file is not a web page. It never calls 20i or Stripe, and there is
- * no live mode. Logs go to stderr. The result JSON goes to stdout.
+ * This file is not a web page. It never calls 20i or Stripe.
+ * It claims only orders with stripe_livemode = 1, the same rule a real
+ * worker must use. Test and unreconciled orders stay ready.
+ * Logs go to stderr. The result JSON goes to stdout.
  */
 
 declare(strict_types=1);

@@ -34,6 +34,7 @@ try {
          INNER JOIN orders o ON o.id = p.order_id
          WHERE p.provisioning_status = \'ready\'
            AND o.status = \'paid\'
+           AND o.stripe_livemode = 1
          ORDER BY p.id'
     );
     if ($statement === false) {

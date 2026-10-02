@@ -42,6 +42,7 @@ $orderColumns = [
     'care_trial_ends_at',
     'hosting_status',
     'hosting_included_until',
+    'stripe_livemode',
 ];
 $projectColumns = [
     'provisioning_status',
@@ -60,6 +61,7 @@ $constraints = [
         'orders_status_check',
         'orders_care_status_check',
         'orders_hosting_status_check',
+        'orders_stripe_livemode_check',
     ],
     'projects' => [
         'projects_provisioning_status_check',

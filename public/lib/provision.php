@@ -58,7 +58,9 @@ function webco_provision_dry_run_project(PDO $db, int $projectId, callable $log)
 }
 
 /**
- * Ready projects whose linked order is still paid.
+ * Ready projects whose linked order is still paid in Stripe Live mode.
+ * stripe_livemode must be 1. Test orders (0) and unreconciled orders (NULL)
+ * are not eligible. Real provisioning must use this query.
  * Incomplete customer or package data is claimed and then failed by validation,
  * so it is still returned here.
  *
@@ -73,6 +75,7 @@ function webco_provision_eligible_ids(PDO $db): ?array
              INNER JOIN orders o ON o.id = p.order_id
              WHERE p.provisioning_status = \'ready\'
                AND o.status = \'paid\'
+               AND o.stripe_livemode = 1
              ORDER BY p.id'
         );
         if ($statement === false) {
@@ -117,7 +120,8 @@ function webco_provision_claim(PDO $db, int $projectId): ?array
              INNER JOIN orders o ON o.id = p.order_id
              WHERE p.id = :id
                AND p.provisioning_status = \'ready\'
-               AND o.status = \'paid\'' . webco_for_update($db)
+               AND o.status = \'paid\'
+               AND o.stripe_livemode = 1' . webco_for_update($db)
         );
         $select->execute(['id' => $projectId]);
         $row = $select->fetch();
@@ -445,7 +449,7 @@ function webco_provision_skip_reason(PDO $db, int $projectId): string
 {
     try {
         $statement = $db->prepare(
-            'SELECT p.provisioning_status, o.status AS order_status
+            'SELECT p.provisioning_status, o.status AS order_status, o.stripe_livemode
              FROM projects p
              LEFT JOIN orders o ON o.id = p.order_id
              WHERE p.id = :id'
@@ -463,7 +467,8 @@ function webco_provision_skip_reason(PDO $db, int $projectId): string
     if ($status === 'in_progress') {
         return 'already_claimed';
     }
-    if ($status !== 'ready' || (string) ($row['order_status'] ?? '') !== 'paid') {
+    $livemode = $row['stripe_livemode'] ?? null;
+    if ($status !== 'ready' || (string) ($row['order_status'] ?? '') !== 'paid' || (int) $livemode !== 1 || $livemode === null) {
         return 'not_eligible';
     }
 

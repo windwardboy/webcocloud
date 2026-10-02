@@ -163,6 +163,10 @@ const carePrices = {"essential":"£39/month","professional":"£59/month"};
         });
         const data = await response.json();
         rememberOrder(data.orderId);
+        if (response.ok && data.pending === true && data.orderId) {
+          window.location.assign("/start/checkout/success/?order=" + encodeURIComponent(data.orderId));
+          return;
+        }
         if (!response.ok || !isStripeCheckoutUrl(data.checkoutUrl)) {
           result.textContent = "The order could not be sent to payment.";
           button.disabled = false;

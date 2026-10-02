@@ -85,7 +85,7 @@ export const commercial = {
     essential: "£39/month",
     professional: "£59/month",
     summary:
-      "Hosting, maintenance, routine content updates and support. It begins when the website goes live and includes hosting, so a separate hosting renewal is not required while Managed Care is active.",
+      "Hosting, maintenance, routine content updates and support, with a 30-day trial from checkout. Hosting is included, so a separate hosting renewal is not required while Managed Care is active.",
     allowance:
       "About 30 minutes of routine content changes a month, including reasonable course, pricing and location updates. Unused time does not roll over. Larger changes are quoted separately.",
   },

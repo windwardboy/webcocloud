@@ -20,10 +20,17 @@ const WEBCO_PUBLIC_ORIGIN = 'https://webcocloud.net';
 
 /**
  * @param array{package_code?: mixed, care_choice?: mixed, email?: mixed} $order
+ * @return array{id: string, url: string}|null
  */
-function webco_create_checkout_session(array $order, string $publicId): ?string
+function webco_create_checkout_session(array $order, string $publicId, ?string $idempotencyKey = null): ?array
 {
     if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return null;
+    }
+    if ($idempotencyKey === null) {
+        $idempotencyKey = 'webco-checkout-' . $publicId;
+    }
+    if (!preg_match('/^webco-checkout-[A-Za-z0-9_-]{8,180}$/', $idempotencyKey)) {
         return null;
     }
 
@@ -73,10 +80,279 @@ function webco_create_checkout_session(array $order, string $publicId): ?string
 
     $body = webco_stripe_form($fields);
 
-    $url = webco_stripe_post_session($secret, $body, $publicId);
+    $created = webco_stripe_post_session($secret, $body, $idempotencyKey);
     $secret = '';
 
-    return $url;
+    return $created;
+}
+
+/**
+ * One-time website fee actually collected on the Checkout Session.
+ * Recurring Managed Care and hosting amounts are ignored.
+ *
+ * @param array<mixed> $lineItems
+ */
+function webco_collected_website_pence(array $lineItems): ?int
+{
+    if (($lineItems['has_more'] ?? false) === true) {
+        return null;
+    }
+    $rows = $lineItems['data'] ?? null;
+    if (!is_array($rows)) {
+        return null;
+    }
+
+    $sum = 0;
+    $oneTime = 0;
+    foreach ($rows as $item) {
+        if (!is_array($item)) {
+            return null;
+        }
+        $price = $item['price'] ?? null;
+        if (!is_array($price)) {
+            return null;
+        }
+        $type = $price['type'] ?? '';
+        if ($type === 'recurring') {
+            continue;
+        }
+        if ($type !== 'one_time') {
+            return null;
+        }
+        $currency = $item['currency'] ?? $price['currency'] ?? '';
+        if ($currency !== 'gbp') {
+            return null;
+        }
+        $amount = webco_stripe_amount($item['amount_total'] ?? null);
+        if ($amount === null) {
+            return null;
+        }
+        $oneTime++;
+        $sum += $amount;
+    }
+    if ($oneTime !== 1) {
+        return null;
+    }
+
+    return $sum;
+}
+
+/**
+ * Local care and hosting columns for the single Checkout subscription.
+ * Managed Care includes hosting, so it does not get a hosting trial end.
+ *
+ * @return array{
+ *   care_status: ?string,
+ *   care_trial_ends_at: ?string,
+ *   hosting_status: string,
+ *   hosting_included_until: ?string
+ * }|null
+ */
+function webco_local_subscription_state(string $careChoice, string $stripeStatus, ?int $trialEnd): ?array
+{
+    $mapped = webco_map_stripe_subscription_status($stripeStatus);
+    if ($mapped === null || $trialEnd === null || $trialEnd < 1) {
+        return null;
+    }
+    $trialAt = gmdate('Y-m-d H:i:s', $trialEnd);
+    if (!webco_utc_datetime_valid($trialAt)) {
+        return null;
+    }
+
+    if ($careChoice === 'managed') {
+        return [
+            'care_status' => $mapped,
+            'care_trial_ends_at' => $trialAt,
+            'hosting_status' => 'included',
+            'hosting_included_until' => null,
+        ];
+    }
+    if ($careChoice === 'standard') {
+        return [
+            'care_status' => null,
+            'care_trial_ends_at' => null,
+            'hosting_status' => $mapped,
+            'hosting_included_until' => $trialAt,
+        ];
+    }
+
+    return null;
+}
+
+function webco_map_stripe_subscription_status(string $status): ?string
+{
+    if ($status === 'trialing' || $status === 'active' || $status === 'past_due') {
+        return $status;
+    }
+    if ($status === 'canceled' || $status === 'cancelled') {
+        return 'cancelled';
+    }
+
+    return null;
+}
+
+function webco_stripe_amount(mixed $amount): ?int
+{
+    if (is_int($amount) && $amount >= 0) {
+        return $amount;
+    }
+    if (is_string($amount) && preg_match('/^\d+$/', $amount)) {
+        return (int) $amount;
+    }
+
+    return null;
+}
+
+/**
+ * @return array{id: string, url: string, status: string}|null
+ */
+function webco_stripe_fetch_session(string $sessionId): ?array
+{
+    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+        return null;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return null;
+    }
+    $response = webco_stripe_api($secret, 'GET', '/v1/checkout/sessions/' . rawurlencode($sessionId), null, null);
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+
+    return webco_stripe_session_record($response['body']);
+}
+
+function webco_stripe_expire_session(string $sessionId): bool
+{
+    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+        return false;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return false;
+    }
+    $response = webco_stripe_api($secret, 'POST', '/v1/checkout/sessions/' . rawurlencode($sessionId) . '/expire', '', null);
+    $secret = '';
+    if ($response === null) {
+        return false;
+    }
+    if ($response['status'] === 200 && is_array($response['body'])) {
+        $record = webco_stripe_session_record($response['body']);
+
+        return $record !== null && ($record['status'] === 'expired' || $record['status'] === 'complete');
+    }
+
+    $current = webco_stripe_fetch_session($sessionId);
+
+    return $current !== null && ($current['status'] === 'expired' || $current['status'] === 'complete');
+}
+
+/**
+ * @return array<mixed>|null
+ */
+function webco_stripe_fetch_line_items(string $sessionId): ?array
+{
+    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+        return null;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return null;
+    }
+    $response = webco_stripe_api(
+        $secret,
+        'GET',
+        '/v1/checkout/sessions/' . rawurlencode($sessionId) . '/line_items?limit=10',
+        null,
+        null
+    );
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+    if (($response['body']['livemode'] ?? false) !== false && array_key_exists('livemode', $response['body'])) {
+        return null;
+    }
+
+    return $response['body'];
+}
+
+/**
+ * @return array{status: string, trial_end: int}|null
+ */
+function webco_stripe_fetch_subscription(string $subscriptionId): ?array
+{
+    if (!preg_match('/^sub_[A-Za-z0-9]{8,240}$/', $subscriptionId)) {
+        return null;
+    }
+
+    $secret = webco_stripe_secret();
+    if ($secret === null) {
+        return null;
+    }
+    $response = webco_stripe_api($secret, 'GET', '/v1/subscriptions/' . rawurlencode($subscriptionId), null, null);
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+    if (($response['body']['livemode'] ?? null) !== false) {
+        return null;
+    }
+
+    $status = $response['body']['status'] ?? '';
+    $trialEnd = $response['body']['trial_end'] ?? null;
+    if (!is_string($status)) {
+        return null;
+    }
+    if (is_string($trialEnd) && preg_match('/^\d+$/', $trialEnd)) {
+        $trialEnd = (int) $trialEnd;
+    }
+    if (!is_int($trialEnd) || $trialEnd < 1) {
+        return null;
+    }
+
+    return [
+        'status' => $status,
+        'trial_end' => $trialEnd,
+    ];
+}
+
+/**
+ * @param array<mixed> $session
+ * @return array{id: string, url: string, status: string}|null
+ */
+function webco_stripe_session_record(array $session): ?array
+{
+    if (($session['livemode'] ?? null) !== false) {
+        return null;
+    }
+    $id = $session['id'] ?? null;
+    $status = $session['status'] ?? '';
+    if (!is_string($id) || !preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $id)) {
+        return null;
+    }
+    if ($status !== 'open' && $status !== 'complete' && $status !== 'expired') {
+        return null;
+    }
+
+    $url = $session['url'] ?? '';
+    if (!is_string($url)) {
+        $url = '';
+    }
+    if ($status === 'open' && !webco_is_test_checkout_url($url)) {
+        return null;
+    }
+
+    return [
+        'id' => $id,
+        'url' => $url,
+        'status' => $status,
+    ];
 }
 
 /**
@@ -196,31 +472,70 @@ function webco_stripe_form(array $fields): string
     return implode('&', $pairs);
 }
 
-function webco_stripe_post_session(string $secret, string $body, string $publicId): ?string
+/**
+ * @return array{id: string, url: string}|null
+ */
+function webco_stripe_post_session(string $secret, string $body, string $idempotencyKey): ?array
+{
+    $response = webco_stripe_api($secret, 'POST', '/v1/checkout/sessions', $body, $idempotencyKey);
+    $secret = '';
+    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+        return null;
+    }
+
+    $record = webco_stripe_session_record($response['body']);
+    if ($record === null || $record['status'] !== 'open') {
+        return null;
+    }
+
+    return [
+        'id' => $record['id'],
+        'url' => $record['url'],
+    ];
+}
+
+/**
+ * @return array{status: int, body: array<mixed>|null}|null
+ */
+function webco_stripe_api(string $secret, string $method, string $path, ?string $body, ?string $idempotencyKey): ?array
 {
     if (!function_exists('curl_init')) {
         return null;
     }
+    if ($method !== 'GET' && $method !== 'POST') {
+        return null;
+    }
+    if (!preg_match('#^/v1/[A-Za-z0-9_./?=&%-]+$#', $path)) {
+        return null;
+    }
 
-    $handle = curl_init('https://api.stripe.com/v1/checkout/sessions');
+    $handle = curl_init('https://api.stripe.com' . $path);
     if ($handle === false) {
         return null;
     }
 
+    $headers = [
+        'Authorization: Bearer ' . $secret,
+        'Expect:',
+    ];
+    if ($method === 'POST') {
+        $headers[] = 'Content-Type: application/x-www-form-urlencoded';
+    }
+    if ($idempotencyKey !== null) {
+        $headers[] = 'Idempotency-Key: ' . $idempotencyKey;
+    }
+
     $options = [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_CUSTOMREQUEST => $method,
         CURLOPT_RETURNTRANSFER => true,
         CURLOPT_TIMEOUT => 20,
         CURLOPT_CONNECTTIMEOUT => 10,
         CURLOPT_FOLLOWLOCATION => false,
-        CURLOPT_HTTPHEADER => [
-            'Authorization: Bearer ' . $secret,
-            'Content-Type: application/x-www-form-urlencoded',
-            'Idempotency-Key: webco-checkout-' . $publicId,
-            'Expect:',
-        ],
+        CURLOPT_HTTPHEADER => $headers,
     ];
+    if ($method === 'POST') {
+        $options[CURLOPT_POSTFIELDS] = $body ?? '';
+    }
     if (defined('CURLPROTO_HTTPS')) {
         $options[CURLOPT_PROTOCOLS] = CURLPROTO_HTTPS;
     }
@@ -231,22 +546,17 @@ function webco_stripe_post_session(string $secret, string $body, string $publicI
     curl_close($handle);
     $secret = '';
 
-    if (!is_string($response) || $status !== 200) {
+    if (!is_string($response)) {
         return null;
     }
 
     $payload = json_decode($response, true);
     $response = '';
-    if (!is_array($payload)) {
-        return null;
-    }
 
-    $url = $payload['url'] ?? null;
-    if (!is_string($url) || !webco_is_test_checkout_url($url)) {
-        return null;
-    }
-
-    return $url;
+    return [
+        'status' => $status,
+        'body' => is_array($payload) ? $payload : null,
+    ];
 }
 
 function webco_is_test_checkout_url(string $url): bool

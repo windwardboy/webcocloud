@@ -144,7 +144,7 @@
       showUnknown();
       return;
     }
-    if (data.status === "draft" && data.orderId === requestedId) {
+    if ((data.status === "draft" || data.status === "checkout_created") && data.orderId === requestedId) {
       showDraft(data.orderId);
       return;
     }

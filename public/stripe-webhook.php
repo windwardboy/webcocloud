@@ -66,11 +66,9 @@ function webco_handle_stripe_webhook(): void
         webco_webhook_respond(400, ['status' => 'error']);
     }
 
-    $payment = webco_checkout_payment_from_event($event);
-    if ($payment === null) {
-        webco_webhook_respond(200, ['received' => true]);
-    }
-    if ($payment === false) {
+    $eventId = $event['id'] ?? '';
+    $eventType = $event['type'] ?? '';
+    if (!is_string($eventId) || !is_string($eventType)) {
         webco_webhook_respond(400, ['status' => 'error']);
     }
 
@@ -79,24 +77,179 @@ function webco_handle_stripe_webhook(): void
         webco_webhook_respond(500, ['status' => 'error']);
     }
 
-    $result = webco_mark_order_paid(
-        $db,
-        $payment['public_id'],
-        $payment['session_id'],
-        $payment['customer_id'],
-        $payment['subscription_id']
-    );
-    if ($result === 'error') {
+    $claim = webco_claim_stripe_event($db, $eventId, $eventType);
+    if ($claim['state'] === 'done') {
+        webco_webhook_respond(200, ['received' => true]);
+    }
+    if ($claim['state'] !== 'claimed' || !isset($claim['claimed_at'])) {
         webco_webhook_respond(500, ['status' => 'error']);
     }
 
-    if ($result === 'paid' || $result === 'already') {
-        if (webco_ensure_paid_project($db, $payment['public_id']) !== 'ok') {
-            webco_webhook_respond(500, ['status' => 'error']);
-        }
+    $outcome = webco_apply_stripe_event($db, $event);
+    if ($outcome === 'retry') {
+        webco_webhook_respond(500, ['status' => 'error']);
+    }
+
+    webco_finish_stripe_event($db, $eventId, $claim['claimed_at'], $outcome === 'reject' ? 'rejected' : $outcome);
+    if ($outcome === 'reject') {
+        webco_webhook_respond(400, ['status' => 'error']);
     }
 
     webco_webhook_respond(200, ['received' => true]);
+}
+
+/**
+ * Recognised subscription and refund events are acknowledged without
+ * billing changes. Managed Care cancellation must not start hosting.
+ *
+ * @param array<mixed> $event
+ * @return 'applied'|'ignored'|'reject'|'retry'
+ */
+function webco_apply_stripe_event(PDO $db, array $event): string
+{
+    if (($event['livemode'] ?? null) !== false) {
+        return 'ignored';
+    }
+
+    $type = $event['type'] ?? '';
+    if (!is_string($type)) {
+        return 'reject';
+    }
+
+    if ($type === 'checkout.session.completed') {
+        return webco_apply_checkout_completed($db, $event);
+    }
+    if ($type === 'checkout.session.expired') {
+        return webco_apply_checkout_expired($db, $event);
+    }
+    if (
+        $type === 'customer.subscription.updated'
+        || $type === 'customer.subscription.deleted'
+        || $type === 'invoice.paid'
+        || $type === 'invoice.payment_failed'
+        || $type === 'charge.refunded'
+        || $type === 'refund.created'
+        || $type === 'refund.updated'
+    ) {
+        return 'ignored';
+    }
+
+    return 'ignored';
+}
+
+/**
+ * @param array<mixed> $event
+ * @return 'applied'|'ignored'|'reject'|'retry'
+ */
+function webco_apply_checkout_completed(PDO $db, array $event): string
+{
+    $payment = webco_checkout_payment_from_event($event);
+    if ($payment === null) {
+        return 'ignored';
+    }
+    if ($payment === false) {
+        return 'reject';
+    }
+
+    $order = webco_find_order_checkout_row($db, $payment['public_id']);
+    if ($order === null) {
+        return 'ignored';
+    }
+    if ($order['status'] === 'paid') {
+        if ($order['stripe_checkout_session_id'] !== $payment['session_id']) {
+            return 'reject';
+        }
+        if (webco_ensure_paid_project($db, $payment['public_id']) !== 'ok') {
+            return 'retry';
+        }
+
+        return 'applied';
+    }
+    if ($order['stripe_checkout_session_id'] !== null && $order['stripe_checkout_session_id'] !== $payment['session_id']) {
+        return 'reject';
+    }
+
+    $subscriptionId = $payment['subscription_id'];
+    if ($subscriptionId === null) {
+        return 'retry';
+    }
+
+    $lineItems = webco_stripe_fetch_line_items($payment['session_id']);
+    $subscription = webco_stripe_fetch_subscription($subscriptionId);
+    if ($lineItems === null || $subscription === null) {
+        return 'retry';
+    }
+
+    $collected = webco_collected_website_pence($lineItems);
+    if ($collected === null) {
+        return 'retry';
+    }
+    if ($collected !== $order['package_price_pence']) {
+        return 'reject';
+    }
+
+    $local = webco_local_subscription_state($order['care_choice'], $subscription['status'], $subscription['trial_end']);
+    if ($local === null) {
+        return 'retry';
+    }
+
+    $result = webco_record_checkout_payment($db, [
+        'public_id' => $payment['public_id'],
+        'session_id' => $payment['session_id'],
+        'customer_id' => $payment['customer_id'],
+        'subscription_id' => $subscriptionId,
+        'payment_intent_id' => $payment['payment_intent_id'],
+        'website_amount_pence' => $collected,
+        'care_status' => $local['care_status'],
+        'care_trial_ends_at' => $local['care_trial_ends_at'],
+        'hosting_status' => $local['hosting_status'],
+        'hosting_included_until' => $local['hosting_included_until'],
+    ]);
+    if ($result === 'error') {
+        return 'retry';
+    }
+    if ($result === 'mismatch') {
+        return 'reject';
+    }
+    if ($result === 'missing') {
+        return 'ignored';
+    }
+    if ($result !== 'paid' && $result !== 'already') {
+        return 'retry';
+    }
+    if ($result === 'already' && $order['stripe_checkout_session_id'] !== null && $order['stripe_checkout_session_id'] !== $payment['session_id']) {
+        return 'reject';
+    }
+    if (webco_ensure_paid_project($db, $payment['public_id']) !== 'ok') {
+        return 'retry';
+    }
+
+    return 'applied';
+}
+
+/**
+ * @param array<mixed> $event
+ * @return 'applied'|'ignored'|'reject'|'retry'
+ */
+function webco_apply_checkout_expired(PDO $db, array $event): string
+{
+    $session = webco_checkout_reference_from_event($event, 'checkout.session.expired');
+    if ($session === null) {
+        return 'ignored';
+    }
+    if ($session === false) {
+        return 'reject';
+    }
+
+    $result = webco_cancel_open_checkout($db, $session['public_id'], $session['session_id']);
+    if ($result === 'error') {
+        return 'retry';
+    }
+    if ($result === 'cancelled') {
+        return 'applied';
+    }
+
+    return 'ignored';
 }
 
 function webco_stripe_signature_valid(string $payload, string $header, string $secret, int $now): bool
@@ -140,12 +293,44 @@ function webco_stripe_signature_valid(string $payload, string $header, string $s
  * without a database write, or false when the signed event is malformed.
  *
  * @param array<mixed> $event
- * @return array{public_id: string, session_id: string, customer_id: ?string, subscription_id: ?string}|false|null
+ * @return array{public_id: string, session_id: string, customer_id: ?string, subscription_id: ?string, payment_intent_id: ?string}|false|null
  */
 function webco_checkout_payment_from_event(array $event): array|false|null
 {
+    $session = webco_checkout_reference_from_event($event, 'checkout.session.completed');
+    if ($session === null || $session === false) {
+        return $session;
+    }
+
+    $object = $event['data']['object'] ?? null;
+    if (!is_array($object) || ($object['payment_status'] ?? '') !== 'paid') {
+        return null;
+    }
+
+    $customer = webco_optional_stripe_id($object['customer'] ?? null, 'cus_');
+    $subscription = webco_optional_stripe_id($object['subscription'] ?? null, 'sub_');
+    $paymentIntent = webco_optional_stripe_id($object['payment_intent'] ?? null, 'pi_');
+    if ($customer === false || $subscription === false || $paymentIntent === false) {
+        return false;
+    }
+
+    return [
+        'public_id' => $session['public_id'],
+        'session_id' => $session['session_id'],
+        'customer_id' => $customer,
+        'subscription_id' => $subscription,
+        'payment_intent_id' => $paymentIntent,
+    ];
+}
+
+/**
+ * @param array<mixed> $event
+ * @return array{public_id: string, session_id: string}|false|null
+ */
+function webco_checkout_reference_from_event(array $event, string $expectedType): array|false|null
+{
     $type = $event['type'] ?? '';
-    if (!is_string($type) || $type !== 'checkout.session.completed') {
+    if (!is_string($type) || $type !== $expectedType) {
         return null;
     }
     if (($event['livemode'] ?? null) !== false) {
@@ -157,9 +342,6 @@ function webco_checkout_payment_from_event(array $event): array|false|null
         return false;
     }
     if (($session['livemode'] ?? null) !== false) {
-        return null;
-    }
-    if (($session['payment_status'] ?? '') !== 'paid') {
         return null;
     }
 
@@ -181,9 +363,21 @@ function webco_checkout_payment_from_event(array $event): array|false|null
     return [
         'public_id' => $reference,
         'session_id' => $sessionId,
-        'customer_id' => webco_stripe_reference_id($session['customer'] ?? null, 'cus_'),
-        'subscription_id' => webco_stripe_reference_id($session['subscription'] ?? null, 'sub_'),
     ];
+}
+
+/**
+ * Null when the field is absent, false when it is present but not a valid id.
+ */
+function webco_optional_stripe_id(mixed $value, string $prefix): string|false|null
+{
+    if ($value === null || $value === '') {
+        return null;
+    }
+
+    $id = webco_stripe_reference_id($value, $prefix);
+
+    return $id === null ? false : $id;
 }
 
 function webco_stripe_reference_id(mixed $value, string $prefix): ?string

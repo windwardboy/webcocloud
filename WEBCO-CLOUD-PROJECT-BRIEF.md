@@ -228,7 +228,7 @@ This package must be differentiated by business need rather than simply advertis
 
 ### Managed Care
 
-Optional ongoing service. It begins when the website goes live.
+Optional ongoing service with a 30-day trial from checkout. The first payment is 30 days after checkout, then monthly.
 
 Agreed prices:
 

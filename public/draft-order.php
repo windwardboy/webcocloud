@@ -51,17 +51,130 @@ function handle_draft_order_request(): void
         respond(500, ['status' => 'error']);
     }
 
-    $orderId = webco_insert_draft_order($db, $order);
-    if ($orderId === null) {
+    $requestedId = $payload['draftOrderId'] ?? null;
+    if (!is_string($requestedId) || !preg_match('/^wc_[a-f0-9]{20}$/', $requestedId)) {
+        $requestedId = null;
+    }
+
+    $started = webco_start_checkout($db, $order, $requestedId);
+    if ($started === null) {
         respond(500, ['status' => 'error']);
     }
-
-    $checkoutUrl = webco_create_checkout_session($order, $orderId);
-    if ($checkoutUrl === null) {
-        respond(502, ['status' => 'error', 'orderId' => $orderId]);
+    if ($started['type'] === 'pending') {
+        respond(200, ['orderId' => $started['orderId'], 'pending' => true]);
+    }
+    if ($started['type'] !== 'checkout') {
+        respond(502, ['status' => 'error', 'orderId' => $started['orderId']]);
     }
 
-    respond(201, ['orderId' => $orderId, 'checkoutUrl' => $checkoutUrl]);
+    respond(201, ['orderId' => $started['orderId'], 'checkoutUrl' => $started['url']]);
+}
+
+/**
+ * Reuses a saved unpaid order when Continue is pressed again.
+ * A paid order is never given a second Checkout Session.
+ *
+ * @param array<string, mixed> $order
+ * @return array{type: 'checkout', orderId: string, url: string}|array{type: 'pending', orderId: string}|array{type: 'error', orderId: string}|null
+ */
+function webco_start_checkout(PDO $db, array $order, ?string $requestedId): ?array
+{
+    $existing = null;
+    if ($requestedId !== null) {
+        $existing = webco_find_order_checkout_row($db, $requestedId);
+        if ($existing === null) {
+            $requestedId = null;
+        }
+    }
+
+    if ($existing !== null) {
+        $samePurchase = $existing['package_code'] === $order['package_code']
+            && $existing['care_choice'] === $order['care_choice']
+            && $existing['domain_name'] === $order['domain_name']
+            && $existing['email'] === $order['email'];
+        $sessionBindingSame = $existing['package_code'] === $order['package_code']
+            && $existing['care_choice'] === $order['care_choice']
+            && $existing['email'] === $order['email'];
+        $action = webco_checkout_action($existing['status'], $samePurchase, null, $sessionBindingSame);
+        if ($action === 'new_order') {
+            $existing = null;
+        } elseif ($existing['status'] === 'paid') {
+            return ['type' => 'pending', 'orderId' => $existing['public_id']];
+        }
+    }
+
+    if ($existing === null) {
+        $publicId = webco_insert_draft_order($db, $order);
+        if ($publicId === null) {
+            return null;
+        }
+
+        return webco_open_checkout_session($db, $order, $publicId, null);
+    }
+
+    $publicId = $existing['public_id'];
+    $sessionId = $existing['stripe_checkout_session_id'];
+    $sessionBindingSame = $existing['package_code'] === $order['package_code']
+        && $existing['care_choice'] === $order['care_choice']
+        && $existing['email'] === $order['email'];
+
+    if ($sessionId !== null) {
+        $session = webco_stripe_fetch_session($sessionId);
+        if ($session === null) {
+            return ['type' => 'error', 'orderId' => $publicId];
+        }
+        $action = webco_checkout_action($existing['status'], true, $session['status'], $sessionBindingSame);
+        if ($action === 'resume_paid') {
+            return ['type' => 'pending', 'orderId' => $publicId];
+        }
+        if ($action === 'reuse_open_session') {
+            if (!webco_update_open_order($db, $publicId, $order)) {
+                return null;
+            }
+            if (!webco_bind_checkout_session($db, $publicId, $sessionId, $sessionId)) {
+                return null;
+            }
+
+            return ['type' => 'checkout', 'orderId' => $publicId, 'url' => $session['url']];
+        }
+        if ($session['status'] === 'open') {
+            if (!webco_stripe_expire_session($sessionId)) {
+                return ['type' => 'error', 'orderId' => $publicId];
+            }
+            $after = webco_stripe_fetch_session($sessionId);
+            if ($after !== null && $after['status'] === 'complete') {
+                return ['type' => 'pending', 'orderId' => $publicId];
+            }
+        }
+    }
+
+    if (!webco_update_open_order($db, $publicId, $order)) {
+        return null;
+    }
+
+    return webco_open_checkout_session($db, $order, $publicId, $sessionId);
+}
+
+/**
+ * @param array<string, mixed> $order
+ * @return array{type: 'checkout', orderId: string, url: string}|array{type: 'error', orderId: string}|null
+ */
+function webco_open_checkout_session(PDO $db, array $order, string $publicId, ?string $previousSessionId): ?array
+{
+    $idempotencyKey = 'webco-checkout-' . $publicId;
+    if ($previousSessionId !== null) {
+        $idempotencyKey .= '-' . substr(hash('sha256', $previousSessionId), 0, 16);
+    }
+
+    $created = webco_create_checkout_session($order, $publicId, $idempotencyKey);
+    if ($created === null) {
+        return ['type' => 'error', 'orderId' => $publicId];
+    }
+    if (!webco_bind_checkout_session($db, $publicId, $created['id'], $previousSessionId)) {
+        return ['type' => 'error', 'orderId' => $publicId];
+    }
+
+    return ['type' => 'checkout', 'orderId' => $publicId, 'url' => $created['url']];
 }
 
 /**

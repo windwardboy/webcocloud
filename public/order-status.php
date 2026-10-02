@@ -48,9 +48,9 @@ function webco_order_status_payload(?array $row, string $publicId): array
         return ['status' => 'unknown'];
     }
 
-    if ($row['status'] === 'draft') {
+    if ($row['status'] === 'draft' || $row['status'] === 'checkout_created') {
         return [
-            'status' => 'draft',
+            'status' => $row['status'],
             'orderId' => $publicId,
         ];
     }

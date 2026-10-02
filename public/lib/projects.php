@@ -85,6 +85,9 @@ function webco_ensure_project_tables(PDO $db): bool
                 order_public_id CHAR(23) NOT NULL,
                 vertical_code VARCHAR(32) NOT NULL,
                 status VARCHAR(32) NOT NULL DEFAULT \'awaiting_brief\',
+                provisioning_status VARCHAR(32) NOT NULL DEFAULT \'waiting_payment\',
+                provisioned_at DATETIME NULL,
+                provisioning_error TEXT NULL,
                 brief_token_hash CHAR(64) NOT NULL,
                 customer_notified_at TIMESTAMP NULL DEFAULT NULL,
                 internal_notified_at TIMESTAMP NULL DEFAULT NULL,
@@ -119,11 +122,100 @@ function webco_ensure_project_tables(PDO $db): bool
                 KEY project_assets_project_category (project_id, category)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        if (!webco_ensure_project_provisioning_columns($db)) {
+            return false;
+        }
     } catch (PDOException) {
         return false;
     }
 
     return true;
+}
+
+/**
+ * @return list<string>
+ */
+function webco_provisioning_statuses(): array
+{
+    return ['waiting_payment', 'ready', 'in_progress', 'provisioned', 'failed'];
+}
+
+function webco_provisioning_status_valid(string $status): bool
+{
+    return in_array($status, webco_provisioning_statuses(), true);
+}
+
+function webco_ensure_project_provisioning_columns(PDO $db): bool
+{
+    try {
+        $existing = webco_table_column_set($db, 'projects');
+        if ($existing === null) {
+            return false;
+        }
+        if (!isset($existing['provisioning_status'])) {
+            $db->exec(
+                'ALTER TABLE projects ADD COLUMN provisioning_status VARCHAR(32) NOT NULL DEFAULT \'waiting_payment\''
+            );
+        }
+        if (!isset($existing['provisioned_at'])) {
+            $db->exec('ALTER TABLE projects ADD COLUMN provisioned_at DATETIME NULL');
+        }
+        if (!isset($existing['provisioning_error'])) {
+            $db->exec('ALTER TABLE projects ADD COLUMN provisioning_error TEXT NULL');
+        }
+        if (!webco_ensure_check_constraint(
+            $db,
+            'projects',
+            'projects_provisioning_status_check',
+            'provisioning_status IN (\'waiting_payment\', \'ready\', \'in_progress\', \'provisioned\', \'failed\')'
+        )) {
+            return false;
+        }
+        $db->exec(
+            'UPDATE projects
+             INNER JOIN orders ON orders.id = projects.order_id
+             SET projects.provisioning_status = \'ready\'
+             WHERE orders.status = \'paid\'
+               AND projects.provisioning_status = \'waiting_payment\''
+        );
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+function webco_mark_project_ready(PDO $db, int $projectId): bool
+{
+    if ($projectId < 1) {
+        return false;
+    }
+
+    try {
+        $update = $db->prepare(
+            'UPDATE projects
+             SET provisioning_status = \'ready\', updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND provisioning_status = \'waiting_payment\''
+        );
+        $update->execute(['id' => $projectId]);
+        if ($update->rowCount() === 1) {
+            return true;
+        }
+
+        $select = $db->prepare(
+            'SELECT provisioning_status FROM projects WHERE id = :id'
+        );
+        $select->execute(['id' => $projectId]);
+        $row = $select->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+    if ($row === false) {
+        return false;
+    }
+
+    return webco_provisioning_status_valid((string) ($row['provisioning_status'] ?? ''))
+        && (string) ($row['provisioning_status'] ?? '') !== 'waiting_payment';
 }
 
 /**
@@ -162,9 +254,9 @@ function webco_ensure_paid_project(PDO $db, string $publicId): string
             $token = bin2hex(random_bytes(32));
             $insert = $db->prepare(
                 'INSERT INTO projects (
-                    order_id, order_public_id, vertical_code, status, brief_token_hash
+                    order_id, order_public_id, vertical_code, status, provisioning_status, brief_token_hash
                  ) VALUES (
-                    :order_id, :order_public_id, :vertical_code, \'awaiting_brief\', :brief_token_hash
+                    :order_id, :order_public_id, :vertical_code, \'awaiting_brief\', \'ready\', :brief_token_hash
                  )'
             );
             $insert->execute([
@@ -200,6 +292,9 @@ function webco_ensure_paid_project(PDO $db, string $publicId): string
     }
 
     if ($projectId < 1 || !webco_provision_project_dirs($publicId)) {
+        return 'error';
+    }
+    if (!webco_mark_project_ready($db, $projectId)) {
         return 'error';
     }
 
@@ -332,17 +427,11 @@ function webco_mkdir_private(string $path): bool
 
 function webco_send_project_notifications(PDO $db, int $projectId, ?string $knownToken): void
 {
-    $row = webco_project_notification_row($db, $projectId);
-    if ($row === null) {
-        return;
-    }
-
-    if ($row['customer_notified_at'] === null) {
-        $token = $knownToken;
-        if ($token === null) {
-            $token = webco_replace_unsent_brief_token($db, $projectId);
-        }
-        if ($token !== null) {
+    $token = webco_claim_customer_notification($db, $projectId, $knownToken);
+    if ($token !== null) {
+        $row = webco_project_notification_row($db, $projectId);
+        $sent = false;
+        if ($row !== null) {
             $url = webco_public_origin() . '/brief.php?access=' . $token;
             $sent = webco_mail_customer_brief(
                 $row['email'],
@@ -350,30 +439,146 @@ function webco_send_project_notifications(PDO $db, int $projectId, ?string $know
                 $row['order_public_id'],
                 $url
             );
-            if ($sent) {
-                webco_stamp_customer_notified($db, $projectId, $token);
-            }
+        }
+        if (!$sent) {
+            webco_release_customer_notification($db, $projectId, $token);
         }
     }
 
-    $row = webco_project_notification_row($db, $projectId);
-    if ($row === null || $row['internal_notified_at'] !== null) {
+    if (!webco_claim_internal_notification($db, $projectId)) {
         return;
     }
 
-    $sent = webco_mail_internal_project(
-        $row['order_public_id'],
-        $row['business_name'],
-        $row['contact_name'],
-        $row['email'],
-        $row['domain_name'],
-        $row['package_name'],
-        $row['care_choice'],
-        $row['vertical_code'],
-        $row['status']
-    );
-    if ($sent) {
-        webco_stamp_internal_notified($db, $projectId);
+    $row = webco_project_notification_row($db, $projectId);
+    $sent = false;
+    if ($row !== null) {
+        $sent = webco_mail_internal_project(
+            $row['order_public_id'],
+            $row['business_name'],
+            $row['contact_name'],
+            $row['email'],
+            $row['domain_name'],
+            $row['package_name'],
+            $row['care_choice'],
+            $row['vertical_code'],
+            $row['status']
+        );
+    }
+    if (!$sent) {
+        webco_release_internal_notification($db, $projectId);
+    }
+}
+
+function webco_claim_customer_notification(PDO $db, int $projectId, ?string $knownToken): ?string
+{
+    if ($projectId < 1) {
+        return null;
+    }
+
+    $token = $knownToken;
+    if ($token === null || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+        $token = bin2hex(random_bytes(32));
+        $knownToken = null;
+    }
+
+    try {
+        if ($knownToken === null) {
+            $statement = $db->prepare(
+                'UPDATE projects
+                 SET brief_token_hash = :hash,
+                     customer_notified_at = CURRENT_TIMESTAMP,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :id AND customer_notified_at IS NULL'
+            );
+            $statement->execute([
+                'hash' => hash('sha256', $token),
+                'id' => $projectId,
+            ]);
+        } else {
+            $statement = $db->prepare(
+                'UPDATE projects
+                 SET brief_token_hash = :hash,
+                     customer_notified_at = CURRENT_TIMESTAMP,
+                     updated_at = CURRENT_TIMESTAMP
+                 WHERE id = :id
+                   AND customer_notified_at IS NULL
+                   AND brief_token_hash = :expected_hash'
+            );
+            $statement->execute([
+                'hash' => hash('sha256', $token),
+                'id' => $projectId,
+                'expected_hash' => hash('sha256', $token),
+            ]);
+        }
+    } catch (PDOException) {
+        return null;
+    }
+
+    if ($statement->rowCount() !== 1) {
+        return null;
+    }
+
+    return $token;
+}
+
+function webco_release_customer_notification(PDO $db, int $projectId, string $token): void
+{
+    if ($projectId < 1 || !preg_match('/^[a-f0-9]{64}$/', $token)) {
+        return;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'UPDATE projects
+             SET customer_notified_at = NULL, updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND customer_notified_at IS NOT NULL
+               AND brief_token_hash = :hash'
+        );
+        $statement->execute([
+            'id' => $projectId,
+            'hash' => hash('sha256', $token),
+        ]);
+    } catch (PDOException) {
+        return;
+    }
+}
+
+function webco_claim_internal_notification(PDO $db, int $projectId): bool
+{
+    if ($projectId < 1) {
+        return false;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'UPDATE projects
+             SET internal_notified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND internal_notified_at IS NULL'
+        );
+        $statement->execute(['id' => $projectId]);
+    } catch (PDOException) {
+        return false;
+    }
+
+    return $statement->rowCount() === 1;
+}
+
+function webco_release_internal_notification(PDO $db, int $projectId): void
+{
+    if ($projectId < 1) {
+        return;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'UPDATE projects
+             SET internal_notified_at = NULL, updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND internal_notified_at IS NOT NULL'
+        );
+        $statement->execute(['id' => $projectId]);
+    } catch (PDOException) {
+        return;
     }
 }
 
@@ -430,67 +635,6 @@ function webco_project_notification_row(PDO $db, int $projectId): ?array
         'package_name' => (string) ($row['package_name'] ?? ''),
         'care_choice' => (string) ($row['care_choice'] ?? ''),
     ];
-}
-
-function webco_replace_unsent_brief_token(PDO $db, int $projectId): ?string
-{
-    $token = bin2hex(random_bytes(32));
-    try {
-        $statement = $db->prepare(
-            'UPDATE projects
-             SET brief_token_hash = :hash, updated_at = CURRENT_TIMESTAMP
-             WHERE id = :id AND customer_notified_at IS NULL'
-        );
-        $statement->execute([
-            'hash' => hash('sha256', $token),
-            'id' => $projectId,
-        ]);
-    } catch (PDOException) {
-        return null;
-    }
-
-    if ($statement->rowCount() !== 1) {
-        return null;
-    }
-
-    return $token;
-}
-
-function webco_stamp_customer_notified(PDO $db, int $projectId, string $token): void
-{
-    if (!preg_match('/^[a-f0-9]{64}$/', $token)) {
-        return;
-    }
-
-    try {
-        $statement = $db->prepare(
-            'UPDATE projects
-             SET customer_notified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-             WHERE id = :id
-               AND customer_notified_at IS NULL
-               AND brief_token_hash = :hash'
-        );
-        $statement->execute([
-            'id' => $projectId,
-            'hash' => hash('sha256', $token),
-        ]);
-    } catch (PDOException) {
-        return;
-    }
-}
-
-function webco_stamp_internal_notified(PDO $db, int $projectId): void
-{
-    try {
-        $statement = $db->prepare(
-            'UPDATE projects
-             SET internal_notified_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
-             WHERE id = :id AND internal_notified_at IS NULL'
-        );
-        $statement->execute(['id' => $projectId]);
-    } catch (PDOException) {
-        return;
-    }
 }
 
 function webco_project_id_for_brief_token(PDO $db, string $token): ?int

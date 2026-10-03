@@ -1,10 +1,14 @@
 <?php
 /**
- * Temporary read-only 20i discovery client.
+ * 20i Services API client.
  *
- * The only requests are the package list and the reseller package-type list.
- * It does not create, change, or delete anything, and it does not open
- * the database. Credential endpoints are not called.
+ * Discovery reads GET /package and GET /reseller/star/packageTypes.
+ * Hosting creation is POST /reseller/star/addWeb, and only when a caller
+ * passes a payload to webco_twentyi_create_hosting_package(). The
+ * provisioning worker does not call this file.
+ *
+ * The General API key stays outside this repository. This file must not
+ * print, log, or return that key, and error results omit response bodies.
  */
 
 declare(strict_types=1);
@@ -20,6 +24,7 @@ if (!defined('WEBCO_SECRETS_FILE')) {
 
 const WEBCO_TWENTYI_PACKAGE_LIST = '/package';
 const WEBCO_TWENTYI_PACKAGE_TYPES = '/reseller/*/packageTypes';
+const WEBCO_TWENTYI_ADD_WEB = '/reseller/*/addWeb';
 const WEBCO_TWENTYI_PLATFORM_DOMAIN = 'webcocloud.net';
 
 function webco_twentyi_api_key(): ?string
@@ -584,4 +589,301 @@ function webco_twentyi_domain(string $value): ?string
     }
 
     return $value;
+}
+
+function webco_twentyi_write_url(string $path): ?string
+{
+    if ($path !== WEBCO_TWENTYI_ADD_WEB) {
+        return null;
+    }
+
+    return 'https://api.20i.com' . $path;
+}
+
+/**
+ * POST the addWeb path. Any other path is refused before curl runs.
+ *
+ * @return array{ok: bool, status: int, body: string}
+ */
+function webco_twentyi_http_post(string $path, string $bearer, string $body): array
+{
+    $failed = ['ok' => false, 'status' => 0, 'body' => ''];
+    $url = webco_twentyi_write_url($path);
+    if ($url === null || $bearer === '' || $body === '' || strlen($body) > 8000 || !function_exists('curl_init')) {
+        return $failed;
+    }
+
+    $handle = curl_init($url);
+    if ($handle === false) {
+        return $failed;
+    }
+
+    curl_setopt_array($handle, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_FOLLOWLOCATION => false,
+        CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
+        CURLOPT_HTTPHEADER => [
+            'Accept: application/json',
+            'Content-Type: application/json',
+            'Authorization: Bearer ' . $bearer,
+            'Expect:',
+        ],
+    ]);
+
+    $response = curl_exec($handle);
+    $status = (int) curl_getinfo($handle, CURLINFO_HTTP_CODE);
+    curl_close($handle);
+
+    if (!is_string($response) || strlen($response) > 100000) {
+        return ['ok' => false, 'status' => $status, 'body' => ''];
+    }
+
+    return [
+        'ok' => $status >= 200 && $status < 300,
+        'status' => $status,
+        'body' => $response,
+    ];
+}
+
+/**
+ * Fields for the addWeb POST. Label is omitted when null.
+ * An unusable label rejects the payload rather than being dropped.
+ *
+ * @return array{domain_name: string, type: string, label?: string}|null
+ */
+function webco_twentyi_add_web_payload(string $domainName, string $packageTypeId, ?string $label = null): ?array
+{
+    $domain = webco_twentyi_domain($domainName);
+    $type = webco_twentyi_id($packageTypeId);
+    if ($domain === null || $type === null) {
+        return null;
+    }
+
+    $payload = [
+        'domain_name' => $domain,
+        'type' => $type,
+    ];
+    if ($label === null) {
+        return $payload;
+    }
+
+    $clean = webco_twentyi_text($label);
+    if ($clean === null) {
+        return null;
+    }
+    $payload['label'] = $clean;
+
+    return $payload;
+}
+
+/**
+ * The created package ID is the numeric result field, as documented for addWeb.
+ */
+function webco_twentyi_add_web_package_id(string $body): ?string
+{
+    if ($body === '' || strlen($body) > 100000) {
+        return null;
+    }
+
+    $decoded = json_decode($body, true);
+    if (!is_array($decoded) || !array_key_exists('result', $decoded)) {
+        return null;
+    }
+
+    return webco_twentyi_id($decoded['result']);
+}
+
+/**
+ * Create one hosting package. The callable performs the POST so tests can
+ * supply a fake transport. Nothing here is called by the provision worker.
+ *
+ * @param callable(string, string): array{ok: bool, status: int, body: string} $post
+ * @return array{ok: bool, package_id: string, failure: string, status: int}
+ */
+function webco_twentyi_create_hosting_package(callable $post, string $domainName, string $packageTypeId, ?string $label = null): array
+{
+    $invalid = ['ok' => false, 'package_id' => '', 'failure' => 'invalid', 'status' => 0];
+    $payload = webco_twentyi_add_web_payload($domainName, $packageTypeId, $label);
+    if ($payload === null) {
+        return $invalid;
+    }
+
+    $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    if (!is_string($body) || $body === '') {
+        return $invalid;
+    }
+
+    $result = $post(WEBCO_TWENTYI_ADD_WEB, $body);
+    if (!is_array($result) || !is_bool($result['ok'] ?? null) || !is_int($result['status'] ?? null) || !is_string($result['body'] ?? null)) {
+        return ['ok' => false, 'package_id' => '', 'failure' => 'transport', 'status' => 0];
+    }
+    if ($result['ok'] !== true) {
+        return [
+            'ok' => false,
+            'package_id' => '',
+            'failure' => $result['status'] > 0 ? 'http' : 'transport',
+            'status' => $result['status'],
+        ];
+    }
+
+    $packageId = webco_twentyi_add_web_package_id($result['body']);
+    if ($packageId === null) {
+        $decoded = json_decode($result['body'], true);
+
+        return [
+            'ok' => false,
+            'package_id' => '',
+            'failure' => is_array($decoded) ? 'rejected' : 'unreadable',
+            'status' => $result['status'],
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'package_id' => $packageId,
+        'failure' => '',
+        'status' => $result['status'],
+    ];
+}
+
+/**
+ * @param list<string> $argv
+ * @return array{ok: bool, error: string, apply: bool, domain: ?string, type: ?string, label: ?string}
+ */
+function webco_twentyi_add_web_cli_options(array $argv): array
+{
+    $apply = false;
+    $domain = null;
+    $type = null;
+    $label = null;
+    $empty = [
+        'ok' => false,
+        'error' => '',
+        'apply' => false,
+        'domain' => null,
+        'type' => null,
+        'label' => null,
+    ];
+
+    foreach (array_slice($argv, 1) as $arg) {
+        if (!is_string($arg)) {
+            $empty['error'] = 'preview is the default; arguments are --domain, --type, optional --label, and --apply';
+
+            return $empty;
+        }
+        if ($arg === '--apply') {
+            if ($apply) {
+                $empty['error'] = 'preview is the default; --apply may be given once';
+
+                return $empty;
+            }
+            $apply = true;
+            continue;
+        }
+        if (str_starts_with($arg, '--domain=')) {
+            if ($domain !== null) {
+                $empty['error'] = '--domain may be given once';
+
+                return $empty;
+            }
+            $domain = substr($arg, strlen('--domain='));
+            continue;
+        }
+        if (str_starts_with($arg, '--type=')) {
+            if ($type !== null) {
+                $empty['error'] = '--type may be given once';
+
+                return $empty;
+            }
+            $type = substr($arg, strlen('--type='));
+            continue;
+        }
+        if (str_starts_with($arg, '--label=')) {
+            if ($label !== null) {
+                $empty['error'] = '--label may be given once';
+
+                return $empty;
+            }
+            $label = substr($arg, strlen('--label='));
+            if ($label === '') {
+                $empty['error'] = '--label must identify the Webco order or project';
+
+                return $empty;
+            }
+            continue;
+        }
+
+        $empty['error'] = 'preview is the default; arguments are --domain, --type, optional --label, and --apply';
+
+        return $empty;
+    }
+
+    if ($domain === null || $type === null) {
+        $empty['error'] = '--domain and --type are required';
+
+        return $empty;
+    }
+    if (webco_twentyi_add_web_payload($domain, $type, $label) === null) {
+        $empty['error'] = 'domain, package type, or label is not usable';
+
+        return $empty;
+    }
+
+    return [
+        'ok' => true,
+        'error' => '',
+        'apply' => $apply,
+        'domain' => $domain,
+        'type' => $type,
+        'label' => $label,
+    ];
+}
+
+/**
+ * @param array{domain_name: string, type: string, label?: string} $payload
+ */
+function webco_twentyi_add_web_preview_text(array $payload): string
+{
+    $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+
+    return implode("\n", [
+        'mode: preview',
+        'method: POST',
+        'path: ' . WEBCO_TWENTYI_ADD_WEB,
+        'body: ' . (is_string($body) ? $body : ''),
+        'request: not sent',
+    ]) . "\n";
+}
+
+/**
+ * @param array{ok: bool, package_id: string, failure: string, status: int} $result
+ */
+function webco_twentyi_add_web_result_text(array $result): string
+{
+    if (($result['ok'] ?? false) === true) {
+        $packageId = webco_twentyi_id($result['package_id'] ?? null);
+        if ($packageId === null) {
+            return "mode: apply\nfailure: rejected\n";
+        }
+
+        return "mode: apply\npackage_id: " . $packageId . "\n";
+    }
+
+    $failure = (string) ($result['failure'] ?? 'transport');
+    if (!in_array($failure, ['invalid', 'transport', 'http', 'unreadable', 'rejected'], true)) {
+        $failure = 'transport';
+    }
+    $lines = [
+        'mode: apply',
+        'failure: ' . $failure,
+    ];
+    $status = (int) ($result['status'] ?? 0);
+    if ($failure === 'http' && $status > 0) {
+        $lines[] = 'status: ' . $status;
+    }
+
+    return implode("\n", $lines) . "\n";
 }

@@ -54,16 +54,17 @@ function fake_transport(array $bodies, int $status = 200, bool $ok = true): arra
 $library = file_get_contents(dirname(__DIR__) . '/public/lib/twentyi.php');
 $cli = file_get_contents(dirname(__DIR__) . '/bin/twentyi-discover.php');
 check(is_string($library) && is_string($cli), 'discovery files can be read');
-$source = (string) $library . (string) $cli;
+$source = (string) $cli;
 check(str_contains((string) $cli, "PHP_SAPI !== 'cli'"), 'CLI entry refuses a web request');
-check(!str_contains($source, 'webco_db'), 'discovery does not open the database');
-check(!str_contains($source, 'addWeb'), 'discovery does not call addWeb');
-check(!str_contains($source, 'addDomain'), 'discovery does not call addDomain');
-check(!str_contains($source, 'CURLOPT_POST'), 'discovery does not send a POST');
-check(!str_contains(strtolower($source), 'ftp'), 'discovery does not request FTP');
-check(!str_contains(strtolower($source), 'ssh'), 'discovery does not request SSH');
-check(!str_contains(strtolower($source), 'mailbox'), 'discovery does not request mailboxes');
-check(str_contains((string) $library, 'CURLOPT_HTTPGET => true'), 'HTTP transport is GET');
+check(!str_contains((string) $library, 'webco_db') && !str_contains($source, 'webco_db'), 'discovery does not open the database');
+check(!str_contains($source, 'addWeb'), 'discovery CLI does not call addWeb');
+check(!str_contains($source, 'webco_twentyi_http_post'), 'discovery CLI does not use the write transport');
+check(!str_contains((string) $library, 'addDomain'), 'discovery does not call addDomain');
+check(!str_contains($source, 'CURLOPT_POST'), 'discovery CLI does not send a POST');
+check(!str_contains(strtolower((string) $library . $source), 'ftp'), 'discovery does not request FTP');
+check(!str_contains(strtolower((string) $library . $source), 'ssh'), 'discovery does not request SSH');
+check(!str_contains(strtolower((string) $library . $source), 'mailbox'), 'discovery does not request mailboxes');
+check(str_contains((string) $library, 'CURLOPT_HTTPGET => true'), 'read transport is GET');
 check(str_contains((string) $library, 'CURLOPT_FOLLOWLOCATION => false'), 'HTTP transport does not follow redirects');
 
 check(webco_twentyi_read_url('/package') === 'https://api.20i.com/package', 'package list URL is the documented GET');

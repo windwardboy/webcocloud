@@ -48,6 +48,8 @@ $projectColumns = [
     'provisioning_status',
     'provisioned_at',
     'provisioning_error',
+    'twentyi_package_id',
+    'provisioning_attempted_at',
 ];
 $eventColumns = [
     'stripe_event_id',

@@ -88,6 +88,8 @@ function webco_ensure_project_tables(PDO $db): bool
                 provisioning_status VARCHAR(32) NOT NULL DEFAULT \'waiting_payment\',
                 provisioned_at DATETIME NULL,
                 provisioning_error TEXT NULL,
+                twentyi_package_id VARCHAR(32) NULL,
+                provisioning_attempted_at DATETIME NULL,
                 brief_token_hash CHAR(64) NOT NULL,
                 customer_notified_at TIMESTAMP NULL DEFAULT NULL,
                 internal_notified_at TIMESTAMP NULL DEFAULT NULL,
@@ -96,7 +98,8 @@ function webco_ensure_project_tables(PDO $db): bool
                 PRIMARY KEY (id),
                 UNIQUE KEY projects_order_id (order_id),
                 UNIQUE KEY projects_order_public_id (order_public_id),
-                UNIQUE KEY projects_brief_token_hash (brief_token_hash)
+                UNIQUE KEY projects_brief_token_hash (brief_token_hash),
+                UNIQUE KEY projects_twentyi_package_id (twentyi_package_id)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
         $db->exec(
@@ -163,6 +166,15 @@ function webco_ensure_project_provisioning_columns(PDO $db): bool
         if (!isset($existing['provisioning_error'])) {
             $db->exec('ALTER TABLE projects ADD COLUMN provisioning_error TEXT NULL');
         }
+        if (!isset($existing['twentyi_package_id'])) {
+            $db->exec('ALTER TABLE projects ADD COLUMN twentyi_package_id VARCHAR(32) NULL');
+        }
+        if (!isset($existing['provisioning_attempted_at'])) {
+            $db->exec('ALTER TABLE projects ADD COLUMN provisioning_attempted_at DATETIME NULL');
+        }
+        if (!webco_ensure_project_unique_index($db, 'projects_twentyi_package_id', 'twentyi_package_id')) {
+            return false;
+        }
         if (!webco_ensure_check_constraint(
             $db,
             'projects',
@@ -177,6 +189,32 @@ function webco_ensure_project_provisioning_columns(PDO $db): bool
              SET projects.provisioning_status = \'ready\'
              WHERE orders.status = \'paid\'
                AND projects.provisioning_status = \'waiting_payment\''
+        );
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+function webco_ensure_project_unique_index(PDO $db, string $index, string $column): bool
+{
+    if (!preg_match('/^[a-z_]+$/', $index) || !preg_match('/^[a-z_]+$/', $column)) {
+        return false;
+    }
+
+    try {
+        $indexes = $db->query('SHOW INDEX FROM projects');
+        if ($indexes === false) {
+            return false;
+        }
+        foreach ($indexes->fetchAll() as $row) {
+            if (($row['Key_name'] ?? '') === $index) {
+                return true;
+            }
+        }
+        $db->exec(
+            'ALTER TABLE projects ADD UNIQUE KEY ' . $index . ' (' . $column . ')'
         );
     } catch (PDOException) {
         return false;

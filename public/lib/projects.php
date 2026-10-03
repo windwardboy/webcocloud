@@ -49,6 +49,8 @@ function webco_project_statuses(): array
         'awaiting_brief',
         'brief_in_progress',
         'brief_received',
+        'ready_for_clone',
+        'ready_for_build',
         'in_build',
         'review',
         'ready_to_launch',
@@ -67,12 +69,194 @@ function webco_project_status_label(string $status): string
         'awaiting_brief' => 'Awaiting brief',
         'brief_in_progress' => 'Brief in progress',
         'brief_received' => 'Brief received',
+        'ready_for_clone' => 'Ready for clone',
+        'ready_for_build' => 'Ready for build',
         'in_build' => 'In build',
         'review' => 'Review',
         'ready_to_launch' => 'Ready to launch',
         'live' => 'Live',
         default => $status,
     };
+}
+
+function webco_project_package_id(mixed $value): ?string
+{
+    if (is_int($value)) {
+        $value = (string) $value;
+    }
+    if (!is_string($value)) {
+        return null;
+    }
+    $value = trim($value);
+    if (!preg_match('/^[1-9][0-9]{0,11}$/', $value)) {
+        return null;
+    }
+
+    return $value;
+}
+
+function webco_project_brief_is_ready(?string $summary, mixed $submittedAt): bool
+{
+    $summary = $summary === null ? null : webco_brief_summary($summary);
+
+    return $summary !== null && $summary !== '' && $submittedAt !== null && $submittedAt !== '';
+}
+
+/**
+ * The one status an admin may apply next. Clone completion is a separate action.
+ */
+function webco_project_workflow_next(string $status): ?string
+{
+    return match ($status) {
+        'brief_received' => 'ready_for_clone',
+        'ready_for_build' => 'in_build',
+        'in_build' => 'review',
+        'review' => 'ready_to_launch',
+        'ready_to_launch' => 'live',
+        default => null,
+    };
+}
+
+/**
+ * Moves a project one step along the website workflow.
+ * Ready for clone requires a submitted, non-empty brief.
+ */
+function webco_advance_project_status(PDO $db, int $projectId): bool
+{
+    if ($projectId < 1) {
+        return false;
+    }
+
+    try {
+        $db->beginTransaction();
+        $select = $db->prepare(
+            'SELECT p.status, b.summary, b.submitted_at
+             FROM projects p
+             LEFT JOIN project_briefs b ON b.project_id = p.id
+             WHERE p.id = :id' . webco_for_update($db)
+        );
+        $select->execute(['id' => $projectId]);
+        $row = $select->fetch();
+        if ($row === false) {
+            $db->rollBack();
+
+            return false;
+        }
+
+        $status = (string) ($row['status'] ?? '');
+        $next = webco_project_workflow_next($status);
+        if ($next === null) {
+            $db->rollBack();
+
+            return false;
+        }
+        if ($next === 'ready_for_clone' && !webco_project_brief_is_ready(
+            is_string($row['summary'] ?? null) ? $row['summary'] : null,
+            $row['submitted_at'] ?? null
+        )) {
+            $db->rollBack();
+
+            return false;
+        }
+
+        $update = $db->prepare(
+            'UPDATE projects
+             SET status = :status, updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND status = :current'
+        );
+        $update->execute([
+            'status' => $next,
+            'id' => $projectId,
+            'current' => $status,
+        ]);
+        if ($update->rowCount() !== 1) {
+            $db->rollBack();
+
+            return false;
+        }
+        $db->commit();
+    } catch (PDOException) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Stores the hosting package created by a manual 20i clone.
+ * A second attempt does not replace the stored id or the status.
+ *
+ * @return 'saved'|'duplicate'|'invalid'|'error'
+ */
+function webco_record_cloned_package(PDO $db, int $projectId, string $packageId): string
+{
+    $packageId = webco_project_package_id($packageId) ?? '';
+    if ($projectId < 1 || $packageId === '') {
+        return 'invalid';
+    }
+
+    try {
+        $db->beginTransaction();
+        $select = $db->prepare(
+            'SELECT status, twentyi_package_id
+             FROM projects
+             WHERE id = :id' . webco_for_update($db)
+        );
+        $select->execute(['id' => $projectId]);
+        $row = $select->fetch();
+        if ($row === false) {
+            $db->rollBack();
+
+            return 'error';
+        }
+        if ((string) ($row['status'] ?? '') !== 'ready_for_clone') {
+            $db->rollBack();
+
+            return 'duplicate';
+        }
+        $stored = webco_project_package_id($row['twentyi_package_id'] ?? null);
+        if ($stored !== null) {
+            $db->rollBack();
+
+            return 'duplicate';
+        }
+
+        $update = $db->prepare(
+            'UPDATE projects
+             SET twentyi_package_id = :package_id,
+                 status = \'ready_for_build\',
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND status = \'ready_for_clone\'
+               AND (twentyi_package_id IS NULL OR twentyi_package_id = \'\')'
+        );
+        $update->execute([
+            'package_id' => $packageId,
+            'id' => $projectId,
+        ]);
+        if ($update->rowCount() !== 1) {
+            $db->rollBack();
+
+            return 'duplicate';
+        }
+        $db->commit();
+    } catch (PDOException $exception) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+        $sqlState = $exception->errorInfo[0] ?? '';
+        if ($sqlState === '23000') {
+            return 'duplicate';
+        }
+
+        return 'error';
+    }
+
+    return 'saved';
 }
 
 function webco_ensure_project_tables(PDO $db): bool
@@ -183,13 +367,6 @@ function webco_ensure_project_provisioning_columns(PDO $db): bool
         )) {
             return false;
         }
-        $db->exec(
-            'UPDATE projects
-             INNER JOIN orders ON orders.id = projects.order_id
-             SET projects.provisioning_status = \'ready\'
-             WHERE orders.status = \'paid\'
-               AND projects.provisioning_status = \'waiting_payment\''
-        );
     } catch (PDOException) {
         return false;
     }
@@ -258,7 +435,9 @@ function webco_mark_project_ready(PDO $db, int $projectId): bool
 
 /**
  * Creates the project for a paid order once, then sends any missing notices.
- * Returns ok when the project row and asset folders exist. Mail failure stays ok.
+ * The project stays off the automatic hosting worker. A manual clone records
+ * the 20i package id later. Returns ok when the project row and asset
+ * folders exist. Mail failure stays ok.
  *
  * @return 'ok'|'error'
  */
@@ -294,7 +473,7 @@ function webco_ensure_paid_project(PDO $db, string $publicId): string
                 'INSERT INTO projects (
                     order_id, order_public_id, vertical_code, status, provisioning_status, brief_token_hash
                  ) VALUES (
-                    :order_id, :order_public_id, :vertical_code, \'awaiting_brief\', \'ready\', :brief_token_hash
+                    :order_id, :order_public_id, :vertical_code, \'awaiting_brief\', \'waiting_payment\', :brief_token_hash
                  )'
             );
             $insert->execute([
@@ -330,9 +509,6 @@ function webco_ensure_paid_project(PDO $db, string $publicId): string
     }
 
     if ($projectId < 1 || !webco_provision_project_dirs($publicId)) {
-        return 'error';
-    }
-    if (!webco_mark_project_ready($db, $projectId)) {
         return 'error';
     }
 
@@ -1088,6 +1264,7 @@ function webco_list_projects_for_admin(PDO $db): array
 {
     $statement = $db->query(
         'SELECT p.id, p.order_public_id, p.vertical_code, p.status,
+                p.twentyi_package_id,
                 p.customer_notified_at, p.internal_notified_at, p.created_at,
                 o.business_name, o.contact_name, o.email, o.phone, o.domain_name,
                 o.package_name, o.care_choice, o.paid_at,

@@ -51,6 +51,9 @@ function webco_admin_post(): void
     if ($action === 'status') {
         webco_admin_status_post();
     }
+    if ($action === 'clone_complete') {
+        webco_admin_clone_post();
+    }
     if ($action === 'notify') {
         webco_admin_notify_post();
     }
@@ -94,17 +97,35 @@ function webco_admin_login_post(): void
 function webco_admin_status_post(): void
 {
     $projectId = webco_admin_project_id();
-    $status = $_POST['status'] ?? '';
-    if ($projectId === null || !is_string($status)) {
+    if ($projectId === null) {
         webco_admin_redirect('again');
     }
 
     $db = webco_admin_db();
-    if (!webco_update_project_status($db, $projectId, $status)) {
+    if (!webco_advance_project_status($db, $projectId)) {
         webco_admin_redirect('again');
     }
 
     webco_admin_redirect('status');
+}
+
+function webco_admin_clone_post(): void
+{
+    $projectId = webco_admin_project_id();
+    $packageId = $_POST['package_id'] ?? '';
+    if ($projectId === null || !is_string($packageId)) {
+        webco_admin_redirect('again');
+    }
+
+    $result = webco_record_cloned_package(webco_admin_db(), $projectId, $packageId);
+    if ($result === 'saved') {
+        webco_admin_redirect('cloned');
+    }
+    if ($result === 'duplicate') {
+        webco_admin_redirect('clone_done');
+    }
+
+    webco_admin_redirect('again');
 }
 
 function webco_admin_notify_post(): void
@@ -218,18 +239,7 @@ function webco_admin_project(array $project, string $csrf): void
     echo '<h3>Note</h3>';
     echo '<p class="summary">' . ($summary === '' ? 'None yet.' : webco_html($summary)) . '</p>';
 
-    echo '<form method="post" action="/admin.php" class="status">';
-    echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
-    echo '<input type="hidden" name="action" value="status">';
-    echo '<input type="hidden" name="project_id" value="' . webco_html((string) $id) . '">';
-    echo '<label for="status-' . webco_html((string) $id) . '">Status</label>';
-    echo '<select id="status-' . webco_html((string) $id) . '" name="status">';
-    foreach (webco_project_statuses() as $option) {
-        $selected = $option === $status ? ' selected' : '';
-        echo '<option value="' . webco_html($option) . '"' . $selected . '>'
-            . webco_html(webco_project_status_label($option)) . '</option>';
-    }
-    echo '</select><button type="submit">Update status</button></form>';
+    webco_admin_next_action($project, $csrf);
 
     echo '<h3>Notifications</h3><p>';
     echo $customerSent ? 'Customer email sent. ' : 'Customer email pending. ';
@@ -317,6 +327,8 @@ function webco_admin_notice(mixed $notice): string
 {
     $messages = [
         'status' => 'Status updated.',
+        'cloned' => 'Clone recorded. The project is ready for build.',
+        'clone_done' => 'This clone was already recorded.',
         'notified' => 'Notifications sent.',
         'notify_pending' => 'A notification is still pending. Check the mail settings and try again.',
         'rejected' => 'That password was not accepted.',
@@ -412,6 +424,84 @@ function webco_admin_redirect(string $notice): void
     exit;
 }
 
+/**
+ * @param array<string, mixed> $project
+ */
+function webco_admin_next_action(array $project, string $csrf): void
+{
+    $id = (int) ($project['id'] ?? 0);
+    $status = (string) ($project['status'] ?? '');
+    $packageId = webco_project_package_id($project['twentyi_package_id'] ?? null);
+    $briefReady = webco_project_brief_is_ready(
+        is_string($project['summary'] ?? null) ? $project['summary'] : null,
+        $project['submitted_at'] ?? null
+    );
+
+    echo '<div class="next">';
+    echo '<p class="eyebrow">Current status</p>';
+    echo '<p class="now">' . webco_html(webco_project_status_label($status)) . '</p>';
+    if ($packageId !== null) {
+        echo '<p class="meta">20i package ' . webco_html($packageId) . '</p>';
+    }
+
+    if ($status === 'awaiting_brief' || $status === 'brief_in_progress') {
+        echo '<p>Next: the customer submits the brief.</p></div>';
+
+        return;
+    }
+    if ($status === 'brief_received' && !$briefReady) {
+        echo '<p>Next: the brief needs a submitted note before it can be marked ready for clone.</p></div>';
+
+        return;
+    }
+    if ($status === 'brief_received') {
+        echo '<p>Next: mark this project ready for the manual 20i clone.</p>';
+        echo '<form method="post" action="/admin.php">';
+        echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+        echo '<input type="hidden" name="action" value="status">';
+        echo '<input type="hidden" name="project_id" value="' . webco_html((string) $id) . '">';
+        echo '<button type="submit">Mark ready for clone</button></form></div>';
+
+        return;
+    }
+    if ($status === 'ready_for_clone' && $packageId === null) {
+        echo '<p>Next: clone the template in My20i, then save the new hosting package id.</p>';
+        echo '<form method="post" action="/admin.php">';
+        echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+        echo '<input type="hidden" name="action" value="clone_complete">';
+        echo '<input type="hidden" name="project_id" value="' . webco_html((string) $id) . '">';
+        echo '<label for="package-' . webco_html((string) $id) . '">20i package id</label>';
+        echo '<input id="package-' . webco_html((string) $id) . '" name="package_id" inputmode="numeric" maxlength="12" required>';
+        echo '<button type="submit">Save package and mark ready for build</button></form></div>';
+
+        return;
+    }
+    if ($status === 'ready_for_clone') {
+        echo '<p>The package id is already stored. Clone completion cannot be recorded again.</p></div>';
+
+        return;
+    }
+    if ($status === 'live') {
+        echo '<p>This website is live.</p></div>';
+
+        return;
+    }
+
+    $next = webco_project_workflow_next($status);
+    if ($next === null) {
+        echo '<p>No status change is available from here.</p></div>';
+
+        return;
+    }
+
+    echo '<p>Next: move this project to ' . webco_html(webco_project_status_label($next)) . '.</p>';
+    echo '<form method="post" action="/admin.php">';
+    echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+    echo '<input type="hidden" name="action" value="status">';
+    echo '<input type="hidden" name="project_id" value="' . webco_html((string) $id) . '">';
+    echo '<button type="submit">' . webco_html(webco_project_status_label($next)) . '</button></form></div>';
+}
+
 function webco_admin_care_label(string $care): string
 {
     if ($care === 'managed') {
@@ -459,13 +549,15 @@ function webco_admin_styles(): string
       .card { margin-top: 1.25rem; padding: 1.1rem 1.2rem 1.3rem; background: #fff; border: 1px solid #d5e0dc; border-radius: 16px; }
       .meta { color: #3e4e58; }
       .notice { padding: 0.8rem 1rem; background: #e5f3f1; border-radius: 12px; }
+      .next { margin-top: 1rem; padding: 0.9rem 1rem; background: #f3f6f5; border-radius: 12px; }
+      .next .now { margin: 0.15rem 0 0; font-size: 1.15rem; }
       .summary { white-space: pre-wrap; }
       dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.7rem 1rem; margin: 1rem 0 0; }
       dl div { margin: 0; }
       dt { color: #3e4e58; font-size: 0.82rem; }
       dd { margin: 0.1rem 0 0; }
       label { display: block; margin-top: 0.6rem; font-weight: 650; }
-      input[type="password"], select { display: block; width: 100%; max-width: 22rem; margin-top: 0.35rem; padding: 0.55rem 0.7rem; border: 1px solid #d5e0dc; border-radius: 10px; font: inherit; }
+      input[type="password"], input[name="package_id"], select { display: block; width: 100%; max-width: 22rem; margin-top: 0.35rem; padding: 0.55rem 0.7rem; border: 1px solid #d5e0dc; border-radius: 10px; font: inherit; }
       button { margin-top: 0.7rem; padding: 0.55rem 0.9rem; border: 0; border-radius: 999px; background: #0c6b62; color: #f7fbfa; font: inherit; cursor: pointer; }
       button.quiet { background: #fff; color: #122028; border: 1px solid #d5e0dc; }
       form.inline { display: inline; }

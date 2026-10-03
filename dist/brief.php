@@ -10,6 +10,7 @@ ini_set('display_errors', '0');
 
 require_once __DIR__ . '/lib/projects.php';
 require_once __DIR__ . '/lib/brief-wizard.php';
+require_once __DIR__ . '/lib/client-home.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'brief.php') {
     webco_handle_brief();
@@ -146,7 +147,7 @@ function webco_brief_csrf_ok(): bool
     return hash_equals($known, $sent);
 }
 
-function webco_brief_redirect(string $notice, string $step = ''): void
+function webco_brief_redirect(string $notice, string $step = '', string $view = ''): void
 {
     $query = [];
     if ($notice !== '') {
@@ -154,6 +155,9 @@ function webco_brief_redirect(string $notice, string $step = ''): void
     }
     if ($step !== '' && webco_brief_wizard_step_valid($step)) {
         $query['step'] = $step;
+    }
+    if ($view !== '' && webco_client_view_valid($view)) {
+        $query['view'] = $view;
     }
     $target = '/brief.php';
     if ($query !== []) {
@@ -203,7 +207,9 @@ function webco_brief_form(array $project, string $notice): void
 {
     $csrf = webco_brief_csrf_token();
     if ($project['submitted_at'] !== null) {
-        webco_brief_render_received($project, $notice);
+        $requestedView = $_GET['view'] ?? 'home';
+        $view = is_string($requestedView) && webco_client_view_valid($requestedView) ? $requestedView : 'home';
+        webco_brief_render_received($project, $notice, $view);
         exit;
     }
 
@@ -244,42 +250,8 @@ function webco_brief_call(array $project): void
 /**
  * @param array<string, mixed> $project
  */
-function webco_brief_requests(array $project, string $csrf): void
+function webco_brief_request_form(array $project, string $csrf): void
 {
-    $requests = is_array($project['requests'] ?? null) ? $project['requests'] : [];
-    $assets = is_array($project['assets'] ?? null) ? $project['assets'] : [];
-
-    echo '<section class="panel"><h2>Support and updates</h2>';
-    echo '<p class="lead">These requests are for changes after the website brief. They do not replace it.</p>';
-    if ($requests === []) {
-        echo '<p class="meta">No requests yet.</p>';
-    }
-    foreach ($requests as $request) {
-        if (!is_array($request)) {
-            continue;
-        }
-        $requestId = (int) ($request['id'] ?? 0);
-        echo '<article class="request">';
-        echo '<p class="eyebrow">' . webco_html(webco_request_type_label((string) ($request['request_type'] ?? ''))) . '</p>';
-        echo '<p class="request-status">' . webco_html(webco_request_status_label((string) ($request['status'] ?? ''))) . '</p>';
-        echo '<p class="summary">' . webco_html((string) ($request['summary'] ?? '')) . '</p>';
-        if (($request['call_requested'] ?? false) === true) {
-            echo '<p class="meta">Phone call requested';
-            $number = trim((string) ($request['call_number'] ?? ''));
-            $time = trim((string) ($request['call_time'] ?? ''));
-            if ($number !== '') {
-                echo ' · ' . webco_html($number);
-            }
-            if ($time !== '') {
-                echo ' · ' . webco_html($time);
-            }
-            echo '</p>';
-        }
-        webco_brief_auto_uploads(webco_brief_assets_for_request($assets, $requestId), $csrf, $requestId);
-        echo '</article>';
-    }
-
-    echo '<h3>New request</h3>';
     echo '<form method="post" action="/brief.php">';
     echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
     echo '<label for="request_type">What do you need?</label>';
@@ -302,7 +274,7 @@ function webco_brief_requests(array $project, string $csrf): void
     echo '<textarea id="request_call_note" name="request_call_note" maxlength="2000" rows="3"></textarea>';
     echo '</div></fieldset>';
     echo '<button type="submit" name="intent" value="request">Send request</button>';
-    echo '</form></section>';
+    echo '</form>';
 }
 
 /**
@@ -362,7 +334,7 @@ function webco_brief_request_post(PDO $db, int $projectId): void
     $type = $_POST['request_type'] ?? '';
     $summary = $_POST['request_summary'] ?? '';
     if (!is_string($type) || !is_string($summary)) {
-        webco_brief_redirect('invalid');
+        webco_brief_redirect('invalid', '', 'request');
     }
 
     $id = webco_create_project_request($db, $projectId, $type, $summary, [
@@ -371,7 +343,7 @@ function webco_brief_request_post(PDO $db, int $projectId): void
         'call_time' => is_string($_POST['request_call_time'] ?? null) ? $_POST['request_call_time'] : '',
         'call_note' => is_string($_POST['request_call_note'] ?? null) ? $_POST['request_call_note'] : '',
     ]);
-    webco_brief_redirect($id > 0 ? 'requested' : 'invalid');
+    webco_brief_redirect($id > 0 ? 'requested' : 'invalid', '', $id > 0 ? 'requests' : 'request');
 }
 
 /**

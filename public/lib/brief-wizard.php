@@ -226,24 +226,10 @@ function webco_brief_pairs_from_request(array $names, array $details): array
 /**
  * @param array<string, mixed> $project
  */
-function webco_brief_render_received(array $project, string $notice): void
+function webco_brief_render_received(array $project, string $notice, string $view = 'home'): void
 {
-    webco_brief_page_open('Your website');
-    echo '<p class="eyebrow">Webco Cloud</p>';
-    echo '<h1>Your website</h1>';
-    webco_brief_identity($project);
-    echo '<p class="status">' . webco_html(webco_project_status_sentence((string) $project['status'])) . '</p>';
-    webco_brief_notice_line($notice);
-    echo '<p class="note">Your website brief has been received. Support requests below are separate from that brief.</p>';
-    echo '<h2>Files sent with your brief</h2>';
-    webco_brief_file_list(webco_brief_assets_for_request(
-        is_array($project['assets'] ?? null) ? $project['assets'] : [],
-        null
-    ));
-    webco_brief_requests($project, webco_brief_csrf_token());
-    echo '<p class="meta"><a href="/support/">Support</a></p>';
-    webco_brief_upload_script();
-    webco_brief_page_close();
+    require_once __DIR__ . '/client-home.php';
+    webco_client_render($project, $view, $notice);
 }
 
 /**
@@ -555,14 +541,18 @@ function webco_brief_notice_line(string $notice): void
     }
 }
 
-function webco_brief_page_open(string $title): void
+function webco_brief_page_open(string $title, string $bodyClass = ''): void
 {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
     echo '<meta name="robots" content="noindex, nofollow">';
     echo '<title>' . webco_html($title) . '</title>';
     echo webco_brief_styles();
-    echo '</head><body><main>';
+    if ($bodyClass === 'client-home' && function_exists('webco_client_styles')) {
+        echo webco_client_styles();
+    }
+    $class = $bodyClass === '' ? '' : ' class="' . webco_html($bodyClass) . '"';
+    echo '</head><body' . $class . '><main>';
 }
 
 function webco_brief_page_close(): void

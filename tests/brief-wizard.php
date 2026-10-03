@@ -35,7 +35,8 @@ $db->exec(
         business_name TEXT,
         phone TEXT,
         package_code TEXT,
-        package_name TEXT
+        package_name TEXT,
+        domain_name TEXT
     )'
 );
 $db->exec(
@@ -113,8 +114,8 @@ $db->exec(
 );
 
 $db->exec(
-    "INSERT INTO orders (id, business_name, phone, package_code, package_name)
-     VALUES (1, 'Kent Training', '01634 000111', 'essential', 'Webco Essential')"
+    "INSERT INTO orders (id, business_name, phone, package_code, package_name, domain_name)
+     VALUES (1, 'Kent Training', '01634 000111', 'essential', 'Webco Essential', 'kent.example')"
 );
 $db->exec(
     "INSERT INTO projects (id, order_id, order_public_id, status, updated_at)
@@ -193,6 +194,7 @@ check(is_array($resumed) && $resumed['package_code'] === 'essential', 'a resumed
 check(is_array($resumed) && $resumed['services'] === 'Category C and Driver CPC.', 'a resumed brief still has the courses');
 check(is_array($resumed) && $resumed['phone'] === '01634 000111', 'the order phone is still available');
 check(is_array($resumed) && $resumed['wizard_step'] === 'review', 'resume opens from the saved step');
+check(is_array($resumed) && $resumed['domain_name'] === 'kent.example', 'a resumed brief includes the domain');
 
 check(webco_save_customer_brief($db, 1, ['wizard_step' => 'branding', 'branding' => 'Dark green, already on the lorries.'], false) === 'saved', 'going back autosaves');
 check(status_of($db, 1) === 'brief_in_progress', 'going back does not change the build status');

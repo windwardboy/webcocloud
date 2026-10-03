@@ -35,7 +35,8 @@ $db->exec(
         business_name TEXT,
         phone TEXT,
         package_code TEXT,
-        package_name TEXT
+        package_name TEXT,
+        domain_name TEXT
     )'
 );
 $db->exec(

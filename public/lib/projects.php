@@ -1167,6 +1167,7 @@ function webco_project_id_for_brief_token(PDO $db, string $token): ?int
  *   summary: string,
  *   submitted_at: ?string,
  *   phone: string,
+ *   domain_name: string,
  *   business_overview: string,
  *   services: string,
  *   locations: string,
@@ -1197,7 +1198,7 @@ function webco_customer_project(PDO $db, int $projectId): ?array
     try {
         $statement = $db->prepare(
             'SELECT p.id, p.order_public_id, p.status, o.business_name, o.phone,
-                    o.package_code, o.package_name,
+                    o.domain_name, o.package_code, o.package_name,
                     b.summary, b.submitted_at, b.wizard_step,
                     b.call_requested, b.call_number, b.call_time, b.call_note,
                     ' . $detailSql . '
@@ -1221,6 +1222,7 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         'status' => (string) ($row['status'] ?? ''),
         'business_name' => (string) ($row['business_name'] ?? ''),
         'phone' => (string) ($row['phone'] ?? ''),
+        'domain_name' => (string) ($row['domain_name'] ?? ''),
         'package_code' => webco_brief_package_code(
             (string) ($row['package_code'] ?? ''),
             (string) ($row['package_name'] ?? '')

@@ -1344,6 +1344,11 @@ html:has(body.funnel) {
   margin-left: auto;
 }
 
+.funnel-pair {
+  display: grid;
+  gap: 0.75rem;
+}
+
 @media (max-width: 47.99rem) {
   .funnel-progress li:not([aria-current="step"]) .funnel-step-label {
     position: absolute;
@@ -1571,13 +1576,57 @@ html:has(body.funnel) {
     padding-bottom: 0.6rem;
   }
 
-  #review-flow.funnel-shell {
+  #review-flow.funnel-shell,
+  #checkout-flow.funnel-shell,
+  #review-missing.funnel-shell,
+  #checkout-missing.funnel-shell {
+    width: min(68rem, calc(100% - 2 * var(--gutter)));
+  }
+
+  #review-flow.funnel-shell,
+  #checkout-flow.funnel-shell {
     margin-top: 1.85rem;
   }
 
-  #review-flow > .funnel-lead {
+  #review-flow > .funnel-lead,
+  #checkout-flow > .funnel-lead,
+  #review-missing .funnel-lead,
+  #checkout-missing .funnel-lead,
+  #details-flow .funnel-lead {
+    max-width: 38rem;
+  }
+
+  #review-flow > .funnel-lead,
+  #checkout-flow > .funnel-lead {
     margin-top: 0.55rem;
-    margin-bottom: 1.15rem;
+    margin-bottom: 1rem;
+  }
+
+  .funnel-pair {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: stretch;
+    gap: 1.15rem;
+  }
+
+  .funnel-pair .website-preview {
+    max-height: 14rem;
+  }
+
+  .funnel-pair > .card:only-child,
+  #review-website[hidden] + .card,
+  #checkout-preview[hidden] + .card {
+    grid-column: 1 / -1;
+    max-width: 40rem;
+  }
+
+  #details-flow.funnel-split {
+    grid-template-columns: minmax(0, 1.7fr) minmax(14.5rem, 17.5rem);
+    column-gap: 1.5rem;
+  }
+
+  #care-flow.funnel-split {
+    column-gap: 1.35rem;
   }
 
   .funnel-split {
@@ -1803,12 +1852,50 @@ html:has(body.funnel) {
   }
 }
 
-@media (min-width: 48rem) {
-  .purchase-preview {
+@media (max-width: 47.99rem) {
+  #review-website,
+  #checkout-preview.purchase-preview {
     display: grid;
-    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr);
-    align-items: center;
-    gap: 1rem;
+    grid-template-columns: 7.25rem minmax(0, 1fr);
+    column-gap: 0.75rem;
+    row-gap: 0.1rem;
+    align-items: start;
+  }
+
+  #review-website > .website-preview,
+  #checkout-preview > .website-preview {
+    grid-column: 1;
+    grid-row: 1 / span 8;
+    aspect-ratio: 1;
+    max-height: none;
+    margin: 0;
+    border-radius: 10px;
+  }
+
+  #review-website > :not(.website-preview),
+  #checkout-preview .purchase-preview-copy > * {
+    grid-column: 2;
+  }
+
+  #checkout-preview .purchase-preview-copy {
+    display: contents;
+  }
+
+  #review-website h2,
+  #checkout-preview h2 {
+    font-size: 1.05rem;
+  }
+
+  #review-website .price,
+  #checkout-preview .price {
+    margin: 0;
+    font-size: 1.15rem;
+  }
+
+  #review-website [data-review-domain],
+  #checkout-preview .purchase-preview-copy > p {
+    font-size: 0.84rem;
+    line-height: 1.35;
   }
 }
 

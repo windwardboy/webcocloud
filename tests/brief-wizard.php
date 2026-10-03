@@ -430,6 +430,31 @@ check(str_contains($brandingPage, 'old-logo.jpg'), 'an existing logo is shown on
 check(str_contains($brandingPage, 'multiple'), 'photos and documents can be chosen together');
 check(str_contains($brandingPage, 'Uploading'), 'choosing a file starts the upload');
 check(!str_contains($brandingPage, '>Upload<'), 'there is no separate upload button');
+$logoField = strpos($brandingPage, 'value="logo"');
+$photoField = strpos($brandingPage, 'value="photo"');
+$documentField = strpos($brandingPage, 'value="document"');
+$briefFormEnds = strpos($brandingPage, '</form>');
+check($briefFormEnds !== false && $logoField !== false && $briefFormEnds < $logoField, 'the logo upload is outside the brief form');
+check($photoField !== false && $briefFormEnds < $photoField, 'the photo upload is outside the brief form');
+check($documentField !== false && $briefFormEnds < $documentField, 'the document upload is outside the brief form');
+check(substr_count($brandingPage, 'class="upload"') === 3, 'logo, photos and documents each upload on their own');
+check(str_contains($brandingPage, 'form="brief-wizard"'), 'Back and Continue still submit the brief');
+check(str_contains($brandingPage, 'upload-group'), 'a new file is added to its own category list');
+$reviewFiles = wizard_html([
+    'package_code' => 'essential',
+    'business_name' => 'Kent Training',
+    'order_public_id' => 'wc_wizardessential',
+    'status' => 'brief_in_progress',
+    'assets' => [
+        'logo' => [['original_name' => 'old-logo.jpg', 'size_bytes' => 100, 'request_id' => null]],
+        'photo' => [['original_name' => 'yard.jpg', 'size_bytes' => 200, 'request_id' => null]],
+        'document' => [['original_name' => 'notes.pdf', 'size_bytes' => 300, 'request_id' => null]],
+    ],
+], 'review');
+check(str_contains($reviewFiles, 'Uploaded files'), 'review has an uploaded files section');
+check(str_contains($reviewFiles, 'old-logo.jpg'), 'review lists a saved logo');
+check(str_contains($reviewFiles, 'yard.jpg'), 'review lists a saved photo');
+check(str_contains($reviewFiles, 'notes.pdf'), 'review lists a saved document');
 check(webco_brief_upload_wants_json() === false, 'a normal upload still redirects');
 $_POST['ajax'] = '1';
 check(webco_brief_upload_wants_json() === true, 'an automatic upload asks for a result message');

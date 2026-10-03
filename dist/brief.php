@@ -423,8 +423,9 @@ function webco_brief_auto_uploads(array $assets, string $csrf, ?int $requestId, 
         $multiple = $category !== 'logo';
         $fieldId = 'file-' . $category . ($requestId === null ? '-brief' : '-' . (string) $requestId);
         $files = $assets[$category] ?? [];
+        echo '<div class="upload-group">';
         if ($files === []) {
-            echo '<p class="meta">None yet.</p>';
+            echo '<p class="meta" data-upload-empty>None yet.</p>';
         } else {
             echo '<ul class="files">';
             foreach ($files as $file) {
@@ -443,8 +444,8 @@ function webco_brief_auto_uploads(array $assets, string $csrf, ?int $requestId, 
         echo '<label for="' . webco_html($fieldId) . '">Choose ' . webco_html(strtolower($label)) . '</label>';
         echo '<input id="' . webco_html($fieldId) . '" name="file" type="file" accept="'
             . webco_html($accept[$category]) . '"' . ($multiple ? ' multiple' : '') . '>';
-        echo '<div data-upload-status></div>';
-        echo '</form>';
+        echo '<div data-upload-status role="status" aria-live="polite"></div>';
+        echo '</form></div>';
     }
 }
 

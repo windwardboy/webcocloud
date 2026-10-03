@@ -276,7 +276,7 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
     webco_brief_notice_line($notice);
     webco_brief_progress($labels, $steps, $index);
 
-    echo '<form method="post" action="/brief.php" class="wizard">';
+    echo '<form id="brief-wizard" method="post" action="/brief.php" class="wizard">';
     echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
     echo '<input type="hidden" name="step" value="' . webco_html($step) . '">';
     echo '<section class="card">';
@@ -296,12 +296,12 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
     echo '</div>';
     echo '<div class="dock">';
     if ($previous !== null) {
-        echo '<button class="quiet" type="submit" name="goto" value="' . webco_html($previous) . '">Back</button>';
+        echo '<button class="quiet" type="submit" form="brief-wizard" name="goto" value="' . webco_html($previous) . '">Back</button>';
     }
     if ($step === 'review') {
-        echo '<button type="submit" name="intent" value="submit">Submit website brief</button>';
+        echo '<button type="submit" form="brief-wizard" name="intent" value="submit">Submit website brief</button>';
     } elseif ($next !== null) {
-        echo '<button type="submit" name="goto" value="' . webco_html($next) . '">Continue</button>';
+        echo '<button type="submit" form="brief-wizard" name="goto" value="' . webco_html($next) . '">Continue</button>';
     }
     echo '</div></section></form>';
     echo '<p class="meta"><a href="/support/">Support</a></p>';
@@ -379,6 +379,8 @@ function webco_brief_render_step(array $project, string $step, string $package, 
     if ($step === 'branding') {
         echo '<p class="hint">Use what you already have. You do not need to invent a new visual style. If you have no logo or colours yet, leave those blank and we will follow the website you chose.</p>';
         webco_brief_area($project, 'branding', 'Brand colours you already use', 'Only if you already have them, for example “dark green and cream”.', 2000, 3);
+        // The upload forms must start after this form closes. A form nested inside it is discarded, so choosing a logo would not be posted.
+        echo '</form>';
         echo '<h3>Logo</h3>';
         echo '<p class="hint">Add your existing logo if you have one.</p>';
         webco_brief_auto_uploads(webco_brief_assets_for_request(
@@ -605,7 +607,14 @@ function webco_brief_file_list(array $assets): void
 function webco_brief_upload_script(): void
 {
     echo '<script>
+      var uploadsPending = 0;
+      function setUploadBusy(busy) {
+        document.querySelectorAll(".dock button").forEach(function (button) {
+          button.disabled = busy;
+        });
+      }
       document.querySelectorAll("form.upload").forEach(function (form) {
+        var group = form.closest(".upload-group") || form.parentNode;
         var input = form.querySelector("input[type=file]");
         var status = form.querySelector("[data-upload-status]");
         if (!input || !status) return;
@@ -614,13 +623,16 @@ function webco_brief_upload_script(): void
           if (!files.length) return;
           status.textContent = "";
           var index = 0;
-          var list = form.parentNode.querySelector("ul.files");
+          var list = group.querySelector("ul.files");
           function next() {
             if (index >= files.length) {
               input.value = "";
+              if (uploadsPending === 0) setUploadBusy(false);
               return;
             }
             var file = files[index++];
+            uploadsPending += 1;
+            setUploadBusy(true);
             var line = document.createElement("p");
             line.textContent = "Uploading…";
             status.appendChild(line);
@@ -633,10 +645,12 @@ function webco_brief_upload_script(): void
                 if (body && body.ok) {
                   line.textContent = file.name + " — Uploaded ✓";
                   line.className = "upload-ok";
+                  var empty = group.querySelector("[data-upload-empty]");
+                  if (empty) empty.remove();
                   if (!list) {
                     list = document.createElement("ul");
                     list.className = "files";
-                    form.parentNode.insertBefore(list, form);
+                    group.insertBefore(list, form);
                   }
                   var item = document.createElement("li");
                   item.textContent = file.name;
@@ -645,11 +659,13 @@ function webco_brief_upload_script(): void
                   line.textContent = file.name + " — " + ((body && body.message) ? body.message : "The file could not be saved. Try again.");
                   line.className = "upload-fail";
                 }
-                next();
               })
               .catch(function () {
                 line.textContent = file.name + " — The file could not be saved. Try again.";
                 line.className = "upload-fail";
+              })
+              .then(function () {
+                uploadsPending = Math.max(0, uploadsPending - 1);
                 next();
               });
           }

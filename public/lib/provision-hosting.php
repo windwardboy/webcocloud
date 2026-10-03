@@ -27,10 +27,11 @@ const WEBCO_PROVISION_HOSTING_PACKAGE_TYPE = '117014';
 /**
  * Ready projects, and in-progress projects that already have a stored package
  * id, whose order is paid in Stripe live mode for an existing domain.
+ * A test-mode order is included only when the CLI names that one project.
  *
  * @return list<int>|null
  */
-function webco_provision_hosting_candidate_ids(PDO $db, ?int $projectId = null): ?array
+function webco_provision_hosting_candidate_ids(PDO $db, ?int $projectId = null, bool $allowTestOrder = false): ?array
 {
     if ($projectId !== null && $projectId < 1) {
         return [];
@@ -40,7 +41,7 @@ function webco_provision_hosting_candidate_ids(PDO $db, ?int $projectId = null):
             FROM projects p
             INNER JOIN orders o ON o.id = p.order_id
             WHERE o.status = \'paid\'
-              AND o.stripe_livemode = 1
+              AND ' . webco_provision_hosting_livemode_sql($allowTestOrder, $projectId) . '
               AND o.domain_path = \'existing\'
               AND (
                     p.provisioning_status = \'ready\'
@@ -76,14 +77,14 @@ function webco_provision_hosting_candidate_ids(PDO $db, ?int $projectId = null):
     return $ids;
 }
 
-function webco_provision_hosting_needs_create(PDO $db, ?int $projectId = null): ?bool
+function webco_provision_hosting_needs_create(PDO $db, ?int $projectId = null, bool $allowTestOrder = false): ?bool
 {
-    $ids = webco_provision_hosting_candidate_ids($db, $projectId);
+    $ids = webco_provision_hosting_candidate_ids($db, $projectId, $allowTestOrder);
     if ($ids === null) {
         return null;
     }
     foreach ($ids as $id) {
-        $state = webco_provision_hosting_state($db, $id);
+        $state = webco_provision_hosting_state($db, $id, $allowTestOrder);
         if ($state === null) {
             return null;
         }
@@ -95,10 +96,27 @@ function webco_provision_hosting_needs_create(PDO $db, ?int $projectId = null): 
     return false;
 }
 
-/**
- * @return array<string, mixed>|null
- */
-function webco_provision_hosting_state(PDO $db, int $projectId): ?array
+function webco_provision_hosting_test_override(bool $allowTestOrder, ?int $projectId): bool
+{
+    if (!$allowTestOrder || $projectId === null || $projectId < 1 || PHP_SAPI !== 'cli') {
+        return false;
+    }
+
+    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+
+    return str_ends_with($script, '/bin/provision-hosting.php');
+}
+
+function webco_provision_hosting_livemode_sql(bool $allowTestOrder, ?int $projectId): string
+{
+    if (webco_provision_hosting_test_override($allowTestOrder, $projectId)) {
+        return 'o.stripe_livemode IN (0, 1)';
+    }
+
+    return 'o.stripe_livemode = 1';
+}
+
+function webco_provision_hosting_state(PDO $db, int $projectId, bool $allowTestOrder = false): ?array
 {
     if ($projectId < 1) {
         return null;
@@ -124,6 +142,9 @@ function webco_provision_hosting_state(PDO $db, int $projectId): ?array
 
     $packageId = webco_twentyi_id($row['twentyi_package_id'] ?? null);
     $livemode = $row['stripe_livemode'] ?? null;
+    $livemode = $livemode === null || $livemode === '' ? null : (int) $livemode;
+    $live = $livemode === 1;
+    $test = webco_provision_hosting_test_override($allowTestOrder, $projectId) && $livemode === 0;
 
     return [
         'id' => (int) ($row['id'] ?? 0),
@@ -133,13 +154,12 @@ function webco_provision_hosting_state(PDO $db, int $projectId): ?array
         'package_id' => $packageId,
         'provisioning_error' => webco_provision_nullable($row['provisioning_error'] ?? null),
         'order_status' => (string) ($row['order_status'] ?? ''),
-        'stripe_livemode' => $livemode === null || $livemode === '' ? null : (int) $livemode,
+        'stripe_livemode' => $livemode,
         'domain_path' => (string) ($row['domain_path'] ?? ''),
         'domain_name' => (string) ($row['domain_name'] ?? ''),
         'package_code' => (string) ($row['package_code'] ?? ''),
         'eligible' => (string) ($row['order_status'] ?? '') === 'paid'
-            && (int) $livemode === 1
-            && $livemode !== null
+            && ($live || $test)
             && (string) ($row['domain_path'] ?? '') === 'existing',
     ];
 }
@@ -147,7 +167,7 @@ function webco_provision_hosting_state(PDO $db, int $projectId): ?array
 /**
  * @return list<array<string, mixed>>|null
  */
-function webco_provision_hosting_preview(PDO $db, ?int $projectId = null): ?array
+function webco_provision_hosting_preview(PDO $db, ?int $projectId = null, bool $allowTestOrder = false): ?array
 {
     if ($projectId !== null && $projectId < 1) {
         return [[
@@ -160,12 +180,12 @@ function webco_provision_hosting_preview(PDO $db, ?int $projectId = null): ?arra
         ]];
     }
 
-    $ids = webco_provision_hosting_candidate_ids($db, $projectId);
+    $ids = webco_provision_hosting_candidate_ids($db, $projectId, $allowTestOrder);
     if ($ids === null) {
         return null;
     }
     if ($projectId !== null && $ids === []) {
-        $state = webco_provision_hosting_state($db, $projectId);
+        $state = webco_provision_hosting_state($db, $projectId, $allowTestOrder);
 
         return [[
             'project_id' => $projectId,
@@ -179,7 +199,7 @@ function webco_provision_hosting_preview(PDO $db, ?int $projectId = null): ?arra
 
     $rows = [];
     foreach ($ids as $id) {
-        $state = webco_provision_hosting_state($db, $id);
+        $state = webco_provision_hosting_state($db, $id, $allowTestOrder);
         if ($state === null) {
             return null;
         }
@@ -198,22 +218,24 @@ function webco_provision_hosting_preview(PDO $db, ?int $projectId = null): ?arra
 
 /**
  * @param list<string> $argv
- * @return array{ok: bool, error: string, apply: bool, project_id: ?int}
+ * @return array{ok: bool, error: string, apply: bool, project_id: ?int, allow_test_order: bool}
  */
 function webco_provision_hosting_cli_options(array $argv): array
 {
     $apply = false;
     $projectId = null;
+    $allowTestOrder = false;
     $empty = [
         'ok' => false,
         'error' => '',
         'apply' => false,
         'project_id' => null,
+        'allow_test_order' => false,
     ];
 
     foreach (array_slice($argv, 1) as $arg) {
         if (!is_string($arg)) {
-            $empty['error'] = 'preview is the default; arguments are --project=ID and --apply';
+            $empty['error'] = 'preview is the default; arguments are --project=ID, --apply, and --allow-test-order';
 
             return $empty;
         }
@@ -224,6 +246,15 @@ function webco_provision_hosting_cli_options(array $argv): array
                 return $empty;
             }
             $apply = true;
+            continue;
+        }
+        if ($arg === '--allow-test-order') {
+            if ($allowTestOrder) {
+                $empty['error'] = '--allow-test-order may be given once';
+
+                return $empty;
+            }
+            $allowTestOrder = true;
             continue;
         }
         if (str_starts_with($arg, '--project=')) {
@@ -242,7 +273,13 @@ function webco_provision_hosting_cli_options(array $argv): array
             continue;
         }
 
-        $empty['error'] = 'preview is the default; arguments are --project=ID and --apply';
+        $empty['error'] = 'preview is the default; arguments are --project=ID, --apply, and --allow-test-order';
+
+        return $empty;
+    }
+
+    if ($allowTestOrder && $projectId === null) {
+        $empty['error'] = '--allow-test-order requires --project=ID';
 
         return $empty;
     }
@@ -252,22 +289,24 @@ function webco_provision_hosting_cli_options(array $argv): array
         'error' => '',
         'apply' => $apply,
         'project_id' => $projectId,
+        'allow_test_order' => $allowTestOrder,
     ];
 }
 
 /**
  * @param list<array<string, mixed>> $rows
  */
-function webco_provision_hosting_preview_text(array $rows): string
+function webco_provision_hosting_preview_text(array $rows, bool $allowTestOrder = false): string
 {
-    $lines = [
-        'mode: preview',
-        'package_type: ' . WEBCO_PROVISION_HOSTING_PACKAGE_TYPE,
-        'candidates: ' . count(array_filter(
+    $lines = ['mode: preview'];
+    if ($allowTestOrder) {
+        $lines[] = 'test_order_override: active';
+    }
+    $lines[] = 'package_type: ' . WEBCO_PROVISION_HOSTING_PACKAGE_TYPE;
+    $lines[] = 'candidates: ' . count(array_filter(
             $rows,
             static fn (array $row): bool => ($row['action'] ?? '') === 'create' || ($row['action'] ?? '') === 'finish_existing'
-        )),
-    ];
+        ));
     if ($rows === []) {
         $lines[] = 'request: not sent';
 
@@ -388,10 +427,16 @@ function webco_provision_hosting_apply(
     callable $listPackages,
     callable $createHosting,
     callable $log,
-    ?int $projectId = null
+    ?int $projectId = null,
+    bool $allowTestOrder = false
 ): array {
-    webco_provision_log($log, 'hosting_worker_started', ['mode' => 'apply']);
-    $ids = webco_provision_hosting_candidate_ids($db, $projectId);
+    $testOverride = webco_provision_hosting_test_override($allowTestOrder, $projectId);
+    $started = ['mode' => 'apply'];
+    if ($testOverride) {
+        $started['test_order_override'] = 'active';
+    }
+    webco_provision_log($log, 'hosting_worker_started', $started);
+    $ids = webco_provision_hosting_candidate_ids($db, $projectId, $allowTestOrder);
     if ($ids === null) {
         webco_provision_log($log, 'hosting_worker_stopped', ['reason' => 'database_error']);
 
@@ -400,7 +445,7 @@ function webco_provision_hosting_apply(
 
     $needsCreate = false;
     foreach ($ids as $id) {
-        $state = webco_provision_hosting_state($db, $id);
+        $state = webco_provision_hosting_state($db, $id, $allowTestOrder);
         if ($state === null) {
             return ['ok' => false, 'results' => []];
         }
@@ -431,7 +476,16 @@ function webco_provision_hosting_apply(
 
     $results = [];
     foreach ($ids as $id) {
-        $results[] = webco_provision_hosting_project($db, $id, $packageList, $createHosting, $log);
+        $results[] = webco_provision_hosting_project(
+            $db,
+            $id,
+            $packageList,
+            $createHosting,
+            $log,
+            null,
+            null,
+            $allowTestOrder
+        );
     }
 
     $ok = true;
@@ -442,7 +496,12 @@ function webco_provision_hosting_apply(
         }
     }
 
-    return ['ok' => $ok, 'results' => $results];
+    $summary = ['ok' => $ok, 'results' => $results];
+    if ($testOverride) {
+        $summary['test_order_override'] = 'active';
+    }
+
+    return $summary;
 }
 
 /**
@@ -460,11 +519,12 @@ function webco_provision_hosting_project(
     callable $createHosting,
     callable $log,
     ?callable $storePackageId = null,
-    ?callable $markProvisioned = null
+    ?callable $markProvisioned = null,
+    bool $allowTestOrder = false
 ): array {
     $store = $storePackageId ?? 'webco_provision_hosting_store_package_id';
     $mark = $markProvisioned ?? 'webco_provision_hosting_mark_provisioned';
-    $state = webco_provision_hosting_state($db, $projectId);
+    $state = webco_provision_hosting_state($db, $projectId, $allowTestOrder);
     if ($state === null || !$state['eligible']) {
         return webco_provision_hosting_result($projectId, 'skipped', null, null);
     }
@@ -481,7 +541,7 @@ function webco_provision_hosting_project(
         return webco_provision_hosting_result($projectId, 'skipped', $state['package_id'], null);
     }
 
-    $claimed = webco_provision_hosting_claim($db, $projectId);
+    $claimed = webco_provision_hosting_claim($db, $projectId, $allowTestOrder);
     if ($claimed === null) {
         webco_provision_log($log, 'hosting_skipped', [
             'project_id' => $projectId,
@@ -643,7 +703,7 @@ function webco_provision_hosting_create_error(array $created): string
 /**
  * @return array<string, mixed>|null
  */
-function webco_provision_hosting_claim(PDO $db, int $projectId): ?array
+function webco_provision_hosting_claim(PDO $db, int $projectId, bool $allowTestOrder = false): ?array
 {
     if ($projectId < 1) {
         return null;
@@ -663,7 +723,7 @@ function webco_provision_hosting_claim(PDO $db, int $projectId): ?array
              WHERE p.id = :id
                AND p.provisioning_status = \'ready\'
                AND o.status = \'paid\'
-               AND o.stripe_livemode = 1
+               AND ' . webco_provision_hosting_livemode_sql($allowTestOrder, $projectId) . '
                AND o.domain_path = \'existing\'' . webco_for_update($db)
         );
         $select->execute(['id' => $projectId]);

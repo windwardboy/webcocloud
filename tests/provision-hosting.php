@@ -176,6 +176,9 @@ $webhook = (string) file_get_contents(dirname(__DIR__) . '/public/stripe-webhook
 check($worker !== '' && $dryCli !== '' && $hostingCli !== '' && $webhook !== '', 'hosting files can be read');
 check(!str_contains($worker . $dryCli, 'provision-hosting.php'), 'the dry-run worker does not call hosting provisioning');
 check(!str_contains($webhook, 'provision-hosting'), 'payment does not provision hosting');
+check(!str_contains($webhook, 'allow-test-order') && !str_contains($webhook, 'allow_test_order'), 'the webhook cannot allow a test order');
+$distWebhook = (string) file_get_contents(dirname(__DIR__) . '/dist/stripe-webhook.php');
+check(!str_contains($distWebhook, 'allow-test-order') && !str_contains($distWebhook, 'allow_test_order'), 'the deployed webhook cannot allow a test order');
 check(str_contains($hostingCli, "PHP_SAPI !== 'cli'"), 'CLI entry refuses a web request');
 $applyGate = strpos($hostingCli, '!$options[\'apply\']');
 $getCall = strpos($hostingCli, 'webco_provision_hosting_list_live');
@@ -184,7 +187,14 @@ check($applyGate !== false && $getCall !== false && $postCall !== false && $appl
 $options = webco_provision_hosting_cli_options(['provision-hosting.php']);
 check($options['ok'] === true && $options['apply'] === false, 'the CLI defaults to preview');
 $applied = webco_provision_hosting_cli_options(['provision-hosting.php', '--project=4', '--apply']);
-check($applied['ok'] === true && $applied['apply'] === true && $applied['project_id'] === 4, '--apply is explicit');
+check($applied['ok'] === true && $applied['apply'] === true && $applied['project_id'] === 4 && $applied['allow_test_order'] === false, '--apply is explicit and stays in live mode');
+check($options['allow_test_order'] === false, 'test orders stay disabled unless the flag is passed');
+$bulkFlag = webco_provision_hosting_cli_options(['provision-hosting.php', '--allow-test-order']);
+check($bulkFlag['ok'] === false && $bulkFlag['allow_test_order'] === false, 'test override without one project is rejected');
+$bulkApply = webco_provision_hosting_cli_options(['provision-hosting.php', '--apply', '--allow-test-order']);
+check($bulkApply['ok'] === false && $bulkApply['apply'] === false, 'bulk test apply is rejected before a 20i write');
+$named = webco_provision_hosting_cli_options(['provision-hosting.php', '--project=1', '--allow-test-order']);
+check($named['ok'] === true && $named['apply'] === false && $named['allow_test_order'] === true && $named['project_id'] === 1, 'one named test project is accepted for preview');
 
 $listed = webco_provision_hosting_domains([
     'ok' => true,
@@ -425,11 +435,79 @@ check($finishedRow['provisioning_status'] === 'provisioned' && $finishedRow['pro
 
 $newDomainId = insert_case($db, ['domain_name' => 'new.example', 'domain_path' => 'new']);
 $testModeId = insert_case($db, ['domain_name' => 'test.example', 'stripe_livemode' => 0]);
+$otherTestId = insert_case($db, ['domain_name' => 'other-test.example', 'stripe_livemode' => 0]);
 $candidates = webco_provision_hosting_candidate_ids($db);
 check(
     is_array($candidates) && !in_array($newDomainId, $candidates, true) && !in_array($testModeId, $candidates, true),
     'a new domain and a test-mode order are not provisioned'
 );
+$defaultPreview = webco_provision_hosting_preview($db, $testModeId);
+check(($defaultPreview[0]['action'] ?? '') === 'not_eligible', 'a test order stays ineligible without the override');
+check(
+    !str_contains(webco_provision_hosting_preview_text(is_array($defaultPreview) ? $defaultPreview : []), 'test_order_override'),
+    'default preview does not announce a test override'
+);
+$bulkCandidates = webco_provision_hosting_candidate_ids($db, null, true);
+check(
+    is_array($bulkCandidates) && !in_array($testModeId, $bulkCandidates, true) && !in_array($otherTestId, $bulkCandidates, true),
+    'asking for every project still excludes test orders'
+);
+$outsideCli = webco_provision_hosting_candidate_ids($db, $testModeId, true);
+check(is_array($outsideCli) && $outsideCli === [], 'a script other than the hosting CLI cannot select a test order');
+
+$previousScript = $_SERVER['SCRIPT_FILENAME'] ?? '';
+$_SERVER['SCRIPT_FILENAME'] = dirname(__DIR__) . '/bin/provision-hosting.php';
+$allowed = webco_provision_hosting_candidate_ids($db, $testModeId, true);
+check($allowed === [$testModeId], 'the hosting CLI can select one named test project');
+$allowedPreview = webco_provision_hosting_preview($db, $testModeId, true);
+$allowedText = webco_provision_hosting_preview_text(is_array($allowedPreview) ? $allowedPreview : [], true);
+check(($allowedPreview[0]['action'] ?? '') === 'create', 'the named test project can be previewed');
+check(str_contains($allowedText, "test_order_override: active\n"), 'preview says the test-mode override is active');
+check(project_row($db, $testModeId)['provisioning_status'] === 'ready', 'previewing a test project does not claim it');
+check(!in_array($otherTestId, $allowed, true), 'the override does not include a second test project');
+
+[$testCollisionCreated, $testCollisionCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '1',
+    'failure' => '',
+    'status' => 200,
+]);
+$testCollisionId = insert_case($db, ['domain_name' => 'taken.example', 'stripe_livemode' => 0]);
+$testCollision = webco_provision_hosting_apply(
+    $db,
+    static function (): array {
+        return ['ok' => true, 'domains' => ['taken.example']];
+    },
+    $testCollisionCreate,
+    quiet_log(),
+    $testCollisionId,
+    true
+);
+check($testCollisionCreated->calls === [], 'a test-mode collision is not created');
+check(($testCollision['test_order_override'] ?? '') === 'active', 'apply says the test-mode override is active');
+check(
+    (project_row($db, $testCollisionId)['provisioning_error'] ?? '') === 'Domain already exists on a 20i hosting package',
+    'a test-mode collision stores the same collision error'
+);
+
+$storedTestId = insert_case(
+    $db,
+    ['domain_name' => 'stored-test.example', 'stripe_livemode' => 0],
+    ['twentyi_package_id' => '515151']
+);
+[$storedTestCreated, $storedTestCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '515152',
+    'failure' => '',
+    'status' => 200,
+]);
+$storedTest = webco_provision_hosting_apply($db, static function (): array {
+    return ['ok' => true, 'domains' => []];
+}, $storedTestCreate, quiet_log(), $storedTestId, true);
+check($storedTestCreated->calls === [], 'a stored test-mode package id is not created again');
+check(project_row($db, $storedTestId)['twentyi_package_id'] === '515151', 'the stored test-mode package id is unchanged');
+check(project_row($db, $storedTestId)['provisioning_status'] === 'provisioned', 'a stored test-mode package id can be finished');
+$_SERVER['SCRIPT_FILENAME'] = $previousScript;
 
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);

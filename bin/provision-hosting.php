@@ -10,8 +10,14 @@
  *   php bin/provision-hosting.php --apply
  *   php bin/provision-hosting.php --apply --project=1
  *
+ * One Stripe test-mode order can be included only by naming its project.
+ * Preview still does not call 20i:
+ *   php bin/provision-hosting.php --project=1 --allow-test-order
+ *   php bin/provision-hosting.php --project=1 --allow-test-order --apply
+ *
  * Eligible projects are ready, or already in progress with a stored package
  * id. The order must be paid, Stripe live mode, and domain_path existing.
+ * --allow-test-order also accepts stripe_livemode 0 for that one project.
  * Package type 117014 is used for Essential and Professional.
  *
  * Run php bin/provision-schema.php first so projects.twentyi_package_id and
@@ -43,17 +49,19 @@ if (!$db instanceof PDO) {
     exit(1);
 }
 
+$allowTestOrder = $options['allow_test_order'];
+
 if (!$options['apply']) {
-    $preview = webco_provision_hosting_preview($db, $options['project_id']);
+    $preview = webco_provision_hosting_preview($db, $options['project_id'], $allowTestOrder);
     if ($preview === null) {
         fwrite(STDERR, "database unavailable\n");
         exit(1);
     }
-    fwrite(STDOUT, webco_provision_hosting_preview_text($preview));
+    fwrite(STDOUT, webco_provision_hosting_preview_text($preview, $allowTestOrder));
     exit(0);
 }
 
-$needsCreate = webco_provision_hosting_needs_create($db, $options['project_id']);
+$needsCreate = webco_provision_hosting_needs_create($db, $options['project_id'], $allowTestOrder);
 if ($needsCreate === null) {
     fwrite(STDERR, "database unavailable\n");
     exit(1);
@@ -91,7 +99,8 @@ $result = webco_provision_hosting_apply(
             fwrite(STDERR, $line . "\n");
         }
     },
-    $options['project_id']
+    $options['project_id'],
+    $allowTestOrder
 );
 $bearer = '';
 

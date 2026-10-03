@@ -36,6 +36,9 @@ export const nav = [
   { href: "/support/", label: "Support" },
 ] as const;
 
+const essentialDemoUrl = "https://webco-essential.co.uk/";
+const professionalDemoUrl = "https://webco-professional.co.uk/";
+
 export const websiteOffers = [
   {
     id: "essential",
@@ -45,7 +48,9 @@ export const websiteOffers = [
     price: "£595",
     audience: "Independent instructors and smaller providers",
     summary: "A simple, professional site that brings enquiries for one main location.",
-    exampleUrl: "https://webco-essential.co.uk/",
+    exampleUrl: essentialDemoUrl,
+    demoUrl: essentialDemoUrl,
+    previewImage: "/images/website-essential.jpg",
     points: [
       "One main training location",
       "Core course and service information",
@@ -61,7 +66,9 @@ export const websiteOffers = [
     price: "£995",
     audience: "Established providers with several courses or locations",
     summary: "Room for each course and each training location to have its own page.",
-    exampleUrl: "https://webco-professional.co.uk/",
+    exampleUrl: professionalDemoUrl,
+    demoUrl: professionalDemoUrl,
+    previewImage: "/images/website-professional.jpg",
     points: [
       "A page for each course",
       "A page for each training location",
@@ -71,6 +78,19 @@ export const websiteOffers = [
     ],
   },
 ] as const;
+
+/** Display-only package facts for the funnel. Prices charged are still the server allowlist. */
+export const websitePackagePresentation = Object.fromEntries(
+  websiteOffers.map((offer) => [
+    offer.startPackage,
+    {
+      name: offer.startName,
+      price: offer.price,
+      demoUrl: offer.demoUrl,
+      previewImage: offer.previewImage,
+    },
+  ]),
+);
 
 /** Agreed website-package prices. */
 export const commercial = {

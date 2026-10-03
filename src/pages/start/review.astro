@@ -1,5 +1,6 @@
 ---
 import FunnelLayout from "../../layouts/FunnelLayout.astro";
+import { websitePackagePresentation } from "../../config/site";
 
 const description = "Review the website package, domain and business details before checkout.";
 ---
@@ -17,6 +18,16 @@ const description = "Review the website package, domain and business details bef
   <section class="funnel-shell" id="review-flow" hidden>
     <h1>Review</h1>
     <p class="funnel-lead">Check the package, domain and business details.</p>
+    <article class="card your-website" id="review-website" hidden>
+      <p class="eyebrow">Your website</p>
+      <figure class="website-preview">
+        <img data-review-preview alt="" width="1280" height="800" />
+      </figure>
+      <h2 data-review-name></h2>
+      <p class="price" data-review-price></p>
+      <p data-review-domain></p>
+      <a class="website-demo" data-review-demo target="_blank" rel="noopener noreferrer">View live demo</a>
+    </article>
     <article class="card">
       <h2>Order summary</h2>
       <dl class="summary" id="review-summary"></dl>
@@ -27,16 +38,54 @@ const description = "Review the website package, domain and business details bef
       <a class="button" href="/start/care/">Continue</a>
     </div>
   </section>
+  <script id="package-previews" type="application/json" set:html={JSON.stringify(websitePackagePresentation)}></script>
 </FunnelLayout>
 
 <script is:inline>
   const storageKey = "webco-cloud-onboarding";
+  const packageData = JSON.parse(document.getElementById("package-previews").textContent || "{}");
 
   function readState() {
     try {
       return JSON.parse(localStorage.getItem(storageKey) || "{}");
     } catch {
       return {};
+    }
+  }
+
+  function presentationFor(state) {
+    if (packageData[state.package]) return packageData[state.package];
+    return Object.values(packageData).find((item) => item.name === state.packageName) || null;
+  }
+
+  function setPreview(img, path, alt) {
+    const figure = img && img.closest("figure");
+    if (!img || !figure || typeof path !== "string" || path.indexOf("/images/") !== 0) {
+      if (figure) figure.hidden = true;
+      return;
+    }
+    img.alt = alt;
+    figure.hidden = true;
+    img.addEventListener("load", () => {
+      figure.hidden = false;
+    }, { once: true });
+    img.addEventListener("error", () => {
+      figure.hidden = true;
+    }, { once: true });
+    img.src = path;
+  }
+
+  function setDemo(anchor, url) {
+    if (!anchor) return;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:") {
+        anchor.hidden = true;
+        return;
+      }
+      anchor.href = parsed.href;
+    } catch {
+      anchor.hidden = true;
     }
   }
 
@@ -72,6 +121,27 @@ const description = "Review the website package, domain and business details bef
     document.getElementById("review-missing").hidden = false;
   } else {
     document.getElementById("review-flow").hidden = false;
+    const style = presentationFor(state);
+    const website = document.getElementById("review-website");
+    if (style && website) {
+      website.hidden = false;
+      setPreview(
+        website.querySelector("[data-review-preview]"),
+        style.previewImage,
+        "Preview of the " + style.name + " starting design",
+      );
+      website.querySelector("[data-review-name]").textContent = state.packageName || style.name;
+      website.querySelector("[data-review-price]").textContent = state.price || style.price;
+      const domain = website.querySelector("[data-review-domain]");
+      const domainName = document.createElement("strong");
+      domainName.className = "domain-value";
+      domainName.textContent = state.domain;
+      domain.replaceChildren(
+        document.createTextNode((state.domainPath === "new" ? "New domain, " : "Existing domain, ")),
+        domainName,
+      );
+      setDemo(website.querySelector("[data-review-demo]"), style.demoUrl);
+    }
     const summary = document.getElementById("review-summary");
     const method = { email: "Email", phone: "Phone", whatsapp: "WhatsApp" }[details.contactMethod] || details.contactMethod;
     const address = [details.address1, details.address2, details.town, details.county, details.postcode]

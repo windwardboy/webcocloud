@@ -55,6 +55,15 @@ const questions = [
         {
           websiteOffers.map((offer) => (
             <article class="card offer-card" id={offer.id}>
+              <figure class="website-preview">
+                <img
+                  src={offer.previewImage}
+                  alt={`Preview of the ${offer.name} starting design`}
+                  width="1280"
+                  height="800"
+                  onerror="this.closest('figure').hidden = true"
+                />
+              </figure>
               <p class="eyebrow">{offer.audience}</p>
               <h3>{offer.name}</h3>
               <p class="price">{offer.price}</p>
@@ -64,9 +73,12 @@ const questions = [
                   <li>{point}</li>
                 ))}
               </ul>
+              <p class="offer-note">
+                This demo is a starting design. Your finished website is customised for your business, not delivered as an unchanged template.
+              </p>
               <div class="actions">
-                <a class="button button-quiet" href={offer.exampleUrl} target="_blank" rel="noopener noreferrer">
-                  View example
+                <a class="button button-quiet" href={offer.demoUrl} target="_blank" rel="noopener noreferrer">
+                  View live demo
                 </a>
                 <a class="button" href={`/start/?package=${offer.startPackage}`}>Choose this website</a>
               </div>
@@ -87,8 +99,8 @@ const questions = [
         The Essential example is a straightforward instructor site. Visitors see the training on offer, the one location, and a clear way to call or send an enquiry. Courses stay on the core pages rather than each having a page of their own.
       </p>
       <div class="actions">
-        <a class="button button-quiet" href={offers.essential.exampleUrl} target="_blank" rel="noopener noreferrer">
-          View the Essential example
+        <a class="button button-quiet" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
+          View the Essential live demo
         </a>
       </div>
     </div>
@@ -104,8 +116,8 @@ const questions = [
         The Training Provider example gives each course its own page and each training location its own page. Someone searching locally can land on the right place, then follow that course through to an enquiry.
       </p>
       <div class="actions">
-        <a class="button button-quiet" href={offers.training.exampleUrl} target="_blank" rel="noopener noreferrer">
-          View the Training Provider example
+        <a class="button button-quiet" href={offers.training.demoUrl} target="_blank" rel="noopener noreferrer">
+          View the Training Provider live demo
         </a>
       </div>
     </div>

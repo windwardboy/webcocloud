@@ -1,16 +1,11 @@
 ---
 import FunnelLayout from "../layouts/FunnelLayout.astro";
-import { websiteOffers } from "../config/site";
+import { websitePackagePresentation } from "../config/site";
 
 const description =
   "Confirm your Webco website package and say whether you need a new domain or already have one.";
 
-const packages = Object.fromEntries(
-  websiteOffers.map((offer) => [
-    offer.startPackage,
-    { name: offer.startName, price: offer.price },
-  ]),
-);
+const packages = websitePackagePresentation;
 ---
 
 <FunnelLayout title="Start your website" description={description} step={1}>
@@ -25,9 +20,16 @@ const packages = Object.fromEntries(
 
   <div class="funnel-split" id="start-flow" hidden>
     <aside class="card funnel-summary">
+      <figure class="website-preview">
+        <img data-package-preview alt="" width="1280" height="800" />
+      </figure>
       <p class="eyebrow">Selected package</p>
       <h2 id="package-heading" data-package-name>Webco Essential</h2>
       <p class="price" data-package-price>£595</p>
+      <p class="package-style-note">
+        This is the starting design. The finished website will be adapted to your business.
+      </p>
+      <a class="website-demo" data-package-demo target="_blank" rel="noopener noreferrer">View live demo</a>
     </aside>
 
     <div class="funnel-step">
@@ -167,12 +169,50 @@ const packages = Object.fromEntries(
     note.textContent = "";
   }
 
+  function setPreview(img, path, alt) {
+    const figure = img && img.closest("figure");
+    if (!img || !figure || typeof path !== "string" || path.indexOf("/images/") !== 0) {
+      if (figure) figure.hidden = true;
+      return;
+    }
+    img.alt = alt;
+    figure.hidden = true;
+    img.addEventListener("load", () => {
+      figure.hidden = false;
+    }, { once: true });
+    img.addEventListener("error", () => {
+      figure.hidden = true;
+    }, { once: true });
+    img.src = path;
+  }
+
+  function setDemo(anchor, url) {
+    if (!anchor) return;
+    try {
+      const parsed = new URL(url);
+      if (parsed.protocol !== "https:") {
+        anchor.hidden = true;
+        return;
+      }
+      anchor.href = parsed.href;
+    } catch {
+      anchor.hidden = true;
+    }
+  }
+
   if (!chosen) {
     missing.hidden = false;
   } else {
+    const chosenPackage = packageData[chosen];
+    document.querySelector("[data-package-name]").textContent = chosenPackage.name;
+    document.querySelector("[data-package-price]").textContent = chosenPackage.price;
+    setPreview(
+      document.querySelector("[data-package-preview]"),
+      chosenPackage.previewImage,
+      "Preview of the " + chosenPackage.name + " starting design",
+    );
+    setDemo(document.querySelector("[data-package-demo]"), chosenPackage.demoUrl);
     flow.hidden = false;
-    document.querySelector("[data-package-name]").textContent = packageData[chosen].name;
-    document.querySelector("[data-package-price]").textContent = packageData[chosen].price;
     const stored = readState();
     const samePackage = stored.package === chosen;
     const state = writeState({

@@ -1,5 +1,6 @@
 ---
 import FunnelLayout from "../../../layouts/FunnelLayout.astro";
+import { websitePackagePresentation } from "../../../config/site";
 
 const description = "Payment status for a Webco Cloud website order.";
 ---
@@ -24,6 +25,18 @@ const description = "Payment status for a Webco Cloud website order.";
       </p>
       <h1>Payment received</h1>
       <p class="funnel-lead">Thank you. Your website order is confirmed.</p>
+      <article class="card payment-style" id="payment-preview" hidden>
+        <figure class="website-preview">
+          <img data-payment-preview alt="" width="1280" height="800" />
+        </figure>
+        <div>
+          <p class="eyebrow">Website you purchased</p>
+          <h2 data-payment-name></h2>
+          <p class="package-style-note">
+            This is the website style you purchased. The finished website will be customised around your branding, content, services and business.
+          </p>
+        </div>
+      </article>
       <section class="card payment-steps" aria-labelledby="payment-next-heading">
         <h2 id="payment-next-heading">What happens next</h2>
         <ol>
@@ -35,6 +48,7 @@ const description = "Payment status for a Webco Cloud website order.";
       <dl class="summary payment-order" id="payment-paid-summary"></dl>
       <p class="payment-due">No further payment is due today.</p>
     </div>
+    <script id="package-previews" type="application/json" set:html={JSON.stringify(websitePackagePresentation)}></script>
     <div class="funnel-dock actions">
       <a class="button button-quiet" href="/support/">Support</a>
       <button class="button" type="button" id="payment-refresh" hidden>Check again</button>
@@ -93,6 +107,19 @@ const description = "Payment status for a Webco Cloud website order.";
     color: var(--muted);
     font-size: 0.95rem;
   }
+
+  .payment-style {
+    margin-top: 1.1rem;
+  }
+
+  @media (min-width: 48rem) {
+    .payment-style {
+      display: grid;
+      grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.9fr);
+      align-items: center;
+      gap: 1rem;
+    }
+  }
 </style>
 
 <script is:inline>
@@ -106,6 +133,18 @@ const description = "Payment status for a Webco Cloud website order.";
   const next = document.getElementById("payment-next");
   const refresh = document.getElementById("payment-refresh");
   const requestedId = new URLSearchParams(window.location.search).get("order") || "";
+  const packageData = JSON.parse(document.getElementById("package-previews").textContent || "{}");
+  const paidPreview = document.getElementById("payment-preview");
+
+  function presentationForName(packageName) {
+    return Object.values(packageData).find((item) => item.name === packageName) || null;
+  }
+
+  function hidePaidPreview() {
+    paidPreview.hidden = true;
+    const img = paidPreview.querySelector("[data-payment-preview]");
+    if (img) img.removeAttribute("src");
+  }
 
   function row(label, value) {
     const item = document.createElement("div");
@@ -120,6 +159,7 @@ const description = "Payment status for a Webco Cloud website order.";
   function showStatus() {
     statusPanel.hidden = false;
     paidPanel.hidden = true;
+    hidePaidPreview();
   }
 
   function showUnknown() {
@@ -148,8 +188,24 @@ const description = "Payment status for a Webco Cloud website order.";
 
   function showPaid(data) {
     const rows = [row("Order reference", data.orderId)];
+    const style = presentationForName(data.packageName);
     if (data.packageName === "Webco Essential" || data.packageName === "Webco Professional") {
       rows.push(row("Website package", data.packageName));
+      if (style && typeof style.previewImage === "string" && style.previewImage.indexOf("/images/") === 0) {
+        const img = paidPreview.querySelector("[data-payment-preview]");
+        const figure = img.closest("figure");
+        img.alt = "Preview of the " + data.packageName + " starting design";
+        figure.hidden = true;
+        img.addEventListener("load", () => {
+          figure.hidden = false;
+        }, { once: true });
+        img.addEventListener("error", () => {
+          figure.hidden = true;
+        }, { once: true });
+        img.src = style.previewImage;
+        paidPreview.querySelector("[data-payment-name]").textContent = data.packageName;
+        paidPreview.hidden = false;
+      }
     }
     if (/^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}$/.test(data.domain || "")) {
       rows.push(row("Domain", data.domain));

@@ -289,6 +289,102 @@ $professionalPage = wizard_html([
 check(str_contains($professionalPage, 'name="course_name[]"'), 'Professional asks for each course');
 check(str_contains($professionalPage, 'Old course list.'), 'an older course note is shown in the professional rows');
 check(str_contains($professionalPage, 'its own page'), 'Professional copy matches course pages');
+check(substr_count($professionalPage, 'data-pair-name>') === 1, 'Professional starts with one course row');
+check(substr_count($professionalPage, 'data-pair-name disabled>') === 5, 'the other course rows stay hidden');
+check(str_contains($professionalPage, 'data-add>+ Add another course'), 'Professional can add another course');
+check(!str_contains($professionalPage, '>Remove</button>') || substr_count($professionalPage, '>Remove</button>') === substr_count($professionalPage, ' disabled>Remove</button>'), 'the first course row cannot be removed');
+check(str_contains($professionalPage, 'data-limit hidden'), 'the course limit stays hidden until six courses are open');
+check(!str_contains($essentialPage, 'Add another course'), 'Essential does not gain course rows');
+
+$savedCourses = wizard_html([
+    'package_code' => 'professional',
+    'package_name' => 'Webco Professional',
+    'business_name' => 'South West Training',
+    'order_public_id' => 'wc_wizardprofessional',
+    'status' => 'brief_in_progress',
+    'course_entries' => json_encode([
+        ['name' => 'Category C', 'detail' => 'Rigid lorries.'],
+        ['name' => 'Driver CPC', 'detail' => 'Periodic hours.'],
+    ], JSON_UNESCAPED_UNICODE),
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'courses');
+check(str_contains($savedCourses, 'value="Category C"'), 'a saved course name is shown again');
+check(str_contains($savedCourses, 'value="Driver CPC"'), 'a second saved course is shown again');
+check(substr_count($savedCourses, 'data-pair-name>') === 2, 'saved courses open as separate rows');
+check(substr_count($savedCourses, '>Remove</button>') - substr_count($savedCourses, ' disabled>Remove</button>') === 1, 'only an added course can be removed');
+
+$fullCourses = [];
+for ($courseNumber = 1; $courseNumber <= 6; $courseNumber++) {
+    $fullCourses[] = ['name' => 'Course ' . (string) $courseNumber, 'detail' => 'Details'];
+}
+$fullCoursePage = wizard_html([
+    'package_code' => 'professional',
+    'package_name' => 'Webco Professional',
+    'business_name' => 'South West Training',
+    'order_public_id' => 'wc_wizardprofessional',
+    'status' => 'brief_in_progress',
+    'course_entries' => json_encode($fullCourses, JSON_UNESCAPED_UNICODE),
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'courses');
+check(str_contains($fullCoursePage, 'data-add disabled'), 'the sixth course hides the add action');
+check(str_contains($fullCoursePage, 'type="button"'), 'adding or removing a row does not submit the brief');
+
+$emptyLocations = wizard_html([
+    'package_code' => 'professional',
+    'package_name' => 'Webco Professional',
+    'business_name' => 'South West Training',
+    'order_public_id' => 'wc_wizardprofessional',
+    'status' => 'brief_in_progress',
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'locations');
+check(str_contains($emptyLocations, 'name="locations"'), 'Professional still asks for the main location');
+check(substr_count($emptyLocations, 'data-pair-name>') === 0, 'further locations stay hidden until requested');
+check(str_contains($emptyLocations, 'data-add>+ Add another location'), 'Professional can add another location');
+$essentialLocations = wizard_html([
+    'package_code' => 'essential',
+    'package_name' => 'Webco Essential',
+    'business_name' => 'Kent Training',
+    'order_public_id' => 'wc_wizardessential',
+    'status' => 'brief_in_progress',
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'locations');
+check(!str_contains($essentialLocations, 'location_name[]'), 'Essential does not gain location rows');
+check(!str_contains($essentialLocations, 'Add another location'), 'Essential does not offer extra locations');
+
+$savedLocations = wizard_html([
+    'package_code' => 'professional',
+    'package_name' => 'Webco Professional',
+    'business_name' => 'South West Training',
+    'order_public_id' => 'wc_wizardprofessional',
+    'status' => 'brief_in_progress',
+    'location_entries' => json_encode([
+        ['name' => 'Taunton', 'detail' => 'Second yard.'],
+        ['name' => 'Exeter', 'detail' => 'Third yard.'],
+    ], JSON_UNESCAPED_UNICODE),
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'locations');
+check(str_contains($savedLocations, 'value="Taunton"'), 'a saved further location is shown again');
+check(str_contains($savedLocations, 'value="Exeter"'), 'a second saved location is shown again');
+check(substr_count($savedLocations, '>Remove</button>') - substr_count($savedLocations, ' disabled>Remove</button>') === 2, 'further locations can be removed');
+
+$_POST = [
+    'locations' => 'Bristol',
+    'areas_served' => 'Somerset',
+    'location_name' => ['Taunton', ''],
+    'location_detail' => ['Second yard.', ''],
+];
+check(webco_save_customer_brief($db, 2, webco_brief_posted_fields('locations'), false) === 'saved', 'a further location can be saved');
+check(count(webco_brief_pairs((string) brief_row($db, 2)['location_entries'])) === 1, 'an empty location row is not stored');
+$_POST = [
+    'locations' => 'Bristol',
+    'areas_served' => 'Somerset',
+    'location_name' => [''],
+    'location_detail' => [''],
+];
+check(webco_save_customer_brief($db, 2, webco_brief_posted_fields('locations'), false) === 'saved', 'removing every further location can be saved');
+check((string) brief_row($db, 2)['location_entries'] === '', 'removed locations are cleared');
+check((string) brief_row($db, 2)['locations'] === 'Bristol', 'the main location stays when further locations are removed');
+check(status_of($db, 2) === 'brief_in_progress', 'location autosave does not submit');
 
 $contactPage = wizard_html([
     'package_code' => 'essential',

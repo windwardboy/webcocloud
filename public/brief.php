@@ -516,7 +516,13 @@ function webco_brief_styles(): string
       .step-figure { order: -1; margin: 0.2rem 0 0.4rem; }
       .step-figure img { width: 100%; max-height: 9.5rem; object-fit: cover; object-position: top; border-radius: 12px; }
       .step-figure figcaption { margin-top: 0.35rem; color: #3e4e58; font-size: 0.92rem; }
-      .slot { margin-top: 0.9rem; padding-top: 0.2rem; }
+      .pair-list { margin-top: 0.4rem; }
+      .slot { margin-top: 0.9rem; padding: 0.85rem 0.9rem 1rem; border: 1px solid #d5e0dc; border-radius: 12px; background: #f7fbfa; }
+      .slot-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }
+      .slot-title { margin: 0; font-weight: 700; }
+      .slot-remove, .add-pair { min-height: 2.75rem; margin: 0; }
+      .add-pair { width: 100%; margin-top: 0.9rem; }
+      .pair-status:empty { margin: 0; }
       .call-extra { display: none; }
       fieldset.call:has(input[value="yes"]:checked) .call-extra { display: block; }
       .upload-ok { color: #0c6b62; font-weight: 650; }
@@ -531,6 +537,7 @@ function webco_brief_styles(): string
         .step-figure { order: 0; margin: 0.4rem 0 0; }
         .step-figure img { max-height: none; object-fit: initial; }
         .dock { position: static; background: transparent; }
+        .add-pair { width: auto; }
       }
     </style>';
 }

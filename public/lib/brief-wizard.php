@@ -306,6 +306,7 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
     echo '</div></section></form>';
     echo '<p class="meta"><a href="/support/">Support</a></p>';
     webco_brief_upload_script();
+    webco_brief_pair_script();
     webco_brief_page_close();
 }
 
@@ -343,8 +344,8 @@ function webco_brief_render_step(array $project, string $step, string $package, 
     }
     if ($step === 'courses') {
         if (webco_brief_course_mode($package) === 'multiple') {
-            echo '<p class="hint">Add each course or service that should have its own page on your Professional website. Leave unused rows blank. ' . webco_html($hint) . '</p>';
-            webco_brief_pair_slots($project, 'course', 6, 'Course');
+            echo '<p class="hint">Add each course or service that should have its own page on your Professional website. Start with the first one, then add another if you need it. ' . webco_html($hint) . '</p>';
+            webco_brief_pair_slots($project, 'course', 6, 'Course', true);
             return;
         }
         echo '<p class="hint">List the courses or services you currently offer. On Essential these stay together on the core pages, rather than each having a page of its own. ' . webco_html($hint) . '</p>';
@@ -361,7 +362,8 @@ function webco_brief_render_step(array $project, string $step, string $package, 
         webco_brief_area($project, 'areas_served', 'Areas served', 'Towns or regions people travel from.', 2000, 3);
         if (webco_brief_location_mode($package) === 'multiple') {
             echo '<h3>Further locations</h3>';
-            webco_brief_pair_slots($project, 'location', 4, 'Location');
+            echo '<p class="hint">Add another location only if you train or work from more than one base.</p>';
+            webco_brief_pair_slots($project, 'location', 4, 'Location', false);
         }
         return;
     }
@@ -454,7 +456,7 @@ function webco_brief_render_step(array $project, string $step, string $package, 
 /**
  * @param array<string, mixed> $project
  */
-function webco_brief_pair_slots(array $project, string $kind, int $count, string $label): void
+function webco_brief_pair_slots(array $project, string $kind, int $count, string $label, bool $keepFirst): void
 {
     $stored = $kind === 'course'
         ? (string) ($project['course_entries'] ?? '')
@@ -466,19 +468,48 @@ function webco_brief_pair_slots(array $project, string $kind, int $count, string
             $pairs[] = ['name' => '', 'detail' => $services];
         }
     }
+    $visible = count($pairs);
+    if ($keepFirst) {
+        $visible = max(1, $visible);
+    }
+    if ($visible > $count) {
+        $visible = $count;
+    }
     $nameKey = $kind . '_name';
     $detailKey = $kind . '_detail';
+    $addLabel = $kind === 'course' ? 'Add another course' : 'Add another location';
+    $limitText = $kind === 'course'
+        ? 'You can add up to six courses.'
+        : 'You can add up to four further locations.';
+    echo '<div class="pair-list" data-pair-list data-keep-first="' . ($keepFirst ? '1' : '0') . '" data-max="' . (string) $count . '" data-label="' . webco_html($label) . '">';
     for ($index = 0; $index < $count; $index++) {
         $pair = $pairs[$index] ?? ['name' => '', 'detail' => ''];
         $number = (string) ($index + 1);
-        echo '<div class="slot">';
-        echo '<label for="' . webco_html($nameKey . $number) . '">' . webco_html($label) . ' ' . webco_html($number) . '</label>';
-        echo '<input id="' . webco_html($nameKey . $number) . '" name="' . webco_html($nameKey) . '[]" type="text" maxlength="120" value="' . webco_html($pair['name']) . '">';
+        $shown = $index < $visible;
+        $canRemove = !$keepFirst || $index > 0;
+        echo '<div class="slot" data-slot' . ($shown ? '' : ' hidden') . '>';
+        echo '<div class="slot-head">';
+        echo '<p class="slot-title" id="' . webco_html($kind . '-title-' . $number) . '" data-title>' . webco_html($label . ' ' . $number) . '</p>';
+        if ($canRemove) {
+            $removeLabel = 'Remove ' . strtolower($label) . ' ' . $number;
+            echo '<button type="button" class="quiet slot-remove" data-remove aria-label="' . webco_html($removeLabel) . '"' . ($shown ? '' : ' disabled') . '>Remove</button>';
+        }
+        echo '</div>';
+        echo '<label for="' . webco_html($nameKey . $number) . '">Name</label>';
+        echo '<input id="' . webco_html($nameKey . $number) . '" name="' . webco_html($nameKey) . '[]" type="text" maxlength="120" value="' . webco_html($pair['name']) . '" aria-label="' . webco_html($label . ' ' . $number . ' name') . '" data-pair-name' . ($shown ? '' : ' disabled') . '>';
         echo '<label for="' . webco_html($detailKey . $number) . '">Details</label>';
-        echo '<textarea id="' . webco_html($detailKey . $number) . '" name="' . webco_html($detailKey) . '[]" maxlength="1000" rows="3">';
+        echo '<textarea id="' . webco_html($detailKey . $number) . '" name="' . webco_html($detailKey) . '[]" maxlength="1000" rows="3" aria-label="' . webco_html($label . ' ' . $number . ' details') . '" data-pair-detail' . ($shown ? '' : ' disabled') . '>';
         echo webco_html($pair['detail']);
         echo '</textarea></div>';
     }
+    if ($kind === 'location') {
+        echo '<input type="hidden" name="location_name[]" value="">';
+        echo '<input type="hidden" name="location_detail[]" value="">';
+    }
+    echo '<p class="pair-status" data-pair-status role="status" aria-live="polite"></p>';
+    echo '<p class="hint pair-limit" data-limit' . ($visible >= $count ? '' : ' hidden') . '>' . webco_html($limitText) . '</p>';
+    echo '<button type="button" class="quiet add-pair" data-add' . ($visible >= $count ? ' disabled' : '') . '>+ ' . webco_html($addLabel) . '</button>';
+    echo '</div>';
 }
 
 /**
@@ -624,6 +655,106 @@ function webco_brief_upload_script(): void
           }
           next();
         });
+      });
+    </script>';
+}
+
+function webco_brief_pair_script(): void
+{
+    echo '<script>
+      document.querySelectorAll("[data-pair-list]").forEach(function (list) {
+        var max = parseInt(list.getAttribute("data-max") || "0", 10);
+        var keepFirst = list.getAttribute("data-keep-first") === "1";
+        var label = list.getAttribute("data-label") || "Entry";
+        var status = list.querySelector("[data-pair-status]");
+        var limit = list.querySelector("[data-limit]");
+        var add = list.querySelector("[data-add]");
+
+        function slots() {
+          return Array.prototype.slice.call(list.querySelectorAll("[data-slot]"));
+        }
+
+        function shown() {
+          return slots().filter(function (slot) { return !slot.hidden; });
+        }
+
+        function setEnabled(slot, enabled) {
+          slot.hidden = !enabled;
+          Array.prototype.forEach.call(slot.querySelectorAll("[data-pair-name], [data-pair-detail], [data-remove]"), function (field) {
+            field.disabled = !enabled;
+          });
+        }
+
+        function read(slot) {
+          return {
+            name: slot.querySelector("[data-pair-name]").value,
+            detail: slot.querySelector("[data-pair-detail]").value
+          };
+        }
+
+        function write(slot, value) {
+          slot.querySelector("[data-pair-name]").value = value.name;
+          slot.querySelector("[data-pair-detail]").value = value.detail;
+        }
+
+        function sync() {
+          var visible = shown();
+          visible.forEach(function (slot, index) {
+            var title = slot.querySelector("[data-title]");
+            var text = label + " " + (index + 1);
+            if (title) title.textContent = text;
+            var name = slot.querySelector("[data-pair-name]");
+            var detail = slot.querySelector("[data-pair-detail]");
+            if (name) name.setAttribute("aria-label", text + " name");
+            if (detail) detail.setAttribute("aria-label", text + " details");
+            var remove = slot.querySelector("[data-remove]");
+            if (remove) remove.setAttribute("aria-label", "Remove " + label.toLowerCase() + " " + (index + 1));
+          });
+          var full = visible.length >= max;
+          if (add) add.disabled = full;
+          if (limit) limit.hidden = !full;
+        }
+
+        if (add) {
+          add.addEventListener("click", function () {
+            var next = slots().filter(function (slot) { return slot.hidden; })[0];
+            if (!next) return;
+            setEnabled(next, true);
+            sync();
+            var input = next.querySelector("[data-pair-name]");
+            if (input) input.focus();
+            var title = next.querySelector("[data-title]");
+            if (status) status.textContent = (title ? title.textContent : label) + " added.";
+          });
+        }
+
+        list.addEventListener("click", function (event) {
+          var remove = event.target.closest("[data-remove]");
+          if (!remove || !list.contains(remove)) return;
+          var current = shown();
+          var slot = remove.closest("[data-slot]");
+          var index = current.indexOf(slot);
+          if (index < 0 || (keepFirst && index === 0)) return;
+          var values = current.map(read);
+          values.splice(index, 1);
+          var all = slots();
+          all.forEach(function (item, itemIndex) {
+            if (itemIndex < values.length) {
+              setEnabled(item, true);
+              write(item, values[itemIndex]);
+            } else {
+              write(item, { name: "", detail: "" });
+              setEnabled(item, false);
+            }
+          });
+          sync();
+          if (status) status.textContent = label + " " + (index + 1) + " removed.";
+          var focusSlot = all[Math.min(index, values.length - 1)];
+          var focus = focusSlot && !focusSlot.hidden ? focusSlot.querySelector("[data-pair-name]") : add;
+          if (focus) focus.focus();
+        });
+
+        sync();
       });
     </script>';
 }

@@ -60,6 +60,9 @@ function webco_admin_post(): void
     if ($action === 'download') {
         webco_admin_download_post();
     }
+    if ($action === 'request') {
+        webco_admin_request_post();
+    }
 
     webco_admin_redirect('again');
 }
@@ -146,6 +149,20 @@ function webco_admin_notify_post(): void
     }
 
     webco_admin_redirect('notified');
+}
+
+function webco_admin_request_post(): void
+{
+    $requestId = $_POST['request_id'] ?? '';
+    if (!is_string($requestId) || !preg_match('/^\d{1,12}$/', $requestId)) {
+        webco_admin_redirect('again');
+    }
+
+    if (!webco_advance_request_status(webco_admin_db(), (int) $requestId)) {
+        webco_admin_redirect('again');
+    }
+
+    webco_admin_redirect('request');
 }
 
 function webco_admin_download_post(): void
@@ -235,9 +252,18 @@ function webco_admin_project(array $project, string $csrf): void
     webco_admin_row('Brief submitted', (string) ($project['submitted_at'] ?? ''));
     echo '</dl>';
 
-    $summary = trim((string) ($project['summary'] ?? ''));
-    echo '<h3>Note</h3>';
-    echo '<p class="summary">' . ($summary === '' ? 'None yet.' : webco_html($summary)) . '</p>';
+    webco_admin_callout($project);
+    echo '<h3>Website brief</h3>';
+    webco_admin_brief_text('What the business does', (string) ($project['business_overview'] ?? ''));
+    webco_admin_brief_text('Services, courses or products', (string) ($project['services'] ?? ''));
+    webco_admin_brief_text('Locations or areas served', (string) ($project['locations'] ?? ''));
+    webco_admin_brief_text('Goals for the website', (string) ($project['goals'] ?? ''));
+    webco_admin_brief_text('Style and tone', (string) ($project['style_tone'] ?? ''));
+    webco_admin_brief_text('Colours and branding', (string) ($project['branding'] ?? ''));
+    webco_admin_brief_text('Websites they like or dislike', (string) ($project['liked_sites'] ?? ''));
+    webco_admin_brief_text('Pages and content to include', (string) ($project['required_pages'] ?? ''));
+    webco_admin_brief_text('Anything else', (string) ($project['summary'] ?? ''));
+    webco_admin_requests($project, $csrf);
 
     webco_admin_next_action($project, $csrf);
 
@@ -269,6 +295,10 @@ function webco_admin_project(array $project, string $csrf): void
             $assetId = (int) ($file['id'] ?? 0);
             echo '<li>' . webco_html((string) ($file['original_name'] ?? ''));
             echo ' <span class="meta">' . webco_html(webco_admin_size((int) ($file['size_bytes'] ?? 0))) . '</span> ';
+            $fileRequest = $file['request_id'] ?? null;
+            if (is_int($fileRequest) || (is_string($fileRequest) && ctype_digit($fileRequest))) {
+                echo '<span class="meta">Request ' . webco_html((string) $fileRequest) . '</span> ';
+            }
             echo '<form method="post" action="/admin.php" class="inline">';
             echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
             echo '<input type="hidden" name="action" value="download">';
@@ -278,6 +308,105 @@ function webco_admin_project(array $project, string $csrf): void
         echo '</ul>';
     }
 
+    echo '</article>';
+}
+
+/**
+ * @param array<string, mixed> $project
+ */
+function webco_admin_callout(array $project): void
+{
+    if ((int) ($project['call_requested'] ?? 0) !== 1) {
+        return;
+    }
+
+    echo '<div class="callout">';
+    echo '<p class="eyebrow">Phone call requested</p>';
+    echo '<p>The customer wants a call before the website starts.</p>';
+    webco_admin_brief_text('Number', (string) ($project['call_number'] ?? ''));
+    webco_admin_brief_text('Time', (string) ($project['call_time'] ?? ''));
+    webco_admin_brief_text('Note', (string) ($project['call_note'] ?? ''));
+    echo '</div>';
+}
+
+function webco_admin_brief_text(string $label, string $value): void
+{
+    $value = trim($value);
+    echo '<h3>' . webco_html($label) . '</h3>';
+    echo '<p class="summary">' . ($value === '' ? 'None yet.' : webco_html($value)) . '</p>';
+}
+
+/**
+ * @param array<string, mixed> $project
+ */
+function webco_admin_requests(array $project, string $csrf): void
+{
+    $requests = is_array($project['requests'] ?? null) ? $project['requests'] : [];
+    $active = [];
+    $done = [];
+    foreach ($requests as $request) {
+        if (!is_array($request)) {
+            continue;
+        }
+        if ((string) ($request['status'] ?? '') === 'done') {
+            $done[] = $request;
+        } else {
+            $active[] = $request;
+        }
+    }
+
+    echo '<h3>Client requests</h3>';
+    echo '<p class="meta">These are separate from the website build status.</p>';
+    if ($active === [] && $done === []) {
+        echo '<p class="meta">No requests yet.</p>';
+
+        return;
+    }
+
+    foreach ($active as $request) {
+        webco_admin_request($request, $csrf, true);
+    }
+    foreach ($done as $request) {
+        webco_admin_request($request, $csrf, false);
+    }
+}
+
+/**
+ * @param array<string, mixed> $request
+ */
+function webco_admin_request(array $request, string $csrf, bool $action): void
+{
+    $id = (int) ($request['id'] ?? 0);
+    $status = (string) ($request['status'] ?? '');
+    $next = webco_request_status_next($status);
+    echo '<article class="request">';
+    echo '<p class="eyebrow">' . webco_html(webco_request_type_label((string) ($request['request_type'] ?? ''))) . '</p>';
+    echo '<p class="request-status">' . webco_html(webco_request_status_label($status)) . '</p>';
+    echo '<p class="summary">' . webco_html(trim((string) ($request['summary'] ?? ''))) . '</p>';
+    if ((int) ($request['call_requested'] ?? 0) === 1) {
+        echo '<p class="call-line">Phone call requested';
+        $number = trim((string) ($request['call_number'] ?? ''));
+        $time = trim((string) ($request['call_time'] ?? ''));
+        if ($number !== '') {
+            echo ' · ' . webco_html($number);
+        }
+        if ($time !== '') {
+            echo ' · ' . webco_html($time);
+        }
+        $note = trim((string) ($request['call_note'] ?? ''));
+        if ($note !== '') {
+            echo '<br>' . webco_html($note);
+        }
+        echo '</p>';
+    }
+    if ($action && $next !== null) {
+        echo '<form method="post" action="/admin.php">';
+        echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+        echo '<input type="hidden" name="action" value="request">';
+        echo '<input type="hidden" name="request_id" value="' . webco_html((string) $id) . '">';
+        echo '<button type="submit">Mark ' . webco_html(strtolower(webco_request_status_label($next))) . '</button>';
+        echo '</form>';
+    }
     echo '</article>';
 }
 
@@ -327,6 +456,7 @@ function webco_admin_notice(mixed $notice): string
 {
     $messages = [
         'status' => 'Status updated.',
+        'request' => 'Request status updated.',
         'cloned' => 'Clone recorded. The project is ready for build.',
         'clone_done' => 'This clone was already recorded.',
         'notified' => 'Notifications sent.',
@@ -432,9 +562,15 @@ function webco_admin_next_action(array $project, string $csrf): void
     $id = (int) ($project['id'] ?? 0);
     $status = (string) ($project['status'] ?? '');
     $packageId = webco_project_package_id($project['twentyi_package_id'] ?? null);
+    $details = [];
+    foreach (webco_brief_detail_columns() as $column) {
+        $value = $project[$column] ?? null;
+        $details[] = is_string($value) ? $value : null;
+    }
     $briefReady = webco_project_brief_is_ready(
         is_string($project['summary'] ?? null) ? $project['summary'] : null,
-        $project['submitted_at'] ?? null
+        $project['submitted_at'] ?? null,
+        $details
     );
 
     echo '<div class="next">';
@@ -552,6 +688,10 @@ function webco_admin_styles(): string
       .next { margin-top: 1rem; padding: 0.9rem 1rem; background: #f3f6f5; border-radius: 12px; }
       .next .now { margin: 0.15rem 0 0; font-size: 1.15rem; }
       .summary { white-space: pre-wrap; }
+      .callout { margin-top: 1rem; padding: 0.9rem 1rem; border: 2px solid #b8955a; border-radius: 12px; background: #fff8ee; }
+      .request { margin-top: 0.8rem; padding: 0.8rem 0.9rem; border: 1px solid #d5e0dc; border-radius: 12px; }
+      .request-status { margin: 0.15rem 0 0; font-weight: 700; }
+      .call-line { margin-top: 0.45rem; font-weight: 650; }
       dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.7rem 1rem; margin: 1rem 0 0; }
       dl div { margin: 0; }
       dt { color: #3e4e58; font-size: 0.82rem; }

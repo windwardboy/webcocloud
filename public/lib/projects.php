@@ -95,11 +95,129 @@ function webco_project_package_id(mixed $value): ?string
     return $value;
 }
 
-function webco_project_brief_is_ready(?string $summary, mixed $submittedAt): bool
+/**
+ * A submitted brief is ready when the original note or any intake answer has text.
+ * Call preference alone does not satisfy the build gate.
+ *
+ * @param list<string|null> $details
+ */
+function webco_project_brief_is_ready(?string $summary, mixed $submittedAt, array $details = []): bool
 {
-    $summary = $summary === null ? null : webco_brief_summary($summary);
+    if ($submittedAt === null || $submittedAt === '') {
+        return false;
+    }
+    if (is_string($summary) && trim($summary) !== '') {
+        return true;
+    }
+    foreach ($details as $detail) {
+        if (is_string($detail) && trim($detail) !== '') {
+            return true;
+        }
+    }
 
-    return $summary !== null && $summary !== '' && $submittedAt !== null && $submittedAt !== '';
+    return false;
+}
+
+/**
+ * @return list<string>
+ */
+function webco_brief_detail_columns(): array
+{
+    return [
+        'business_overview',
+        'services',
+        'locations',
+        'goals',
+        'style_tone',
+        'branding',
+        'liked_sites',
+        'required_pages',
+    ];
+}
+
+/**
+ * @return list<string>
+ */
+function webco_request_types(): array
+{
+    return [
+        'website_update',
+        'content_change',
+        'new_page',
+        'image_replacement',
+        'contact_change',
+        'technical_problem',
+        'support_question',
+        'other',
+    ];
+}
+
+function webco_request_type_valid(string $type): bool
+{
+    return in_array($type, webco_request_types(), true);
+}
+
+function webco_request_type_label(string $type): string
+{
+    return match ($type) {
+        'website_update' => 'Website update',
+        'content_change' => 'Content change',
+        'new_page' => 'New page or course',
+        'image_replacement' => 'Image replacement',
+        'contact_change' => 'Contact or detail change',
+        'technical_problem' => 'Technical problem',
+        'support_question' => 'Support question',
+        'other' => 'Other',
+        default => $type,
+    };
+}
+
+/**
+ * @return list<string>
+ */
+function webco_request_statuses(): array
+{
+    return ['open', 'in_progress', 'done'];
+}
+
+function webco_request_status_valid(string $status): bool
+{
+    return in_array($status, webco_request_statuses(), true);
+}
+
+function webco_request_status_label(string $status): string
+{
+    return match ($status) {
+        'open' => 'Open',
+        'in_progress' => 'In progress',
+        'done' => 'Done',
+        default => $status,
+    };
+}
+
+function webco_request_status_next(string $status): ?string
+{
+    return match ($status) {
+        'open' => 'in_progress',
+        'in_progress' => 'done',
+        default => null,
+    };
+}
+
+function webco_project_status_sentence(string $status): string
+{
+    return match ($status) {
+        'awaiting_brief' => 'We are waiting for your website brief.',
+        'brief_in_progress' => 'Your website brief is in progress.',
+        'brief_received' => 'Your website brief has been received. Webco will review it and contact you.',
+        'ready_for_clone' => 'Your website is being prepared for build.',
+        'ready_for_build' => 'Your website is ready to be built.',
+        'in_build' => 'Your website is being built.',
+        'review' => 'Your website is in review.',
+        'ready_to_launch' => 'Your website is ready to launch.',
+        'live' => 'Your website is live.',
+        default => webco_project_status_label($status),
+    };
 }
 
 /**
@@ -152,7 +270,8 @@ function webco_advance_project_status(PDO $db, int $projectId): bool
         }
         if ($next === 'ready_for_clone' && !webco_project_brief_is_ready(
             is_string($row['summary'] ?? null) ? $row['summary'] : null,
-            $row['submitted_at'] ?? null
+            $row['submitted_at'] ?? null,
+            webco_brief_detail_values($db, $projectId)
         )) {
             $db->rollBack();
 
@@ -311,6 +430,103 @@ function webco_ensure_project_tables(PDO $db): bool
         );
         if (!webco_ensure_project_provisioning_columns($db)) {
             return false;
+        }
+        if (!webco_ensure_brief_detail_columns($db)) {
+            return false;
+        }
+        if (!webco_ensure_project_requests_table($db)) {
+            return false;
+        }
+        if (!webco_ensure_asset_request_column($db)) {
+            return false;
+        }
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Adds intake answers to a brief table created with only the original note.
+ */
+function webco_ensure_brief_detail_columns(PDO $db): bool
+{
+    $columns = [
+        'business_overview' => 'TEXT NULL',
+        'services' => 'TEXT NULL',
+        'locations' => 'TEXT NULL',
+        'goals' => 'TEXT NULL',
+        'style_tone' => 'TEXT NULL',
+        'branding' => 'TEXT NULL',
+        'liked_sites' => 'TEXT NULL',
+        'required_pages' => 'TEXT NULL',
+        'call_requested' => 'TINYINT(1) NOT NULL DEFAULT 0',
+        'call_number' => 'VARCHAR(40) NULL',
+        'call_time' => 'VARCHAR(120) NULL',
+        'call_note' => 'TEXT NULL',
+    ];
+
+    return webco_ensure_columns($db, 'project_briefs', $columns);
+}
+
+function webco_ensure_project_requests_table(PDO $db): bool
+{
+    try {
+        $db->exec(
+            'CREATE TABLE IF NOT EXISTS project_requests (
+                id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+                project_id BIGINT UNSIGNED NOT NULL,
+                request_type VARCHAR(32) NOT NULL,
+                status VARCHAR(16) NOT NULL DEFAULT \'open\',
+                summary TEXT NOT NULL,
+                call_requested TINYINT(1) NOT NULL DEFAULT 0,
+                call_number VARCHAR(40) NULL,
+                call_time VARCHAR(120) NULL,
+                call_note TEXT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NULL DEFAULT NULL,
+                completed_at TIMESTAMP NULL DEFAULT NULL,
+                PRIMARY KEY (id),
+                KEY project_requests_project_status (project_id, status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Existing brief files keep a null request id. New files may name one request.
+ */
+function webco_ensure_asset_request_column(PDO $db): bool
+{
+    return webco_ensure_columns($db, 'project_assets', [
+        'request_id' => 'BIGINT UNSIGNED NULL',
+    ]);
+}
+
+/**
+ * @param array<string, string> $columns
+ */
+function webco_ensure_columns(PDO $db, string $table, array $columns): bool
+{
+    if (!preg_match('/^[a-z_]+$/', $table)) {
+        return false;
+    }
+
+    try {
+        $existing = webco_table_column_set($db, $table);
+        if ($existing === null) {
+            return false;
+        }
+        foreach ($columns as $name => $definition) {
+            if (!preg_match('/^[a-z_]+$/', $name) || isset($existing[$name])) {
+                continue;
+            }
+            $db->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $name . ' ' . $definition);
         }
     } catch (PDOException) {
         return false;
@@ -883,7 +1099,21 @@ function webco_project_id_for_brief_token(PDO $db, string $token): ?int
  *   business_name: string,
  *   summary: string,
  *   submitted_at: ?string,
- *   assets: array<string, list<array{original_name: string, size_bytes: int}>>
+ *   phone: string,
+ *   business_overview: string,
+ *   services: string,
+ *   locations: string,
+ *   goals: string,
+ *   style_tone: string,
+ *   branding: string,
+ *   liked_sites: string,
+ *   required_pages: string,
+ *   call_requested: bool,
+ *   call_number: string,
+ *   call_time: string,
+ *   call_note: string,
+ *   assets: array<string, list<array{original_name: string, size_bytes: int, request_id: ?int}>>,
+ *   requests: list<array<string, mixed>>
  * }|null
  */
 function webco_customer_project(PDO $db, int $projectId): ?array
@@ -892,10 +1122,16 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         return null;
     }
 
+    $detailSql = implode(', ', array_map(
+        static fn (string $column): string => 'b.' . $column,
+        webco_brief_detail_columns()
+    ));
+
     try {
         $statement = $db->prepare(
-            'SELECT p.id, p.order_public_id, p.status, o.business_name,
-                    b.summary, b.submitted_at
+            'SELECT p.id, p.order_public_id, p.status, o.business_name, o.phone,
+                    b.summary, b.submitted_at, b.call_requested, b.call_number, b.call_time, b.call_note,
+                    ' . $detailSql . '
              FROM projects p
              INNER JOIN orders o ON o.id = p.order_id
              LEFT JOIN project_briefs b ON b.project_id = p.id
@@ -910,19 +1146,30 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         return null;
     }
 
-    return [
+    $project = [
         'id' => (int) $row['id'],
         'order_public_id' => (string) ($row['order_public_id'] ?? ''),
         'status' => (string) ($row['status'] ?? ''),
         'business_name' => (string) ($row['business_name'] ?? ''),
+        'phone' => (string) ($row['phone'] ?? ''),
         'summary' => (string) ($row['summary'] ?? ''),
         'submitted_at' => webco_nullable_string($row['submitted_at'] ?? null),
+        'call_requested' => (int) ($row['call_requested'] ?? 0) === 1,
+        'call_number' => (string) ($row['call_number'] ?? ''),
+        'call_time' => (string) ($row['call_time'] ?? ''),
+        'call_note' => (string) ($row['call_note'] ?? ''),
         'assets' => webco_project_assets($db, $projectId),
+        'requests' => webco_project_requests($db, $projectId),
     ];
+    foreach (webco_brief_detail_columns() as $column) {
+        $project[$column] = (string) ($row[$column] ?? '');
+    }
+
+    return $project;
 }
 
 /**
- * @return array<string, list<array{original_name: string, size_bytes: int}>>
+ * @return array<string, list<array{original_name: string, size_bytes: int, request_id: ?int}>>
  */
 function webco_project_assets(PDO $db, int $projectId): array
 {
@@ -934,7 +1181,7 @@ function webco_project_assets(PDO $db, int $projectId): array
 
     try {
         $statement = $db->prepare(
-            'SELECT category, original_name, size_bytes
+            'SELECT category, original_name, size_bytes, request_id
              FROM project_assets
              WHERE project_id = :project_id
              ORDER BY id'
@@ -950,9 +1197,11 @@ function webco_project_assets(PDO $db, int $projectId): array
         if (!isset($grouped[$category])) {
             continue;
         }
+        $requestId = $row['request_id'] ?? null;
         $grouped[$category][] = [
             'original_name' => (string) ($row['original_name'] ?? ''),
             'size_bytes' => (int) ($row['size_bytes'] ?? 0),
+            'request_id' => is_numeric($requestId) && (int) $requestId > 0 ? (int) $requestId : null,
         ];
     }
 
@@ -960,19 +1209,22 @@ function webco_project_assets(PDO $db, int $projectId): array
 }
 
 /**
+ * Saves the initial website brief. Later support requests must not call this.
+ *
+ * @param array<string, mixed> $fields
  * @return 'saved'|'submitted'|'invalid'|'error'
  */
-function webco_save_customer_brief(PDO $db, int $projectId, string $summary, bool $submit): string
+function webco_save_customer_brief(PDO $db, int $projectId, array $fields, bool $submit): string
 {
-    $summary = webco_brief_summary($summary);
-    if ($summary === null || $projectId < 1) {
+    $stored = webco_brief_input($fields);
+    if ($stored === null || $projectId < 1) {
         return 'invalid';
     }
 
     try {
         $db->beginTransaction();
         $locked = $db->prepare(
-            'SELECT status FROM projects WHERE id = :id FOR UPDATE'
+            'SELECT status FROM projects WHERE id = :id' . webco_for_update($db)
         );
         $locked->execute(['id' => $projectId]);
         $project = $locked->fetch();
@@ -984,13 +1236,23 @@ function webco_save_customer_brief(PDO $db, int $projectId, string $summary, boo
         $status = (string) ($project['status'] ?? '');
         $brief = $db->prepare(
             'UPDATE project_briefs
-             SET summary = :summary, updated_at = CURRENT_TIMESTAMP
+             SET summary = :summary,
+                 business_overview = :business_overview,
+                 services = :services,
+                 locations = :locations,
+                 goals = :goals,
+                 style_tone = :style_tone,
+                 branding = :branding,
+                 liked_sites = :liked_sites,
+                 required_pages = :required_pages,
+                 call_requested = :call_requested,
+                 call_number = :call_number,
+                 call_time = :call_time,
+                 call_note = :call_note,
+                 updated_at = CURRENT_TIMESTAMP
              WHERE project_id = :project_id'
         );
-        $brief->execute([
-            'summary' => $summary,
-            'project_id' => $projectId,
-        ]);
+        $brief->execute($stored + ['project_id' => $projectId]);
 
         $result = 'saved';
         if ($submit) {
@@ -1034,7 +1296,7 @@ function webco_save_customer_brief(PDO $db, int $projectId, string $summary, boo
  * @param array<mixed> $file
  * @return 'uploaded'|'upload_type'|'upload_size'|'upload_limit'|'upload_failed'
  */
-function webco_store_customer_upload(PDO $db, int $projectId, string $category, array $file): string
+function webco_store_customer_upload(PDO $db, int $projectId, string $category, array $file, ?int $requestId = null): string
 {
     $rules = webco_asset_rules($category);
     if ($rules === null || $projectId < 1) {
@@ -1073,13 +1335,24 @@ function webco_store_customer_upload(PDO $db, int $projectId, string $category, 
             return 'upload_failed';
         }
 
+        $ownedRequest = webco_asset_request_for_project($db, $projectId, $requestId);
+        if ($ownedRequest === false) {
+            return 'upload_failed';
+        }
+
         $counted = $db->prepare(
             'SELECT COUNT(*) FROM project_assets
-             WHERE project_id = :project_id AND category = :category'
+             WHERE project_id = :project_id AND category = :category
+               AND (
+                    (:request_id IS NULL AND request_id IS NULL)
+                    OR request_id = :request_match
+               )'
         );
         $counted->execute([
             'project_id' => $projectId,
             'category' => $category,
+            'request_id' => $ownedRequest,
+            'request_match' => $ownedRequest,
         ]);
         $assetCount = (int) $counted->fetchColumn();
     } catch (PDOException) {
@@ -1111,21 +1384,21 @@ function webco_store_customer_upload(PDO $db, int $projectId, string $category, 
 
     try {
         $db->beginTransaction();
-        $insert = $db->prepare(
-            'INSERT INTO project_assets (
-                project_id, category, storage_name, original_name, mime_type, size_bytes
-             ) VALUES (
-                :project_id, :category, :storage_name, :original_name, :mime_type, :size_bytes
-             )'
-        );
-        $insert->execute([
-            'project_id' => $projectId,
-            'category' => $category,
-            'storage_name' => $storageName,
-            'original_name' => webco_original_upload_name((string) ($file['name'] ?? '')),
-            'mime_type' => $checked['mime'],
-            'size_bytes' => $size,
-        ]);
+        if (!webco_save_project_asset_row(
+            $db,
+            $projectId,
+            $category,
+            $storageName,
+            webco_original_upload_name((string) ($file['name'] ?? '')),
+            $checked['mime'],
+            $size,
+            $ownedRequest
+        )) {
+            $db->rollBack();
+            @unlink($destination);
+
+            return 'upload_failed';
+        }
         if ((string) ($project['status'] ?? '') === 'awaiting_brief') {
             $advance = $db->prepare(
                 'UPDATE projects
@@ -1231,6 +1504,352 @@ function webco_project_folder(string $orderPublicId, string $folder): ?string
     return $root . DIRECTORY_SEPARATOR . $orderPublicId . DIRECTORY_SEPARATOR . $folder;
 }
 
+/**
+ * @return list<string>
+ */
+function webco_brief_detail_values(PDO $db, int $projectId): array
+{
+    if ($projectId < 1) {
+        return [];
+    }
+
+    $columns = implode(', ', webco_brief_detail_columns());
+    try {
+        $statement = $db->prepare(
+            'SELECT ' . $columns . ' FROM project_briefs WHERE project_id = :project_id'
+        );
+        $statement->execute(['project_id' => $projectId]);
+        $row = $statement->fetch();
+    } catch (PDOException) {
+        return [];
+    }
+    if ($row === false) {
+        return [];
+    }
+
+    $values = [];
+    foreach (webco_brief_detail_columns() as $column) {
+        $value = $row[$column] ?? null;
+        $values[] = is_string($value) ? $value : null;
+    }
+
+    return $values;
+}
+
+/**
+ * @param array<string, mixed> $fields
+ * @return array<string, int|string|null>|null
+ */
+function webco_brief_input(array $fields): ?array
+{
+    $limits = [
+        'summary' => 8000,
+        'business_overview' => 4000,
+        'services' => 4000,
+        'locations' => 2000,
+        'goals' => 2000,
+        'style_tone' => 2000,
+        'branding' => 2000,
+        'liked_sites' => 4000,
+        'required_pages' => 4000,
+    ];
+    $stored = [];
+    foreach ($limits as $name => $max) {
+        $text = webco_brief_text($fields[$name] ?? '', $max);
+        if ($text === null) {
+            return null;
+        }
+        $stored[$name] = $text;
+    }
+
+    $requested = $fields['call_requested'] ?? false;
+    $callRequested = $requested === true || $requested === 1 || $requested === '1' || $requested === 'yes';
+    $number = webco_brief_text($fields['call_number'] ?? '', 40);
+    $time = webco_brief_text($fields['call_time'] ?? '', 120);
+    $note = webco_brief_text($fields['call_note'] ?? '', 2000);
+    if ($number === null || $time === null || $note === null) {
+        return null;
+    }
+
+    $stored['call_requested'] = $callRequested ? 1 : 0;
+    $stored['call_number'] = $number === '' ? null : $number;
+    $stored['call_time'] = $time === '' ? null : $time;
+    $stored['call_note'] = $note === '' ? null : $note;
+
+    return $stored;
+}
+
+function webco_brief_text(mixed $value, int $max): ?string
+{
+    if (!is_string($value)) {
+        return null;
+    }
+    $value = str_replace("\0", '', $value);
+    $value = trim($value);
+    if (strlen($value) > $max) {
+        return null;
+    }
+
+    return $value;
+}
+
+/**
+ * null keeps the file on the initial brief. false rejects another project's request.
+ *
+ * @return int|false|null
+ */
+function webco_asset_request_for_project(PDO $db, int $projectId, ?int $requestId): int|false|null
+{
+    if ($requestId === null) {
+        return null;
+    }
+    if ($projectId < 1 || $requestId < 1) {
+        return false;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'SELECT id FROM project_requests WHERE id = :id AND project_id = :project_id'
+        );
+        $statement->execute([
+            'id' => $requestId,
+            'project_id' => $projectId,
+        ]);
+        $row = $statement->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+
+    return $row === false ? false : $requestId;
+}
+
+function webco_save_project_asset_row(
+    PDO $db,
+    int $projectId,
+    string $category,
+    string $storageName,
+    string $originalName,
+    string $mime,
+    int $size,
+    int|false|null $requestId
+): bool {
+    if ($requestId === false || $projectId < 1 || webco_asset_rules($category) === null) {
+        return false;
+    }
+    if (preg_match('/^[a-f0-9]{32}\.(jpg|png|webp|pdf)$/', $storageName) !== 1) {
+        return false;
+    }
+
+    try {
+        $statement = $db->prepare(
+            'INSERT INTO project_assets (
+                project_id, category, storage_name, original_name, mime_type, size_bytes, request_id
+             ) VALUES (
+                :project_id, :category, :storage_name, :original_name, :mime_type, :size_bytes, :request_id
+             )'
+        );
+        $statement->execute([
+            'project_id' => $projectId,
+            'category' => $category,
+            'storage_name' => $storageName,
+            'original_name' => $originalName,
+            'mime_type' => $mime,
+            'size_bytes' => $size,
+            'request_id' => $requestId,
+        ]);
+    } catch (PDOException) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Creates one support request. This never changes the website build status.
+ *
+ * @param array<string, mixed> $call
+ */
+function webco_create_project_request(PDO $db, int $projectId, string $type, string $summary, array $call = []): int
+{
+    $summary = webco_brief_text($summary, 8000);
+    if ($projectId < 1 || $summary === null || trim($summary) === '' || !webco_request_type_valid($type)) {
+        return 0;
+    }
+    $number = webco_brief_text($call['call_number'] ?? '', 40);
+    $time = webco_brief_text($call['call_time'] ?? '', 120);
+    $note = webco_brief_text($call['call_note'] ?? '', 2000);
+    if ($number === null || $time === null || $note === null) {
+        return 0;
+    }
+    $requested = $call['call_requested'] ?? false;
+    $callRequested = $requested === true || $requested === 1 || $requested === '1' || $requested === 'yes';
+
+    try {
+        $project = $db->prepare('SELECT id, status FROM projects WHERE id = :id');
+        $project->execute(['id' => $projectId]);
+        $before = $project->fetch();
+        if ($before === false) {
+            return 0;
+        }
+        $statusBefore = (string) ($before['status'] ?? '');
+
+        $insert = $db->prepare(
+            'INSERT INTO project_requests (
+                project_id, request_type, status, summary, call_requested, call_number, call_time, call_note, updated_at
+             ) VALUES (
+                :project_id, :request_type, \'open\', :summary, :call_requested, :call_number, :call_time, :call_note, CURRENT_TIMESTAMP
+             )'
+        );
+        $insert->execute([
+            'project_id' => $projectId,
+            'request_type' => $type,
+            'summary' => $summary,
+            'call_requested' => $callRequested ? 1 : 0,
+            'call_number' => $number === '' ? null : $number,
+            'call_time' => $time === '' ? null : $time,
+            'call_note' => $note === '' ? null : $note,
+        ]);
+        $id = (int) $db->lastInsertId();
+
+        $check = $db->prepare('SELECT status FROM projects WHERE id = :id');
+        $check->execute(['id' => $projectId]);
+        $after = $check->fetch();
+    } catch (PDOException) {
+        return 0;
+    }
+
+    if ($id < 1 || !is_array($after) || (string) ($after['status'] ?? '') !== $statusBefore) {
+        return 0;
+    }
+
+    return $id;
+}
+
+/**
+ * Moves one request one step: open, then in progress, then done.
+ * The website project status is left untouched.
+ */
+function webco_advance_request_status(PDO $db, int $requestId): bool
+{
+    if ($requestId < 1) {
+        return false;
+    }
+
+    try {
+        $db->beginTransaction();
+        $select = $db->prepare(
+            'SELECT r.status, r.project_id, p.status AS project_status
+             FROM project_requests r
+             INNER JOIN projects p ON p.id = r.project_id
+             WHERE r.id = :id' . webco_for_update($db)
+        );
+        $select->execute(['id' => $requestId]);
+        $row = $select->fetch();
+        if ($row === false) {
+            $db->rollBack();
+
+            return false;
+        }
+
+        $next = webco_request_status_next((string) ($row['status'] ?? ''));
+        $projectId = (int) ($row['project_id'] ?? 0);
+        $projectStatus = (string) ($row['project_status'] ?? '');
+        if ($next === null || $projectId < 1) {
+            $db->rollBack();
+
+            return false;
+        }
+
+        $update = $db->prepare(
+            'UPDATE project_requests
+             SET status = :status,
+                 updated_at = CURRENT_TIMESTAMP,
+                 completed_at = CASE WHEN :next_status = \'done\' THEN CURRENT_TIMESTAMP ELSE completed_at END
+             WHERE id = :id AND status = :current'
+        );
+        $update->execute([
+            'status' => $next,
+            'next_status' => $next,
+            'id' => $requestId,
+            'current' => (string) $row['status'],
+        ]);
+        if ($update->rowCount() !== 1) {
+            $db->rollBack();
+
+            return false;
+        }
+
+        $unchanged = $db->prepare('SELECT status FROM projects WHERE id = :id');
+        $unchanged->execute(['id' => $projectId]);
+        $project = $unchanged->fetch();
+        if (!is_array($project) || (string) ($project['status'] ?? '') !== $projectStatus) {
+            $db->rollBack();
+
+            return false;
+        }
+        $db->commit();
+    } catch (PDOException) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @return list<array<string, mixed>>
+ */
+function webco_project_requests(PDO $db, int $projectId): array
+{
+    if ($projectId < 1) {
+        return [];
+    }
+
+    try {
+        $statement = $db->prepare(
+            'SELECT id, project_id, request_type, status, summary, call_requested,
+                    call_number, call_time, call_note, created_at, updated_at, completed_at
+             FROM project_requests
+             WHERE project_id = :project_id
+             ORDER BY id DESC'
+        );
+        $statement->execute(['project_id' => $projectId]);
+        $rows = $statement->fetchAll();
+    } catch (PDOException) {
+        return [];
+    }
+
+    $requests = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $id = (int) ($row['id'] ?? 0);
+        if ($id < 1) {
+            continue;
+        }
+        $requests[] = [
+            'id' => $id,
+            'project_id' => (int) ($row['project_id'] ?? 0),
+            'request_type' => (string) ($row['request_type'] ?? ''),
+            'status' => (string) ($row['status'] ?? ''),
+            'summary' => (string) ($row['summary'] ?? ''),
+            'call_requested' => (int) ($row['call_requested'] ?? 0) === 1,
+            'call_number' => (string) ($row['call_number'] ?? ''),
+            'call_time' => (string) ($row['call_time'] ?? ''),
+            'call_note' => (string) ($row['call_note'] ?? ''),
+            'created_at' => (string) ($row['created_at'] ?? ''),
+            'updated_at' => (string) ($row['updated_at'] ?? ''),
+            'completed_at' => webco_nullable_string($row['completed_at'] ?? null),
+        ];
+    }
+
+    return $requests;
+}
+
 function webco_brief_summary(string $value): ?string
 {
     $value = str_replace("\0", '', $value);
@@ -1268,7 +1887,10 @@ function webco_list_projects_for_admin(PDO $db): array
                 p.customer_notified_at, p.internal_notified_at, p.created_at,
                 o.business_name, o.contact_name, o.email, o.phone, o.domain_name,
                 o.package_name, o.care_choice, o.paid_at,
-                b.summary, b.updated_at AS brief_updated_at, b.submitted_at
+                b.summary, b.updated_at AS brief_updated_at, b.submitted_at,
+                b.business_overview, b.services, b.locations, b.goals, b.style_tone,
+                b.branding, b.liked_sites, b.required_pages,
+                b.call_requested, b.call_number, b.call_time, b.call_note
          FROM projects p
          INNER JOIN orders o ON o.id = p.order_id
          LEFT JOIN project_briefs b ON b.project_id = p.id
@@ -1290,6 +1912,7 @@ function webco_list_projects_for_admin(PDO $db): array
             'photo' => [],
             'document' => [],
         ];
+        $row['requests'] = [];
         $projects[$id] = $row;
     }
 
@@ -1297,8 +1920,24 @@ function webco_list_projects_for_admin(PDO $db): array
         return [];
     }
 
+    $requests = $db->query(
+        'SELECT id, project_id, request_type, status, summary, call_requested,
+                call_number, call_time, call_note, created_at, completed_at
+         FROM project_requests
+         ORDER BY id DESC'
+    );
+    if ($requests !== false) {
+        foreach ($requests->fetchAll() as $request) {
+            $projectId = (int) ($request['project_id'] ?? 0);
+            if (!isset($projects[$projectId]) || !is_array($request)) {
+                continue;
+            }
+            $projects[$projectId]['requests'][] = $request;
+        }
+    }
+
     $assets = $db->query(
-        'SELECT a.id, a.project_id, a.category, a.original_name, a.size_bytes, a.created_at
+        'SELECT a.id, a.project_id, a.category, a.original_name, a.size_bytes, a.created_at, a.request_id
          FROM project_assets a
          INNER JOIN projects p ON p.id = a.project_id
          ORDER BY a.id'
@@ -1313,11 +1952,13 @@ function webco_list_projects_for_admin(PDO $db): array
         if (!isset($projects[$projectId]['assets'][$category])) {
             continue;
         }
+        $requestId = $asset['request_id'] ?? null;
         $projects[$projectId]['assets'][$category][] = [
             'id' => (int) ($asset['id'] ?? 0),
             'original_name' => (string) ($asset['original_name'] ?? ''),
             'size_bytes' => (int) ($asset['size_bytes'] ?? 0),
             'created_at' => (string) ($asset['created_at'] ?? ''),
+            'request_id' => is_numeric($requestId) && (int) $requestId > 0 ? (int) $requestId : null,
         ];
     }
 

@@ -31,6 +31,15 @@ function webco_handle_brief_upload(): void
     $sent = $_POST['csrf'] ?? '';
     $known = $_SESSION['csrf'] ?? '';
     $category = $_POST['category'] ?? '';
+    $requestRaw = $_POST['request_id'] ?? '';
+    $requestId = null;
+    if (is_string($requestRaw) && $requestRaw !== '') {
+        if (!preg_match('/^\d{1,12}$/', $requestRaw)) {
+            header('Location: /brief.php?notice=upload_failed', true, 303);
+            exit;
+        }
+        $requestId = (int) $requestRaw;
+    }
     if ($projectId === null) {
         webco_brief_upload_denied();
     }
@@ -55,7 +64,7 @@ function webco_handle_brief_upload(): void
         exit;
     }
 
-    $result = webco_store_customer_upload($db, $projectId, $category, $file);
+    $result = webco_store_customer_upload($db, $projectId, $category, $file, $requestId);
     header('Location: /brief.php?notice=' . rawurlencode($result), true, 303);
     exit;
 }

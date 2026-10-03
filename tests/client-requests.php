@@ -33,7 +33,9 @@ $db->exec(
     'CREATE TABLE orders (
         id INTEGER PRIMARY KEY,
         business_name TEXT,
-        phone TEXT
+        phone TEXT,
+        package_code TEXT,
+        package_name TEXT
     )'
 );
 $db->exec(
@@ -57,6 +59,21 @@ $db->exec(
         branding TEXT,
         liked_sites TEXT,
         required_pages TEXT,
+        years_operating TEXT,
+        credentials TEXT,
+        first_impression TEXT,
+        course_entries TEXT,
+        areas_served TEXT,
+        location_entries TEXT,
+        why_experience TEXT,
+        why_facilities TEXT,
+        why_flexibility TEXT,
+        why_support TEXT,
+        why_difference TEXT,
+        enquiry_route TEXT,
+        contact_details TEXT,
+        opening_hours TEXT,
+        wizard_step TEXT,
         call_requested INTEGER NOT NULL DEFAULT 0,
         call_number TEXT,
         call_time TEXT,

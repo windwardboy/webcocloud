@@ -8,6 +8,7 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 
 require_once __DIR__ . '/lib/projects.php';
+require_once __DIR__ . '/lib/brief-wizard.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'admin.php') {
     webco_handle_admin();
@@ -254,15 +255,39 @@ function webco_admin_project(array $project, string $csrf): void
 
     webco_admin_callout($project);
     echo '<h3>Website brief</h3>';
-    webco_admin_brief_text('What the business does', (string) ($project['business_overview'] ?? ''));
-    webco_admin_brief_text('Services, courses or products', (string) ($project['services'] ?? ''));
-    webco_admin_brief_text('Locations or areas served', (string) ($project['locations'] ?? ''));
-    webco_admin_brief_text('Goals for the website', (string) ($project['goals'] ?? ''));
-    webco_admin_brief_text('Style and tone', (string) ($project['style_tone'] ?? ''));
-    webco_admin_brief_text('Colours and branding', (string) ($project['branding'] ?? ''));
-    webco_admin_brief_text('Websites they like or dislike', (string) ($project['liked_sites'] ?? ''));
-    webco_admin_brief_text('Pages and content to include', (string) ($project['required_pages'] ?? ''));
+    webco_admin_brief_filled('Who they are', (string) ($project['business_overview'] ?? ''));
+    webco_admin_brief_filled('How long operating', (string) ($project['years_operating'] ?? ''));
+    webco_admin_brief_filled('Experience and credentials', (string) ($project['credentials'] ?? ''));
+    webco_admin_brief_filled('What visitors should understand first', (string) ($project['first_impression'] ?? ''));
+    $courses = trim((string) ($project['course_entries'] ?? ''));
+    webco_admin_brief_filled('Courses', $courses !== '' ? webco_brief_pairs_plain($courses) : (string) ($project['services'] ?? ''));
+    webco_admin_brief_filled('Main location', (string) ($project['locations'] ?? ''));
+    webco_admin_brief_filled('Areas served', (string) ($project['areas_served'] ?? ''));
+    $further = trim((string) ($project['location_entries'] ?? ''));
+    if ($further !== '') {
+        webco_admin_brief_filled('Further locations', webco_brief_pairs_plain($further));
+    }
+    webco_admin_brief_filled('Experience', (string) ($project['why_experience'] ?? ''));
+    webco_admin_brief_filled('Vehicles, equipment or facilities', (string) ($project['why_facilities'] ?? ''));
+    webco_admin_brief_filled('Flexibility', (string) ($project['why_flexibility'] ?? ''));
+    webco_admin_brief_filled('Customer support', (string) ($project['why_support'] ?? ''));
+    webco_admin_brief_filled('What sets them apart', (string) ($project['why_difference'] ?? ''));
+    webco_admin_brief_filled('Brand colours they already use', (string) ($project['branding'] ?? ''));
+    webco_admin_brief_filled('Preferred enquiry route', webco_brief_enquiry_label((string) ($project['enquiry_route'] ?? '')));
+    webco_admin_brief_filled('Contact details', (string) ($project['contact_details'] ?? ''));
+    webco_admin_brief_filled('Opening hours', (string) ($project['opening_hours'] ?? ''));
     webco_admin_brief_text('Anything else', (string) ($project['summary'] ?? ''));
+    foreach ([
+        'goals' => 'Earlier note about website goals',
+        'style_tone' => 'Earlier note about style',
+        'liked_sites' => 'Earlier note about other websites',
+        'required_pages' => 'Earlier note about pages',
+    ] as $key => $label) {
+        $legacy = trim((string) ($project[$key] ?? ''));
+        if ($legacy !== '') {
+            webco_admin_brief_text($label, $legacy);
+        }
+    }
     webco_admin_requests($project, $csrf);
 
     webco_admin_next_action($project, $csrf);
@@ -334,6 +359,14 @@ function webco_admin_brief_text(string $label, string $value): void
     $value = trim($value);
     echo '<h3>' . webco_html($label) . '</h3>';
     echo '<p class="summary">' . ($value === '' ? 'None yet.' : webco_html($value)) . '</p>';
+}
+
+function webco_admin_brief_filled(string $label, string $value): void
+{
+    if (trim($value) === '') {
+        return;
+    }
+    webco_admin_brief_text($label, $value);
 }
 
 /**

@@ -125,14 +125,53 @@ function webco_brief_detail_columns(): array
 {
     return [
         'business_overview',
+        'years_operating',
+        'credentials',
+        'first_impression',
         'services',
+        'course_entries',
         'locations',
+        'areas_served',
+        'location_entries',
         'goals',
+        'why_experience',
+        'why_facilities',
+        'why_flexibility',
+        'why_support',
+        'why_difference',
         'style_tone',
         'branding',
         'liked_sites',
         'required_pages',
+        'enquiry_route',
+        'contact_details',
+        'opening_hours',
     ];
+}
+
+/**
+ * @return list<string>
+ */
+function webco_brief_wizard_steps(): array
+{
+    return ['business', 'courses', 'locations', 'why', 'branding', 'contact', 'other', 'review'];
+}
+
+function webco_brief_wizard_step_valid(string $step): bool
+{
+    return in_array($step, webco_brief_wizard_steps(), true);
+}
+
+function webco_brief_package_code(string $packageCode, string $packageName = ''): string
+{
+    if ($packageCode === 'professional' || $packageCode === 'essential') {
+        return $packageCode;
+    }
+    if (stripos($packageName, 'Professional') !== false) {
+        return 'professional';
+    }
+
+    return 'essential';
 }
 
 /**
@@ -461,6 +500,21 @@ function webco_ensure_brief_detail_columns(PDO $db): bool
         'branding' => 'TEXT NULL',
         'liked_sites' => 'TEXT NULL',
         'required_pages' => 'TEXT NULL',
+        'years_operating' => 'VARCHAR(160) NULL',
+        'credentials' => 'TEXT NULL',
+        'first_impression' => 'TEXT NULL',
+        'course_entries' => 'TEXT NULL',
+        'areas_served' => 'TEXT NULL',
+        'location_entries' => 'TEXT NULL',
+        'why_experience' => 'TEXT NULL',
+        'why_facilities' => 'TEXT NULL',
+        'why_flexibility' => 'TEXT NULL',
+        'why_support' => 'TEXT NULL',
+        'why_difference' => 'TEXT NULL',
+        'enquiry_route' => 'VARCHAR(20) NULL',
+        'contact_details' => 'TEXT NULL',
+        'opening_hours' => 'VARCHAR(400) NULL',
+        'wizard_step' => 'VARCHAR(32) NULL',
         'call_requested' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'call_number' => 'VARCHAR(40) NULL',
         'call_time' => 'VARCHAR(120) NULL',
@@ -1130,7 +1184,9 @@ function webco_customer_project(PDO $db, int $projectId): ?array
     try {
         $statement = $db->prepare(
             'SELECT p.id, p.order_public_id, p.status, o.business_name, o.phone,
-                    b.summary, b.submitted_at, b.call_requested, b.call_number, b.call_time, b.call_note,
+                    o.package_code, o.package_name,
+                    b.summary, b.submitted_at, b.wizard_step,
+                    b.call_requested, b.call_number, b.call_time, b.call_note,
                     ' . $detailSql . '
              FROM projects p
              INNER JOIN orders o ON o.id = p.order_id
@@ -1152,7 +1208,13 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         'status' => (string) ($row['status'] ?? ''),
         'business_name' => (string) ($row['business_name'] ?? ''),
         'phone' => (string) ($row['phone'] ?? ''),
+        'package_code' => webco_brief_package_code(
+            (string) ($row['package_code'] ?? ''),
+            (string) ($row['package_name'] ?? '')
+        ),
+        'package_name' => (string) ($row['package_name'] ?? ''),
         'summary' => (string) ($row['summary'] ?? ''),
+        'wizard_step' => (string) ($row['wizard_step'] ?? ''),
         'submitted_at' => webco_nullable_string($row['submitted_at'] ?? null),
         'call_requested' => (int) ($row['call_requested'] ?? 0) === 1,
         'call_number' => (string) ($row['call_number'] ?? ''),
@@ -1234,25 +1296,24 @@ function webco_save_customer_brief(PDO $db, int $projectId, array $fields, bool 
         }
 
         $status = (string) ($project['status'] ?? '');
+        $columns = webco_brief_save_columns();
+        $currentStatement = $db->prepare(
+            'SELECT ' . implode(', ', $columns) . ' FROM project_briefs WHERE project_id = :project_id'
+        );
+        $currentStatement->execute(['project_id' => $projectId]);
+        $current = $currentStatement->fetch();
+        $merged = webco_brief_merge(is_array($current) ? $current : [], $stored);
+        $assignments = [];
+        foreach ($columns as $column) {
+            $assignments[] = $column . ' = :' . $column;
+        }
         $brief = $db->prepare(
             'UPDATE project_briefs
-             SET summary = :summary,
-                 business_overview = :business_overview,
-                 services = :services,
-                 locations = :locations,
-                 goals = :goals,
-                 style_tone = :style_tone,
-                 branding = :branding,
-                 liked_sites = :liked_sites,
-                 required_pages = :required_pages,
-                 call_requested = :call_requested,
-                 call_number = :call_number,
-                 call_time = :call_time,
-                 call_note = :call_note,
+             SET ' . implode(', ', $assignments) . ',
                  updated_at = CURRENT_TIMESTAMP
              WHERE project_id = :project_id'
         );
-        $brief->execute($stored + ['project_id' => $projectId]);
+        $brief->execute($merged + ['project_id' => $projectId]);
 
         $result = 'saved';
         if ($submit) {
@@ -1540,43 +1601,221 @@ function webco_brief_detail_values(PDO $db, int $projectId): array
  * @param array<string, mixed> $fields
  * @return array<string, int|string|null>|null
  */
+/**
+ * @return list<string>
+ */
+function webco_brief_save_columns(): array
+{
+    return array_merge(['summary'], webco_brief_detail_columns(), [
+        'wizard_step',
+        'call_requested',
+        'call_number',
+        'call_time',
+        'call_note',
+    ]);
+}
+
+/**
+ * @param array<string, mixed> $fields
+ * @return array<string, int|string|null>|null
+ */
 function webco_brief_input(array $fields): ?array
 {
     $limits = [
         'summary' => 8000,
         'business_overview' => 4000,
+        'years_operating' => 160,
+        'credentials' => 2000,
+        'first_impression' => 2000,
         'services' => 4000,
         'locations' => 2000,
+        'areas_served' => 2000,
         'goals' => 2000,
+        'why_experience' => 2000,
+        'why_facilities' => 2000,
+        'why_flexibility' => 2000,
+        'why_support' => 2000,
+        'why_difference' => 2000,
         'style_tone' => 2000,
         'branding' => 2000,
         'liked_sites' => 4000,
         'required_pages' => 4000,
+        'contact_details' => 2000,
+        'opening_hours' => 400,
     ];
     $stored = [];
     foreach ($limits as $name => $max) {
-        $text = webco_brief_text($fields[$name] ?? '', $max);
+        if (!array_key_exists($name, $fields)) {
+            continue;
+        }
+        $text = webco_brief_text($fields[$name], $max);
         if ($text === null) {
             return null;
         }
         $stored[$name] = $text;
     }
 
-    $requested = $fields['call_requested'] ?? false;
-    $callRequested = $requested === true || $requested === 1 || $requested === '1' || $requested === 'yes';
-    $number = webco_brief_text($fields['call_number'] ?? '', 40);
-    $time = webco_brief_text($fields['call_time'] ?? '', 120);
-    $note = webco_brief_text($fields['call_note'] ?? '', 2000);
-    if ($number === null || $time === null || $note === null) {
+    if (array_key_exists('course_entries', $fields)) {
+        $courses = webco_brief_normalize_pairs($fields['course_entries'], 6, 120, 1000);
+        if ($courses === null) {
+            return null;
+        }
+        $stored['course_entries'] = $courses;
+    }
+    if (array_key_exists('location_entries', $fields)) {
+        $locations = webco_brief_normalize_pairs($fields['location_entries'], 4, 120, 1000);
+        if ($locations === null) {
+            return null;
+        }
+        $stored['location_entries'] = $locations;
+    }
+    if (array_key_exists('enquiry_route', $fields)) {
+        $route = $fields['enquiry_route'];
+        if (!is_string($route) || !in_array($route, ['', 'phone', 'email', 'either'], true)) {
+            return null;
+        }
+        $stored['enquiry_route'] = $route;
+    }
+    if (array_key_exists('wizard_step', $fields)) {
+        $step = $fields['wizard_step'];
+        if (!is_string($step) || !webco_brief_wizard_step_valid($step)) {
+            return null;
+        }
+        $stored['wizard_step'] = $step;
+    }
+    if (array_key_exists('call_requested', $fields)) {
+        $requested = $fields['call_requested'];
+        $callRequested = $requested === true || $requested === 1 || $requested === '1' || $requested === 'yes';
+        $number = webco_brief_text($fields['call_number'] ?? '', 40);
+        $time = webco_brief_text($fields['call_time'] ?? '', 120);
+        $note = webco_brief_text($fields['call_note'] ?? '', 2000);
+        if ($number === null || $time === null || $note === null) {
+            return null;
+        }
+        $stored['call_requested'] = $callRequested ? 1 : 0;
+        $stored['call_number'] = $number === '' ? null : $number;
+        $stored['call_time'] = $time === '' ? null : $time;
+        $stored['call_note'] = $note === '' ? null : $note;
+    }
+
+    return $stored;
+}
+
+/**
+ * @param array<string, mixed> $current
+ * @param array<string, int|string|null> $patch
+ * @return array<string, int|string|null>
+ */
+function webco_brief_merge(array $current, array $patch): array
+{
+    $merged = [];
+    foreach (webco_brief_save_columns() as $column) {
+        if (array_key_exists($column, $patch)) {
+            $merged[$column] = $patch[$column];
+            continue;
+        }
+        $merged[$column] = webco_brief_current_column($current, $column);
+    }
+
+    return $merged;
+}
+
+/**
+ * @param array<string, mixed> $current
+ */
+function webco_brief_current_column(array $current, string $column): int|string|null
+{
+    $value = $current[$column] ?? null;
+    if ($column === 'call_requested') {
+        return (int) $value === 1 ? 1 : 0;
+    }
+    if (in_array($column, ['call_number', 'call_time', 'call_note', 'wizard_step'], true)) {
+        if (!is_string($value)) {
+            return null;
+        }
+        $value = trim($value);
+
+        return $value === '' ? null : $value;
+    }
+    if (is_string($value)) {
+        return $value;
+    }
+
+    return '';
+}
+
+/**
+ * @return list<array{name: string, detail: string}>
+ */
+function webco_brief_pairs(string $json): array
+{
+    if (trim($json) === '') {
+        return [];
+    }
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+    $pairs = [];
+    foreach ($decoded as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $pairs[] = [
+            'name' => trim((string) ($row['name'] ?? '')),
+            'detail' => trim((string) ($row['detail'] ?? '')),
+        ];
+    }
+
+    return $pairs;
+}
+
+function webco_brief_normalize_pairs(mixed $value, int $maxItems, int $nameMax, int $detailMax): ?string
+{
+    if ($value === null || $value === '') {
+        return '';
+    }
+    $rows = $value;
+    if (is_string($value)) {
+        $decoded = json_decode($value, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $rows = $decoded;
+    }
+    if (!is_array($rows)) {
         return null;
     }
 
-    $stored['call_requested'] = $callRequested ? 1 : 0;
-    $stored['call_number'] = $number === '' ? null : $number;
-    $stored['call_time'] = $time === '' ? null : $time;
-    $stored['call_note'] = $note === '' ? null : $note;
+    $clean = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            return null;
+        }
+        $nameRaw = $row['name'] ?? '';
+        $detailRaw = $row['detail'] ?? '';
+        if (!is_string($nameRaw) || !is_string($detailRaw)) {
+            return null;
+        }
+        $name = webco_brief_text($nameRaw, $nameMax);
+        $detail = webco_brief_text($detailRaw, $detailMax);
+        if ($name === null || $detail === null) {
+            return null;
+        }
+        if ($name === '' && $detail === '') {
+            continue;
+        }
+        $clean[] = ['name' => $name, 'detail' => $detail];
+        if (count($clean) > $maxItems) {
+            return null;
+        }
+    }
+    if ($clean === []) {
+        return '';
+    }
+    $json = json_encode($clean, JSON_UNESCAPED_UNICODE);
 
-    return $stored;
+    return is_string($json) ? $json : null;
 }
 
 function webco_brief_text(mixed $value, int $max): ?string
@@ -1887,9 +2126,12 @@ function webco_list_projects_for_admin(PDO $db): array
                 p.customer_notified_at, p.internal_notified_at, p.created_at,
                 o.business_name, o.contact_name, o.email, o.phone, o.domain_name,
                 o.package_name, o.care_choice, o.paid_at,
-                b.summary, b.updated_at AS brief_updated_at, b.submitted_at,
-                b.business_overview, b.services, b.locations, b.goals, b.style_tone,
-                b.branding, b.liked_sites, b.required_pages,
+                b.summary, b.updated_at AS brief_updated_at, b.submitted_at, b.wizard_step,
+                b.business_overview, b.years_operating, b.credentials, b.first_impression,
+                b.services, b.course_entries, b.locations, b.areas_served, b.location_entries,
+                b.goals, b.why_experience, b.why_facilities, b.why_flexibility, b.why_support,
+                b.why_difference, b.style_tone, b.branding, b.liked_sites, b.required_pages,
+                b.enquiry_route, b.contact_details, b.opening_hours,
                 b.call_requested, b.call_number, b.call_time, b.call_note
          FROM projects p
          INNER JOIN orders o ON o.id = p.order_id

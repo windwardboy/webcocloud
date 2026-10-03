@@ -9,6 +9,7 @@ declare(strict_types=1);
 ini_set('display_errors', '0');
 
 require_once __DIR__ . '/lib/projects.php';
+require_once __DIR__ . '/lib/brief-wizard.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'brief.php') {
     webco_handle_brief();
@@ -17,6 +18,11 @@ if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'brief.php') {
 function webco_handle_brief(): void
 {
     webco_private_headers();
+    header(
+        "Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; "
+        . "script-src 'unsafe-inline'; img-src 'self'; connect-src 'self'; "
+        . "form-action 'self'; frame-ancestors 'none'; base-uri 'none'"
+    );
     webco_start_named_session('WEBCOBRIEF');
 
     $access = $_GET['access'] ?? null;
@@ -95,13 +101,38 @@ function webco_brief_post(): void
         webco_brief_request_post($db, $projectId);
     }
 
+    $step = $_POST['step'] ?? '';
+    if (!is_string($step) || !webco_brief_wizard_step_valid($step)) {
+        webco_brief_redirect('again');
+    }
+    $goto = $_POST['goto'] ?? '';
+    if (!is_string($goto)) {
+        $goto = '';
+    }
     $submit = $intent === 'submit';
-    $result = webco_save_customer_brief($db, $projectId, webco_brief_posted_fields(), $submit);
-    if ($result === 'saved' || $result === 'submitted' || $result === 'invalid') {
-        webco_brief_redirect($result);
+    if ($submit && $step !== 'review') {
+        webco_brief_redirect('again', $step);
+    }
+    if ($goto !== '' && !webco_brief_wizard_step_valid($goto)) {
+        webco_brief_redirect('again', $step);
     }
 
-    webco_brief_redirect('error');
+    $fields = webco_brief_posted_fields($step);
+    if ($goto !== '') {
+        $fields['wizard_step'] = $goto;
+    }
+    $result = webco_save_customer_brief($db, $projectId, $fields, $submit);
+    if ($result === 'invalid') {
+        webco_brief_redirect('invalid', $step);
+    }
+    if ($result === 'saved') {
+        webco_brief_redirect('saved', $goto !== '' ? $goto : $step);
+    }
+    if ($result === 'submitted') {
+        webco_brief_redirect('submitted');
+    }
+
+    webco_brief_redirect('error', $step);
 }
 
 function webco_brief_csrf_ok(): bool
@@ -115,17 +146,28 @@ function webco_brief_csrf_ok(): bool
     return hash_equals($known, $sent);
 }
 
-function webco_brief_redirect(string $notice): void
+function webco_brief_redirect(string $notice, string $step = ''): void
 {
-    header('Location: /brief.php?notice=' . rawurlencode($notice), true, 303);
+    $query = [];
+    if ($notice !== '') {
+        $query['notice'] = $notice;
+    }
+    if ($step !== '' && webco_brief_wizard_step_valid($step)) {
+        $query['step'] = $step;
+    }
+    $target = '/brief.php';
+    if ($query !== []) {
+        $target .= '?' . http_build_query($query);
+    }
+    header('Location: ' . $target, true, 303);
     exit;
 }
 
 function webco_brief_notice(mixed $notice): string
 {
     $messages = [
-        'saved' => 'Your progress has been saved. You can close this page and use the same email link to continue.',
-        'submitted' => 'The brief has been submitted. Webco will contact you. You can still add files or send a support request.',
+        'saved' => 'Progress saved.',
+        'submitted' => 'The brief has been submitted. Webco will contact you. You can still send a support request.',
         'requested' => 'Your request has been sent. It is listed separately from the website brief.',
         'brief_first' => 'Submit the website brief before sending a support request.',
         'uploaded' => 'The file has been added to this project.',
@@ -159,81 +201,21 @@ function webco_brief_notice(mixed $notice): string
  */
 function webco_brief_form(array $project, string $notice): void
 {
-    $csrf = $_SESSION['csrf'] ?? '';
-    if (!is_string($csrf) || strlen($csrf) !== 32) {
-        $csrf = bin2hex(random_bytes(16));
-        $_SESSION['csrf'] = $csrf;
+    $csrf = webco_brief_csrf_token();
+    if ($project['submitted_at'] !== null) {
+        webco_brief_render_received($project, $notice);
+        exit;
     }
 
-    $submitted = $project['submitted_at'] !== null;
-    $status = (string) $project['status'];
-
-    echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">';
-    echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<meta name="robots" content="noindex, nofollow">';
-    echo '<title>Your website</title>';
-    echo webco_brief_styles();
-    echo '</head><body><main>';
-    echo '<p class="eyebrow">Webco Cloud</p>';
-    echo '<h1>Your website</h1>';
-    echo '<p class="meta">' . webco_html($project['business_name']) . ' · ' . webco_html($project['order_public_id']) . '</p>';
-    echo '<p class="status">' . webco_html(webco_project_status_sentence($status)) . '</p>';
-    if ($notice !== '') {
-        echo '<p class="notice" role="status">' . webco_html($notice) . '</p>';
+    $requested = $_GET['step'] ?? '';
+    $step = is_string($requested) && webco_brief_wizard_step_valid($requested)
+        ? $requested
+        : (string) ($project['wizard_step'] ?? '');
+    if (!webco_brief_wizard_step_valid($step)) {
+        $step = 'business';
     }
-    if ($submitted) {
-        echo '<p class="note">Your website brief has been received. You can still add to it. Support requests below are separate from that brief.</p>';
-    } else {
-        echo '<p class="lead">Tell us about the website you want. You can save and come back with the same email link.</p>';
-    }
-
-    echo '<section class="panel"><h2>Website brief</h2>';
-    echo '<form method="post" action="/brief.php">';
-    echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
-    webco_brief_area($project, 'business_overview', 'What the business does', 'Who you are and what you offer.', 4000);
-    webco_brief_area($project, 'services', 'Main services, courses or products', 'The things the website needs to explain.', 4000);
-    webco_brief_area($project, 'locations', 'Locations or areas served', 'Towns, regions or training sites.', 2000);
-    webco_brief_area($project, 'goals', 'Main goals for the website', 'What a visitor should do, such as enquire or call.', 2000);
-    webco_brief_area($project, 'style_tone', 'Preferred style and tone', 'For example straightforward, local and practical.', 2000);
-    webco_brief_area($project, 'branding', 'Colours and branding', 'Logo colours, fonts, or guidance we should follow.', 2000);
-    webco_brief_area($project, 'liked_sites', 'Websites you like or dislike', 'Include the address and what you like or want to avoid.', 4000);
-    webco_brief_area($project, 'required_pages', 'Pages and content that must be included', 'Courses, locations, about, contact, or anything else that needs a page.', 4000);
-    webco_brief_area($project, 'summary', 'Anything else Webco should know', 'This is the general note saved with the brief.', 8000, 6);
-    webco_brief_call($project);
-    echo '<div class="actions">';
-    echo '<button class="quiet" type="submit" name="intent" value="save">Save progress</button>';
-    if (!$submitted) {
-        echo '<button type="submit" name="intent" value="submit">Submit brief</button>';
-    }
-    echo '</div></form>';
-    echo '<h3>Files for the website brief</h3>';
-    echo '<p>Logos and photos can be JPEG, PNG or WebP. Documents can be PDF. Each file can be up to 10 MB, with 20 files in each category.</p>';
-    webco_brief_uploads(webco_brief_assets_for_request($project['assets'], null), $csrf, null);
-    echo '</section>';
-
-    if ($submitted) {
-        webco_brief_requests($project, $csrf);
-    }
-
-    echo '<p class="meta"><a href="/support/">Support</a></p>';
-    echo '</main></body></html>';
+    webco_brief_render_wizard($project, $step, $notice, $csrf);
     exit;
-}
-
-/**
- * @param array<string, mixed> $project
- */
-function webco_brief_area(array $project, string $name, string $label, string $hint, int $max, int $rows = 4): void
-{
-    $value = $project[$name] ?? '';
-    if (!is_string($value)) {
-        $value = '';
-    }
-    echo '<label for="' . webco_html($name) . '">' . webco_html($label) . '</label>';
-    echo '<p class="hint">' . webco_html($hint) . '</p>';
-    echo '<textarea id="' . webco_html($name) . '" name="' . webco_html($name) . '" maxlength="' . (string) $max . '" rows="' . (string) $rows . '">';
-    echo webco_html($value);
-    echo '</textarea>';
 }
 
 /**
@@ -249,13 +231,14 @@ function webco_brief_call(array $project): void
     echo '<fieldset class="call"><legend>Would you like a phone call before I start your website?</legend>';
     echo '<label class="choice"><input type="radio" name="call_requested" value="no"' . ($requested ? '' : ' checked') . '> No</label>';
     echo '<label class="choice"><input type="radio" name="call_requested" value="yes"' . ($requested ? ' checked' : '') . '> Yes</label>';
+    echo '<div class="call-extra">';
     echo '<label for="call_number">Preferred number</label>';
     echo '<input id="call_number" name="call_number" type="tel" maxlength="40" value="' . webco_html($number) . '">';
     echo '<label for="call_time">Preferred time</label>';
     echo '<input id="call_time" name="call_time" type="text" maxlength="120" value="' . webco_html((string) ($project['call_time'] ?? '')) . '">';
     echo '<label for="call_note">Note for the call</label>';
     echo '<textarea id="call_note" name="call_note" maxlength="2000" rows="3">' . webco_html((string) ($project['call_note'] ?? '')) . '</textarea>';
-    echo '</fieldset>';
+    echo '</div></fieldset>';
 }
 
 /**
@@ -292,7 +275,7 @@ function webco_brief_requests(array $project, string $csrf): void
             }
             echo '</p>';
         }
-        webco_brief_uploads(webco_brief_assets_for_request($assets, $requestId), $csrf, $requestId);
+        webco_brief_auto_uploads(webco_brief_assets_for_request($assets, $requestId), $csrf, $requestId);
         echo '</article>';
     }
 
@@ -310,29 +293,61 @@ function webco_brief_requests(array $project, string $csrf): void
     echo '<fieldset class="call"><legend>Would you like a phone call about this request?</legend>';
     echo '<label class="choice"><input type="radio" name="request_call" value="no" checked> No</label>';
     echo '<label class="choice"><input type="radio" name="request_call" value="yes"> Yes</label>';
+    echo '<div class="call-extra">';
     echo '<label for="request_call_number">Preferred number</label>';
     echo '<input id="request_call_number" name="request_call_number" type="tel" maxlength="40" value="' . webco_html((string) ($project['phone'] ?? '')) . '">';
     echo '<label for="request_call_time">Preferred time</label>';
     echo '<input id="request_call_time" name="request_call_time" type="text" maxlength="120">';
     echo '<label for="request_call_note">Note for the call</label>';
     echo '<textarea id="request_call_note" name="request_call_note" maxlength="2000" rows="3"></textarea>';
-    echo '</fieldset>';
+    echo '</div></fieldset>';
     echo '<button type="submit" name="intent" value="request">Send request</button>';
     echo '</form></section>';
 }
 
 /**
- * @return array<string, string>
+ * @return array<string, mixed>
  */
-function webco_brief_posted_fields(): array
+function webco_brief_posted_fields(string $step): array
 {
-    $names = array_merge(['summary'], webco_brief_detail_columns(), ['call_number', 'call_time', 'call_note']);
+    $text = match ($step) {
+        'business' => ['business_overview', 'years_operating', 'credentials', 'first_impression'],
+        'courses' => ['services'],
+        'locations' => ['locations', 'areas_served'],
+        'why' => ['why_experience', 'why_facilities', 'why_flexibility', 'why_support', 'why_difference'],
+        'branding' => ['branding'],
+        'contact' => ['enquiry_route', 'contact_details', 'opening_hours', 'call_number', 'call_time', 'call_note'],
+        'other' => ['summary'],
+        default => [],
+    };
     $fields = [];
-    foreach ($names as $name) {
-        $value = $_POST[$name] ?? '';
+    foreach ($text as $name) {
+        if (!array_key_exists($name, $_POST)) {
+            continue;
+        }
+        $value = $_POST[$name];
         $fields[$name] = is_string($value) ? $value : '';
     }
-    $fields['call_requested'] = ($_POST['call_requested'] ?? '') === 'yes' ? 'yes' : 'no';
+    if ($step === 'courses' && isset($_POST['course_name']) && is_array($_POST['course_name'])) {
+        $details = $_POST['course_detail'] ?? [];
+        $pairs = webco_brief_pairs_from_request($_POST['course_name'], is_array($details) ? $details : []);
+        $fields['course_entries'] = $pairs;
+        $encoded = webco_brief_normalize_pairs($pairs, 6, 120, 1000);
+        $fields['services'] = $encoded === null ? '' : webco_brief_pairs_plain($encoded);
+    }
+    if ($step === 'locations' && isset($_POST['location_name']) && is_array($_POST['location_name'])) {
+        $details = $_POST['location_detail'] ?? [];
+        $fields['location_entries'] = webco_brief_pairs_from_request(
+            $_POST['location_name'],
+            is_array($details) ? $details : []
+        );
+    }
+    if ($step === 'contact') {
+        $fields['call_requested'] = ($_POST['call_requested'] ?? '') === 'yes' ? 'yes' : 'no';
+        if (!isset($fields['enquiry_route']) || !is_string($fields['enquiry_route'])) {
+            $fields['enquiry_route'] = '';
+        }
+    }
 
     return $fields;
 }
@@ -384,10 +399,14 @@ function webco_brief_assets_for_request(array $assets, ?int $requestId): array
 /**
  * @param array<string, list<array{original_name: string, size_bytes: int, request_id?: ?int}>> $assets
  */
-function webco_brief_uploads(array $assets, string $csrf, ?int $requestId): void
+/**
+ * @param array<string, list<array{original_name: string, size_bytes: int, request_id?: ?int}>> $assets
+ * @param array<string, string>|null $only
+ */
+function webco_brief_auto_uploads(array $assets, string $csrf, ?int $requestId, ?array $only = null): void
 {
-    $categories = [
-        'logo' => 'Logos',
+    $categories = $only ?? [
+        'logo' => 'Logo',
         'photo' => 'Photos',
         'document' => 'Documents',
     ];
@@ -398,29 +417,33 @@ function webco_brief_uploads(array $assets, string $csrf, ?int $requestId): void
     ];
 
     foreach ($categories as $category => $label) {
-        echo '<h3>' . webco_html($label) . '</h3>';
+        if (!isset($accept[$category])) {
+            continue;
+        }
+        $multiple = $category !== 'logo';
+        $fieldId = 'file-' . $category . ($requestId === null ? '-brief' : '-' . (string) $requestId);
         $files = $assets[$category] ?? [];
         if ($files === []) {
             echo '<p class="meta">None yet.</p>';
         } else {
-            echo '<ul>';
+            echo '<ul class="files">';
             foreach ($files as $file) {
-                echo '<li>' . webco_html($file['original_name']) . ' <span>('
-                    . webco_html(webco_brief_size((int) $file['size_bytes'])) . ')</span></li>';
+                echo '<li>' . webco_html((string) ($file['original_name'] ?? '')) . ' <span>('
+                    . webco_html(webco_brief_size((int) ($file['size_bytes'] ?? 0))) . ')</span></li>';
             }
             echo '</ul>';
         }
-        echo '<form method="post" action="/brief-upload.php" enctype="multipart/form-data">';
+        echo '<form class="upload" method="post" action="/brief-upload.php" enctype="multipart/form-data">';
         echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
         echo '<input type="hidden" name="category" value="' . webco_html($category) . '">';
+        echo '<input type="hidden" name="ajax" value="1">';
         if ($requestId !== null) {
             echo '<input type="hidden" name="request_id" value="' . webco_html((string) $requestId) . '">';
         }
-        $fieldId = 'file-' . $category . ($requestId === null ? '-brief' : '-' . (string) $requestId);
-        echo '<label for="' . webco_html($fieldId) . '">Add a ' . webco_html(strtolower($label)) . ' file</label>';
+        echo '<label for="' . webco_html($fieldId) . '">Choose ' . webco_html(strtolower($label)) . '</label>';
         echo '<input id="' . webco_html($fieldId) . '" name="file" type="file" accept="'
-            . webco_html($accept[$category]) . '" required>';
-        echo '<button type="submit">Upload</button>';
+            . webco_html($accept[$category]) . '"' . ($multiple ? ' multiple' : '') . '>';
+        echo '<div data-upload-status></div>';
         echo '</form>';
     }
 }
@@ -454,7 +477,7 @@ function webco_brief_styles(): string
     return '<style>
       :root { color-scheme: light; }
       body { margin: 0; background: #f3f6f5; color: #122028; font: 1.0625rem/1.6 "Segoe UI", Helvetica, Arial, sans-serif; }
-      main { max-width: 40rem; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+      main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
       h1, h2, h3 { font-family: Georgia, Palatino, serif; font-weight: 600; line-height: 1.2; }
       h1 { margin: 0; font-size: 2.4rem; }
       h2 { margin: 2rem 0 0; font-size: 1.6rem; }
@@ -483,5 +506,31 @@ function webco_brief_styles(): string
       .actions { margin-top: 0.4rem; }
       a { color: #0c6b62; }
       ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
+      .reassurance, .package-line, .step-count, .review-label { color: #3e4e58; }
+      .review-label, .step-count { font-weight: 650; }
+      .card { margin-top: 1rem; padding: 1.1rem 1.15rem 1.25rem; background: #fff; border: 1px solid #d5e0dc; border-radius: 16px; }
+      .progress { display: flex; gap: 0.35rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+      .progress li { flex: 1; height: 0.45rem; overflow: hidden; border-radius: 999px; background: #d5e0dc; color: transparent; }
+      .progress li.done, .progress li.current { background: #0c6b62; }
+      .step-layout.has-figure { display: flex; flex-direction: column; }
+      .step-figure { order: -1; margin: 0.2rem 0 0.4rem; }
+      .step-figure img { width: 100%; max-height: 9.5rem; object-fit: cover; object-position: top; border-radius: 12px; }
+      .step-figure figcaption { margin-top: 0.35rem; color: #3e4e58; font-size: 0.92rem; }
+      .slot { margin-top: 0.9rem; padding-top: 0.2rem; }
+      .call-extra { display: none; }
+      fieldset.call:has(input[value="yes"]:checked) .call-extra { display: block; }
+      .upload-ok { color: #0c6b62; font-weight: 650; }
+      .upload-fail { color: #8a3b2a; font-weight: 650; }
+      .dock { position: sticky; bottom: 0; display: flex; gap: 0.6rem; margin-top: 0.4rem; padding: 0.75rem 0; background: #fff; }
+      @media (min-width: 52rem) {
+        .progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem 0.8rem; }
+        .progress li { height: auto; overflow: visible; background: transparent; color: #3e4e58; font-size: 0.92rem; }
+        .progress li.current { color: #122028; font-weight: 700; }
+        .progress li.done { color: #0c6b62; }
+        .step-layout.has-figure { display: grid; grid-template-columns: minmax(0, 1fr) 17.5rem; gap: 1.25rem; align-items: start; }
+        .step-figure { order: 0; margin: 0.4rem 0 0; }
+        .step-figure img { max-height: none; object-fit: initial; }
+        .dock { position: static; background: transparent; }
+      }
     </style>';
 }

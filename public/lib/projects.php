@@ -479,6 +479,9 @@ function webco_ensure_project_tables(PDO $db): bool
         if (!webco_ensure_asset_request_column($db)) {
             return false;
         }
+        if (!webco_ensure_project_archive_column($db)) {
+            return false;
+        }
     } catch (PDOException) {
         return false;
     }
@@ -559,6 +562,16 @@ function webco_ensure_asset_request_column(PDO $db): bool
 {
     return webco_ensure_columns($db, 'project_assets', [
         'request_id' => 'BIGINT UNSIGNED NULL',
+    ]);
+}
+
+/**
+ * Hides a project from the working dashboard without changing its build status.
+ */
+function webco_ensure_project_archive_column(PDO $db): bool
+{
+    return webco_ensure_columns($db, 'projects', [
+        'archived_at' => 'DATETIME NULL',
     ]);
 }
 
@@ -2115,6 +2128,291 @@ function webco_original_upload_name(string $name): string
     return $name;
 }
 
+function webco_project_is_archived(array $project): bool
+{
+    $archived = $project['archived_at'] ?? null;
+
+    return is_string($archived) && trim($archived) !== '';
+}
+
+function webco_project_open_request_count(array $project): int
+{
+    $requests = is_array($project['requests'] ?? null) ? $project['requests'] : [];
+    $count = 0;
+    foreach ($requests as $request) {
+        if (!is_array($request)) {
+            continue;
+        }
+        $status = (string) ($request['status'] ?? '');
+        if ($status === 'open' || $status === 'in_progress') {
+            $count++;
+        }
+    }
+
+    return $count;
+}
+
+/**
+ * @return list<string>
+ */
+function webco_project_attention_reasons(array $project): array
+{
+    if (webco_project_is_archived($project)) {
+        return [];
+    }
+
+    $reasons = [];
+    $status = (string) ($project['status'] ?? '');
+    if (in_array($status, ['brief_received', 'ready_for_clone', 'ready_for_build', 'review'], true)) {
+        $reasons[] = $status;
+    }
+    if ((int) ($project['call_requested'] ?? 0) === 1) {
+        $reasons[] = 'call_requested';
+    }
+    if (webco_project_open_request_count($project) > 0) {
+        $reasons[] = 'open_requests';
+    }
+
+    return $reasons;
+}
+
+function webco_project_in_admin_view(array $project, string $view): bool
+{
+    $archived = webco_project_is_archived($project);
+    $status = (string) ($project['status'] ?? '');
+
+    return match ($view) {
+        'attention' => !$archived && webco_project_attention_reasons($project) !== [],
+        'active' => !$archived && $status !== 'live',
+        'live' => !$archived && $status === 'live',
+        'archived' => $archived,
+        'all' => true,
+        default => false,
+    };
+}
+
+function webco_project_next_action_label(string $status, bool $briefReady, ?string $packageId): string
+{
+    if ($status === 'awaiting_brief' || $status === 'brief_in_progress') {
+        return 'Waiting for the customer brief';
+    }
+    if ($status === 'brief_received' && !$briefReady) {
+        return 'Brief needs a submitted note';
+    }
+    if ($status === 'brief_received') {
+        return 'Mark ready for clone';
+    }
+    if ($status === 'ready_for_clone' && $packageId === null) {
+        return 'Save the 20i package id';
+    }
+    if ($status === 'ready_for_clone') {
+        return 'Package id already stored';
+    }
+    if ($status === 'live') {
+        return 'Website is live';
+    }
+
+    $next = webco_project_workflow_next($status);
+    if ($next === null) {
+        return 'No status change from here';
+    }
+
+    return 'Move to ' . webco_project_status_label($next);
+}
+
+function webco_archive_project(PDO $db, int $projectId, bool $restore): bool
+{
+    if ($projectId < 1) {
+        return false;
+    }
+
+    $archived = $restore ? 'archived_at IS NOT NULL' : 'archived_at IS NULL';
+    $value = $restore ? 'NULL' : 'CURRENT_TIMESTAMP';
+    try {
+        $statement = $db->prepare(
+            'UPDATE projects
+             SET archived_at = ' . $value . ', updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id AND ' . $archived
+        );
+        $statement->execute(['id' => $projectId]);
+        $check = $db->prepare('SELECT status, archived_at FROM projects WHERE id = :id');
+        $check->execute(['id' => $projectId]);
+        $row = $check->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+    if ($row === false) {
+        return false;
+    }
+
+    $stamp = $row['archived_at'] ?? null;
+    $isArchived = is_string($stamp) && trim($stamp) !== '';
+
+    return $restore ? !$isArchived : $isArchived;
+}
+
+/**
+ * A project may be deleted only when it is explicitly marked as a test.
+ * The business name must start with "[TEST] ", the order email must use
+ * example.com, example.test, or webco.test, and no 20i package id is stored.
+ */
+function webco_project_test_delete_allowed(string $businessName, string $email, mixed $packageId): bool
+{
+    if (!str_starts_with($businessName, '[TEST] ')) {
+        return false;
+    }
+    $email = strtolower(trim($email));
+    if (preg_match('/^[^@\s]+@(example\.com|example\.test|webco\.test)$/', $email) !== 1) {
+        return false;
+    }
+    if (is_int($packageId)) {
+        return false;
+    }
+    if (is_string($packageId) && trim($packageId) !== '') {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * Removes one test project, its brief, requests, asset rows and private files.
+ * The paid order is kept. Stripe and 20i are not called.
+ *
+ * @return 'deleted'|'refused'|'mismatch'|'missing'|'error'
+ */
+function webco_delete_test_project(PDO $db, int $projectId, string $confirmation, ?string $storageRoot = null): string
+{
+    if ($projectId < 1) {
+        return 'missing';
+    }
+
+    try {
+        $statement = $db->prepare(
+            'SELECT p.order_public_id, p.twentyi_package_id, p.order_id,
+                    o.business_name, o.email
+             FROM projects p
+             INNER JOIN orders o ON o.id = p.order_id
+             WHERE p.id = :id'
+        );
+        $statement->execute(['id' => $projectId]);
+        $row = $statement->fetch();
+    } catch (PDOException) {
+        return 'error';
+    }
+    if ($row === false) {
+        return 'missing';
+    }
+
+    $publicId = (string) ($row['order_public_id'] ?? '');
+    $orderId = (int) ($row['order_id'] ?? 0);
+    if ($orderId < 1 || preg_match('/^wc_[a-f0-9]{20}$/', $publicId) !== 1) {
+        return 'refused';
+    }
+    if (!webco_project_test_delete_allowed(
+        (string) ($row['business_name'] ?? ''),
+        (string) ($row['email'] ?? ''),
+        $row['twentyi_package_id'] ?? null
+    )) {
+        return 'refused';
+    }
+    if (strlen($confirmation) !== strlen($publicId) || !hash_equals($publicId, $confirmation)) {
+        return 'mismatch';
+    }
+    if (!webco_remove_project_storage($publicId, $storageRoot)) {
+        return 'error';
+    }
+
+    try {
+        $db->beginTransaction();
+        foreach (['project_assets', 'project_requests', 'project_briefs'] as $table) {
+            $delete = $db->prepare('DELETE FROM ' . $table . ' WHERE project_id = :id');
+            $delete->execute(['id' => $projectId]);
+        }
+        $project = $db->prepare('DELETE FROM projects WHERE id = :id');
+        $project->execute(['id' => $projectId]);
+        $still = $db->prepare('SELECT id FROM projects WHERE id = :id');
+        $still->execute(['id' => $projectId]);
+        $order = $db->prepare('SELECT id FROM orders WHERE id = :id');
+        $order->execute(['id' => $orderId]);
+        $kept = $order->fetch();
+        if ($kept === false || $still->fetch() !== false) {
+            $db->rollBack();
+
+            return 'error';
+        }
+        $db->commit();
+    } catch (PDOException) {
+        if ($db->inTransaction()) {
+            $db->rollBack();
+        }
+
+        return 'error';
+    }
+
+    return 'deleted';
+}
+
+/**
+ * Deletes the private upload folder for one order id. The shared root is kept.
+ */
+function webco_remove_project_storage(string $orderPublicId, ?string $storageRoot = null): bool
+{
+    if (preg_match('/^wc_[a-f0-9]{20}$/', $orderPublicId) !== 1) {
+        return false;
+    }
+
+    $root = $storageRoot ?? webco_projects_root();
+    if ($root === null || !is_dir($root)) {
+        return $storageRoot === null;
+    }
+
+    $realRoot = realpath($root);
+    $base = $root . DIRECTORY_SEPARATOR . $orderPublicId;
+    if (!is_dir($base)) {
+        return true;
+    }
+    $realBase = realpath($base);
+    if ($realRoot === false || $realBase === false || !str_starts_with($realBase, $realRoot . DIRECTORY_SEPARATOR)) {
+        return false;
+    }
+
+    foreach (['logos', 'photos', 'documents'] as $folder) {
+        $dir = $realBase . DIRECTORY_SEPARATOR . $folder;
+        if (!is_dir($dir)) {
+            continue;
+        }
+        $items = scandir($dir);
+        if ($items === false) {
+            return false;
+        }
+        foreach ($items as $item) {
+            if ($item === '.' || $item === '..') {
+                continue;
+            }
+            $path = $dir . DIRECTORY_SEPARATOR . $item;
+            if (is_dir($path) || !unlink($path)) {
+                return false;
+            }
+        }
+        if (!rmdir($dir)) {
+            return false;
+        }
+    }
+
+    $left = scandir($realBase);
+    if ($left === false) {
+        return false;
+    }
+    foreach ($left as $item) {
+        if ($item !== '.' && $item !== '..') {
+            return false;
+        }
+    }
+
+    return rmdir($realBase);
+}
+
 /**
  * @return list<array<string, mixed>>
  */
@@ -2123,7 +2421,7 @@ function webco_list_projects_for_admin(PDO $db): array
     $statement = $db->query(
         'SELECT p.id, p.order_public_id, p.vertical_code, p.status,
                 p.twentyi_package_id,
-                p.customer_notified_at, p.internal_notified_at, p.created_at,
+                p.customer_notified_at, p.internal_notified_at, p.created_at, p.archived_at,
                 o.business_name, o.contact_name, o.email, o.phone, o.domain_name,
                 o.package_name, o.care_choice, o.paid_at,
                 b.summary, b.updated_at AS brief_updated_at, b.submitted_at, b.wizard_step,

@@ -10,6 +10,8 @@ if (realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === __FILE__) {
     exit;
 }
 
+require_once __DIR__ . '/customer-ui.php';
+
 /**
  * @return array<string, string>
  */
@@ -253,12 +255,16 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
     }
 
     webco_brief_page_open('Your website brief');
-    echo '<p class="eyebrow">Webco Cloud</p>';
-    echo '<h1>Your website brief</h1>';
+    echo '<header class="wiz-head">';
     webco_brief_identity($project);
-    echo '<p class="package-line">' . webco_html($packageLabel) . '</p>';
-    echo '<p class="status">' . webco_html(webco_project_status_sentence((string) $project['status'])) . '</p>';
-    echo '<p class="reassurance">Your progress is saved when you use Back or Continue. You can close this page and come back with the same email link.</p>';
+    echo '<h1>Your website brief</h1>';
+    $business = trim((string) ($project['business_name'] ?? ''));
+    echo '<p class="wiz-line">' . ($business !== '' ? '<strong>' . webco_html($business) . '</strong>' : '')
+        . webco_ui_badge($packageLabel) . '</p>';
+    echo '<p class="status-line"><strong>'
+        . webco_html(webco_project_status_sentence((string) $project['status'])) . '</strong>'
+        . '<span>Your progress is saved when you use Back or Continue. You can close this page and come back with the same email link.</span></p>';
+    echo '</header>';
     webco_brief_notice_line($notice);
     webco_brief_progress($labels, $steps, $index);
 
@@ -282,15 +288,16 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
     echo '</div>';
     echo '<div class="dock">';
     if ($previous !== null) {
-        echo '<button class="quiet" type="submit" form="brief-wizard" name="goto" value="' . webco_html($previous) . '">Back</button>';
+        echo '<button class="btn btn-secondary" type="submit" form="brief-wizard" name="goto" value="' . webco_html($previous) . '">Back</button>';
     }
     if ($step === 'review') {
-        echo '<button type="submit" form="brief-wizard" name="intent" value="submit">Submit website brief</button>';
+        echo '<button class="btn btn-primary" type="submit" form="brief-wizard" name="intent" value="submit">Submit website brief</button>';
     } elseif ($next !== null) {
-        echo '<button type="submit" form="brief-wizard" name="goto" value="' . webco_html($next) . '">Continue</button>';
+        echo '<button class="btn btn-primary" type="submit" form="brief-wizard" name="goto" value="' . webco_html($next) . '">Continue</button>';
     }
     echo '</div></section></form>';
-    echo '<p class="meta"><a href="/support/">Support</a></p>';
+    // The wizard has no Contact tab yet, so this is the one way to reach Webco before the brief is submitted.
+    echo '<p class="meta wiz-help">Need help with this brief? See <a href="/support/">Webco support</a>.</p>';
     webco_brief_upload_script();
     webco_brief_pair_script();
     webco_brief_page_close();
@@ -302,14 +309,20 @@ function webco_brief_render_wizard(array $project, string $step, string $notice,
  */
 function webco_brief_progress(array $labels, array $steps, int $index): void
 {
-    echo '<ol class="progress">';
+    // Progress only. These are not links, so nobody can jump ahead of the saved Back and Continue flow.
+    echo '<ol class="steps" aria-label="Brief progress">';
     foreach ($steps as $position => $id) {
         $class = $position < $index ? 'done' : ($position === $index ? 'current' : '');
         echo '<li' . ($class === '' ? '' : ' class="' . $class . '"');
         if ($position === $index) {
             echo ' aria-current="step"';
         }
-        echo '>' . webco_html($labels[$id] ?? $id) . '</li>';
+        echo '><span class="step-mark" aria-hidden="true"></span><span class="step-name">'
+            . webco_html($labels[$id] ?? $id) . '</span>';
+        if ($class === 'done') {
+            echo '<span class="sr-only"> (completed)</span>';
+        }
+        echo '</li>';
     }
     echo '</ol>';
 }
@@ -421,24 +434,31 @@ function webco_brief_render_step(array $project, string $step, string $package, 
     if ($sections === []) {
         echo '<p class="meta">Nothing has been entered yet. Go back and add the details you have.</p>';
     }
+
     $current = '';
+    $labels = webco_brief_wizard_labels($package);
     foreach ($sections as $section) {
         if ($section['step'] !== $current) {
+            if ($current !== '') {
+                echo '</dl></div>';
+            }
             $current = $section['step'];
-            $labels = webco_brief_wizard_labels($package);
-            echo '<h3>' . webco_html($labels[$current] ?? $current) . '</h3>';
-            echo '<p><a href="/brief.php?step=' . webco_html($current) . '">Edit</a></p>';
+            echo '<div class="review-section"><div class="review-head"><h3>' . webco_html($labels[$current] ?? $current) . '</h3>';
+            echo '<a href="/brief.php?step=' . webco_html($current) . '">Edit</a></div><dl class="qa">';
         }
-        echo '<p class="review-label">' . webco_html($section['label']) . '</p>';
-        echo '<p class="summary">' . webco_html($section['value']) . '</p>';
+        echo '<div><dt>' . webco_html($section['label']) . '</dt><dd>' . webco_html($section['value']) . '</dd></div>';
+    }
+    if ($current !== '') {
+        echo '</dl></div>';
     }
     $assets = webco_brief_assets_for_request(
         is_array($project['assets'] ?? null) ? $project['assets'] : [],
         null
     );
-    echo '<h3>Uploaded files</h3>';
+    echo '<div class="review-section"><div class="review-head"><h3>Uploaded files</h3>';
+    echo '<a href="/brief.php?step=branding">Edit files</a></div>';
     webco_brief_file_list($assets);
-    echo '<p><a href="/brief.php?step=branding">Edit files</a></p>';
+    echo '</div>';
 }
 
 /**
@@ -480,7 +500,7 @@ function webco_brief_pair_slots(array $project, string $kind, int $count, string
         echo '<p class="slot-title" id="' . webco_html($kind . '-title-' . $number) . '" data-title>' . webco_html($label . ' ' . $number) . '</p>';
         if ($canRemove) {
             $removeLabel = 'Remove ' . strtolower($label) . ' ' . $number;
-            echo '<button type="button" class="quiet slot-remove" data-remove aria-label="' . webco_html($removeLabel) . '"' . ($shown ? '' : ' disabled') . '>Remove</button>';
+            echo '<button type="button" class="btn btn-secondary btn-sm slot-remove" data-remove aria-label="' . webco_html($removeLabel) . '"' . ($shown ? '' : ' disabled') . '>Remove</button>';
         }
         echo '</div>';
         echo '<label for="' . webco_html($nameKey . $number) . '">Name</label>';
@@ -496,7 +516,7 @@ function webco_brief_pair_slots(array $project, string $kind, int $count, string
     }
     echo '<p class="pair-status" data-pair-status role="status" aria-live="polite"></p>';
     echo '<p class="hint pair-limit" data-limit' . ($visible >= $count ? '' : ' hidden') . '>' . webco_html($limitText) . '</p>';
-    echo '<button type="button" class="quiet add-pair" data-add' . ($visible >= $count ? ' disabled' : '') . '>+ ' . webco_html($addLabel) . '</button>';
+    echo '<button type="button" class="btn btn-secondary add-pair" data-add' . ($visible >= $count ? ' disabled' : '') . '>+ ' . webco_html($addLabel) . '</button>';
     echo '</div>';
 }
 
@@ -531,7 +551,12 @@ function webco_brief_area(
  */
 function webco_brief_identity(array $project): void
 {
-    echo '<p class="meta">' . webco_html((string) ($project['business_name'] ?? '')) . ' · ' . webco_html((string) ($project['order_public_id'] ?? '')) . '</p>';
+    $reference = trim((string) ($project['order_public_id'] ?? ''));
+    echo '<div class="wiz-brand"><p class="brand">Webco Cloud</p>';
+    if ($reference !== '') {
+        echo '<p class="ref">Project reference ' . webco_html($reference) . '</p>';
+    }
+    echo '</div>';
 }
 
 function webco_brief_notice_line(string $notice): void
@@ -548,9 +573,6 @@ function webco_brief_page_open(string $title, string $bodyClass = ''): void
     echo '<meta name="robots" content="noindex, nofollow">';
     echo '<title>' . webco_html($title) . '</title>';
     echo webco_brief_styles();
-    if ($bodyClass === 'client-home' && function_exists('webco_client_styles')) {
-        echo webco_client_styles();
-    }
     $class = $bodyClass === '' ? '' : ' class="' . webco_html($bodyClass) . '"';
     echo '</head><body' . $class . '><main>';
 }
@@ -583,9 +605,12 @@ function webco_brief_file_list(array $assets): void
             continue;
         }
         $any = true;
-        echo '<h3>' . webco_html($label) . '</h3><ul>';
+        echo '<p class="label-sm review-files-label">' . webco_html($label) . '</p><ul class="files">';
         foreach ($files as $file) {
-            echo '<li>' . webco_html((string) ($file['original_name'] ?? '')) . '</li>';
+            echo webco_ui_file_row(
+                (string) ($file['original_name'] ?? ''),
+                webco_brief_size((int) ($file['size_bytes'] ?? 0))
+            );
         }
         echo '</ul>';
     }
@@ -598,6 +623,32 @@ function webco_brief_upload_script(): void
 {
     echo '<script>
       var uploadsPending = 0;
+      function fileSize(bytes) {
+        return bytes < 1024 ? bytes + " B" : Math.max(1, Math.round(bytes / 1024)) + " KB";
+      }
+      function fileRow(name, bytes) {
+        var item = document.createElement("li");
+        item.className = "file-row";
+        var type = document.createElement("span");
+        type.className = "file-type";
+        type.setAttribute("aria-hidden", "true");
+        var dot = name.lastIndexOf(".");
+        var ext = dot > 0 ? name.slice(dot + 1).replace(/[^A-Za-z0-9]/g, "").slice(0, 4).toUpperCase() : "";
+        type.textContent = ext || "FILE";
+        var info = document.createElement("span");
+        info.className = "file-info";
+        var label = document.createElement("span");
+        label.className = "file-name";
+        label.textContent = name;
+        var meta = document.createElement("span");
+        meta.className = "file-meta";
+        meta.textContent = fileSize(bytes);
+        info.appendChild(label);
+        info.appendChild(meta);
+        item.appendChild(type);
+        item.appendChild(info);
+        return item;
+      }
       function setUploadBusy(busy) {
         document.querySelectorAll(".dock button").forEach(function (button) {
           button.disabled = busy;
@@ -642,9 +693,7 @@ function webco_brief_upload_script(): void
                     list.className = "files";
                     group.insertBefore(list, form);
                   }
-                  var item = document.createElement("li");
-                  item.textContent = file.name;
-                  list.appendChild(item);
+                  list.appendChild(fileRow(file.name, file.size));
                 } else {
                   line.textContent = file.name + " — " + ((body && body.message) ? body.message : "The file could not be saved. Try again.");
                   line.className = "upload-fail";

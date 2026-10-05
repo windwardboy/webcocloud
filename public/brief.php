@@ -276,7 +276,7 @@ function webco_brief_request_form(array $project, string $csrf): void
     echo '<label for="request_call_note">Note for the call</label>';
     echo '<textarea id="request_call_note" name="request_call_note" maxlength="2000" rows="3"></textarea>';
     echo '</div></fieldset>';
-    echo '<button type="submit" name="intent" value="request">Send request</button>';
+    echo '<div class="form-actions"><button class="btn btn-primary" type="submit" name="intent" value="request">Send request</button></div>';
     echo '</form>';
 }
 
@@ -404,8 +404,10 @@ function webco_brief_auto_uploads(array $assets, string $csrf, ?int $requestId, 
         } else {
             echo '<ul class="files">';
             foreach ($files as $file) {
-                echo '<li>' . webco_html((string) ($file['original_name'] ?? '')) . ' <span>('
-                    . webco_html(webco_brief_size((int) ($file['size_bytes'] ?? 0))) . ')</span></li>';
+                echo webco_ui_file_row(
+                    (string) ($file['original_name'] ?? ''),
+                    webco_brief_size((int) ($file['size_bytes'] ?? 0))
+                );
             }
             echo '</ul>';
         }
@@ -441,79 +443,16 @@ function webco_brief_message(string $title, string $message): void
     echo '<title>' . webco_html($title) . '</title>';
     echo webco_brief_styles();
     echo '</head><body><main>';
-    echo '<p class="eyebrow">Webco Cloud</p>';
+    echo '<header class="page-head">';
+    echo '<p class="brand">Webco Cloud</p>';
     echo '<h1>' . webco_html($title) . '</h1>';
     echo '<p class="lead">' . webco_html($message) . '</p>';
+    echo '</header>';
     echo '</main></body></html>';
     exit;
 }
 
 function webco_brief_styles(): string
 {
-    return '<style>
-      :root { color-scheme: light; }
-      body { margin: 0; background: #f3f6f5; color: #122028; font: 1.0625rem/1.6 "Segoe UI", Helvetica, Arial, sans-serif; }
-      main { max-width: 64rem; margin: 0 auto; padding: 2.5rem 1.25rem 5rem; }
-      h1, h2, h3 { font-family: Georgia, Palatino, serif; font-weight: 600; line-height: 1.2; }
-      h1 { margin: 0; font-size: 2.4rem; }
-      h2 { margin: 2rem 0 0; font-size: 1.6rem; }
-      h3 { margin: 1.4rem 0 0; font-size: 1.2rem; }
-      p { margin: 0.75rem 0 0; }
-      .eyebrow { margin: 0; color: #0c6b62; font-size: 0.85rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
-      .lead, .note { color: #3e4e58; }
-      .status { margin-top: 0.8rem; font-weight: 650; }
-      .hint { margin-top: 0.2rem; color: #3e4e58; font-size: 0.92rem; }
-      .panel { margin-top: 0.4rem; }
-      fieldset.call { margin: 1.2rem 0 0; padding: 0.9rem 1rem 1rem; border: 1px solid #d5e0dc; border-radius: 12px; background: #f7fbfa; }
-      fieldset.call legend { padding: 0 0.3rem; font-weight: 700; }
-      label.choice { display: inline-flex; align-items: center; gap: 0.35rem; margin: 0.4rem 1rem 0 0; font-weight: 650; }
-      input[type="text"], input[type="tel"], select { display: block; width: 100%; box-sizing: border-box; margin-top: 0.35rem; padding: 0.65rem 0.75rem; border: 1px solid #d5e0dc; border-radius: 12px; font: inherit; }
-      .request { margin-top: 1rem; padding: 0.9rem 1rem; border: 1px solid #d5e0dc; border-radius: 12px; }
-      .request-status { margin-top: 0.2rem; font-weight: 700; }
-      .summary { white-space: pre-wrap; }
-      .meta { color: #3e4e58; }
-      .notice { padding: 0.8rem 1rem; background: #e5f3f1; border-radius: 12px; }
-      form { margin-top: 1rem; }
-      label { display: block; margin-top: 0.8rem; font-weight: 650; }
-      textarea, input[type="file"] { display: block; width: 100%; margin-top: 0.35rem; }
-      textarea { box-sizing: border-box; padding: 0.75rem; border: 1px solid #d5e0dc; border-radius: 12px; font: inherit; }
-      button { margin: 0.8rem 0.6rem 0 0; padding: 0.7rem 1rem; border: 0; border-radius: 999px; background: #0c6b62; color: #f7fbfa; font: inherit; cursor: pointer; }
-      button.quiet { background: transparent; color: #122028; border: 1px solid #d5e0dc; }
-      .actions { margin-top: 0.4rem; }
-      a { color: #0c6b62; }
-      ul { margin: 0.4rem 0 0; padding-left: 1.2rem; }
-      .reassurance, .package-line, .step-count, .review-label { color: #3e4e58; }
-      .review-label, .step-count { font-weight: 650; }
-      .card { margin-top: 1rem; padding: 1.1rem 1.15rem 1.25rem; background: #fff; border: 1px solid #d5e0dc; border-radius: 16px; }
-      .progress { display: flex; gap: 0.35rem; margin: 1rem 0 0; padding: 0; list-style: none; }
-      .progress li { flex: 1; height: 0.45rem; overflow: hidden; border-radius: 999px; background: #d5e0dc; color: transparent; }
-      .progress li.done, .progress li.current { background: #0c6b62; }
-      .step-layout.has-figure { display: flex; flex-direction: column; }
-      .step-figure { order: -1; margin: 0.2rem 0 0.4rem; }
-      .step-figure img { width: 100%; max-height: 9.5rem; object-fit: cover; object-position: top; border-radius: 12px; }
-      .step-figure figcaption { margin-top: 0.35rem; color: #3e4e58; font-size: 0.92rem; }
-      .pair-list { margin-top: 0.4rem; }
-      .slot { margin-top: 0.9rem; padding: 0.85rem 0.9rem 1rem; border: 1px solid #d5e0dc; border-radius: 12px; background: #f7fbfa; }
-      .slot-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 0.75rem; }
-      .slot-title { margin: 0; font-weight: 700; }
-      .slot-remove, .add-pair { min-height: 2.75rem; margin: 0; }
-      .add-pair { width: 100%; margin-top: 0.9rem; }
-      .pair-status:empty { margin: 0; }
-      .call-extra { display: none; }
-      fieldset.call:has(input[value="yes"]:checked) .call-extra { display: block; }
-      .upload-ok { color: #0c6b62; font-weight: 650; }
-      .upload-fail { color: #8a3b2a; font-weight: 650; }
-      .dock { position: sticky; bottom: 0; display: flex; gap: 0.6rem; margin-top: 0.4rem; padding: 0.75rem 0; background: #fff; }
-      @media (min-width: 52rem) {
-        .progress { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.35rem 0.8rem; }
-        .progress li { height: auto; overflow: visible; background: transparent; color: #3e4e58; font-size: 0.92rem; }
-        .progress li.current { color: #122028; font-weight: 700; }
-        .progress li.done { color: #0c6b62; }
-        .step-layout.has-figure { display: grid; grid-template-columns: minmax(0, 1fr) 17.5rem; gap: 1.25rem; align-items: start; }
-        .step-figure { order: 0; margin: 0.4rem 0 0; }
-        .step-figure img { max-height: none; object-fit: initial; }
-        .dock { position: static; background: transparent; }
-        .add-pair { width: auto; }
-      }
-    </style>';
+    return '<style>' . webco_customer_css() . '</style>';
 }

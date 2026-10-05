@@ -189,7 +189,7 @@ check(str_contains($portalBilling, 'action="/billing-portal.php"'), 'billing pos
 check(!str_contains($portalBilling, 'action="http'), 'billing does not post to an absolute address');
 check(str_contains($portalBilling, 'method="post"'), 'billing uses a form post');
 check(str_contains($portalBilling, 'name="csrf"'), 'billing sends the brief session token');
-check(substr_count($portalBilling, '<button type="submit">') === 2, 'invoices and payment details are both buttons');
+check(substr_count($portalBilling, '<button class="btn btn-secondary" type="submit">') === 2, 'invoices and payment details are both buttons');
 check(str_contains($portalBilling, 'Billing &amp; invoices'), 'the invoice action is labelled');
 check(str_contains($portalBilling, 'Manage payment details'), 'the payment action is labelled');
 check(!str_contains($portalBilling, 'href='), 'the portal buttons are not links');
@@ -229,7 +229,7 @@ $files = client_html($project, 'files');
 check(str_contains($files, 'Logos') && str_contains($files, 'Photos') && str_contains($files, 'Documents'), 'files are grouped');
 check(strpos($files, 'Logos') < strpos($files, 'Photos') && strpos($files, 'Photos') < strpos($files, 'Documents'), 'file groups stay in a stable order');
 check(str_contains($files, 'kent-logo.png') && str_contains($files, 'yard.jpg'), 'brief files keep their names');
-check(str_contains($files, '(2 KB)'), 'a file size helps tell uploads apart');
+check(str_contains($files, '>2 KB<'), 'a file size helps tell uploads apart');
 check(str_contains($files, 'None yet.'), 'an empty group is still labelled');
 check(!str_contains($files, 'request-only-photo.jpg'), 'a request file stays with that request');
 check(!str_contains($files, 'name="file"'), 'the files page does not add an upload control');
@@ -246,7 +246,7 @@ check(str_contains($requests, 'FOURTH-ONLY-REQUEST'), 'the requests page lists o
 check(str_contains($requests, 'UNIQUE-TAIL-TOKEN'), 'the requests page keeps the full summary');
 check(str_contains($requests, 'In progress') && str_contains($requests, 'Call requested'), 'a request shows its status and call');
 check(str_contains($requests, '07700 900999') && str_contains($requests, 'Friday afternoon'), 'a request call keeps its number and time');
-check(str_contains($requests, 'Photo: request-only-photo.jpg'), 'a file sent with a request stays identifiable');
+check(str_contains($requests, '>request-only-photo.jpg<') && str_contains($requests, '>Photo · '), 'a file sent with a request stays identifiable');
 check(str_contains($requests, 'Add a file to this request'), 'a request can still receive a file');
 check(str_contains($requests, 'name="file"'), 'request uploads still use the existing upload form');
 check(!str_contains($requests, 'name="request_summary"'), 'the requests page does not expand the new-request form');

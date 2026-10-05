@@ -1,0 +1,11 @@
+---
+interface Props {
+  compact?: boolean;
+}
+
+const { compact = false } = Astro.props;
+---
+
+<a class:list={["logo", compact && "logo-compact"]} href="/">
+  <img src="/images/logo-webco-cloud.png" width="1024" height="426" alt="Webco Cloud" decoding="async" />
+</a>

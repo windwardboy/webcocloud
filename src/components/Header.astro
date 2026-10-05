@@ -1,6 +1,7 @@
 ---
 import { nav } from "../config/site";
 import { clientAreaHref, hostingLoginHref, isCurrentPath } from "../lib/links";
+import Logo from "./Logo.astro";
 
 const areaHref = clientAreaHref();
 const hostingHref = hostingLoginHref();
@@ -8,10 +9,7 @@ const hostingHref = hostingLoginHref();
 
 <header class="site-header">
   <div class="wrap header-inner">
-    <a class="logo" href="/">
-      <img src="/favicon.svg" width="32" height="32" alt="" />
-      <span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span>
-    </a>
+    <Logo />
     <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav">
       <span class="visually-hidden">Menu</span>
       <span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span>

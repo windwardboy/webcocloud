@@ -1,6 +1,7 @@
 ---
 import { nav, site } from "../config/site";
 import { clientAreaHref, hostingLoginHref } from "../lib/links";
+import Logo from "./Logo.astro";
 
 const hasLegal = site.legalName.length > 0;
 const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
@@ -10,7 +11,7 @@ const serviceLinks = nav.filter((item) => item.href !== "/");
 <footer class="site-footer">
   <div class="wrap footer-inner">
     <div>
-      <p class="footer-brand">{site.name}</p>
+      <Logo />
       <p>Hosting, domains, email and support for websites built by Webco Media.</p>
       {
         site.webcoMediaUrl ? (

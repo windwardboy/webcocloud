@@ -1,4 +1,6 @@
 ---
+import Logo from "./Logo.astro";
+
 interface Props {
   step?: number;
   phase?: "flow" | "payment";
@@ -17,10 +19,7 @@ const steps = [
 
 <header class="funnel-header">
   <div class="funnel-header-bar">
-    <a class="logo" href="/">
-      <img src="/favicon.svg" width="28" height="28" alt="" />
-      <span class="logo-word"><span class="logo-webco">Webco</span> <span class="logo-cloud">Cloud</span></span>
-    </a>
+    <Logo compact />
     {phase === "payment" && <p class="funnel-phase">Payment</p>}
   </div>
   {

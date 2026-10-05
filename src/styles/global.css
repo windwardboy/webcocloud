@@ -198,7 +198,6 @@ a:hover {
 .logo {
   display: inline-flex;
   align-items: center;
-  gap: 0.7rem;
   min-height: 2.75rem;
   color: inherit;
   text-decoration: none;
@@ -209,34 +208,9 @@ a:hover {
 }
 
 .logo img {
-  width: 2rem;
-  height: 2rem;
   display: block;
-  border-radius: 8px;
-}
-
-.logo-word {
-  font-size: 1.12rem;
-  letter-spacing: -0.03em;
-  white-space: nowrap;
-}
-
-.logo-webco {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.logo-cloud {
-  color: var(--accent);
-  font-weight: 500;
-}
-
-.site-header .logo-webco {
-  color: #fff;
-}
-
-.site-header .logo-cloud {
-  color: var(--mint);
+  width: auto;
+  height: 2.45rem;
 }
 
 .nav {
@@ -826,6 +800,14 @@ main:has(> .cta-band:last-child) {
   padding-block: 3.25rem 3.5rem;
 }
 
+.site-footer .logo {
+  margin-bottom: 0.85rem;
+}
+
+.site-footer .logo img {
+  height: 2.7rem;
+}
+
 .footer-brand {
   margin: 0;
   color: #fff;
@@ -1005,6 +987,10 @@ main:has(> .cta-band:last-child) {
 }
 
 @media (max-width: 47.99rem) {
+  .site-header .logo img {
+    height: 2.1rem;
+  }
+
   .has-js .nav-toggle {
     display: inline-flex;
   }
@@ -1318,14 +1304,17 @@ html:has(body.funnel) {
   padding: 0.2rem var(--gutter);
 }
 
-.funnel-header .logo {
-  min-height: 2.25rem;
-  gap: 0.5rem;
+.funnel-header .logo,
+.logo-compact {
+  min-height: 0;
+  padding: 0.3rem 0.55rem 0.35rem;
+  border-radius: 10px;
+  background: var(--night);
 }
 
-.funnel-header .logo img {
-  width: 1.6rem;
-  height: 1.6rem;
+.funnel-header .logo img,
+.logo-compact img {
+  height: 1.85rem;
 }
 
 .funnel-phase {

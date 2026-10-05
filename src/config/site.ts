@@ -6,26 +6,25 @@
  * company registration details, or legal addresses.
  *
  * Pending:
- * - webcoMediaUrl — public Webco Media website
  * - supportEmail
  * - supportPhone
- * - legalName, companyNumber, registeredOffice
+ * - companyNumber, registeredOffice
  */
 export const site = {
   name: "Webco Cloud",
   url: "https://webcocloud.net",
   description:
-    "Webco Cloud looks after hosting, domains, business email, renewals and support for websites built by Webco Media.",
+    "Webco Cloud is the platform for purchasing Webco products, managing accounts and billing, and getting support — for websites built by Webco Media.",
   positioning:
     "Websites, hosting, email, domains and support — managed in one place.",
   /** Webco customer and project area. Access uses the existing brief session. */
   clientAreaPath: "/brief.php",
   /** Existing 20i/HostShop login. This is not the Webco client area. */
   hostingLoginUrl: "https://my.webcocloud.net/basket-summary-login?r=%2Fmanage",
-  webcoMediaUrl: "",
+  webcoMediaUrl: "https://webcomedia.net",
   supportEmail: "",
   supportPhone: "",
-  legalName: "",
+  legalName: "Webco Services Ltd",
   companyNumber: "",
   registeredOffice: "",
 };
@@ -49,34 +48,34 @@ export const websiteOffers = [
     startPackage: "essential",
     startName: "Webco Essential",
     price: "£595",
-    audience: "Independent instructors and smaller providers",
+    audience: "Smaller businesses with one main location",
     summary: "A simple, professional site that brings enquiries for one main location.",
     exampleUrl: essentialDemoUrl,
     demoUrl: essentialDemoUrl,
     previewImage: "/images/website-essential.jpg",
     points: [
-      "One main training location",
-      "Core course and service information",
+      "One main location",
+      "Core service information",
       "Enquiry and contact path",
       "First year of hosting, SSL, domain setup and business email",
     ],
   },
   {
     id: "training",
-    name: "Training Provider Website",
+    name: "Professional Website",
     startPackage: "professional",
     startName: "Webco Professional",
     price: "£995",
-    audience: "Established providers with several courses or locations",
-    summary: "Room for each course and each training location to have its own page.",
+    audience: "Businesses with several services or locations",
+    summary: "Room for each service and each location to have its own page.",
     exampleUrl: professionalDemoUrl,
     demoUrl: professionalDemoUrl,
     previewImage: "/images/website-professional.jpg",
     points: [
-      "A page for each course",
-      "A page for each training location",
+      "A page for each key service",
+      "A page for each location",
       "Stronger local search structure",
-      "A fuller path from a course through to enquiry",
+      "A fuller path from a service through to enquiry",
       "First year of hosting, SSL, domain setup and business email",
     ],
   },
@@ -110,6 +109,6 @@ export const commercial = {
     summary:
       "Hosting, maintenance, routine content updates and support, with a 30-day trial from checkout. Hosting is included, so a separate hosting renewal is not required while Managed Care is active.",
     allowance:
-      "About 30 minutes of routine content changes a month, including reasonable course, pricing and location updates. Unused time does not roll over. Larger changes are quoted separately.",
+      "About 30 minutes of routine content changes a month, including reasonable service, pricing and location updates. Unused time does not roll over. Larger changes are quoted separately.",
   },
 } as const;

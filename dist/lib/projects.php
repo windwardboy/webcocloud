@@ -28,7 +28,7 @@ function webco_public_origin(): string
 
 /**
  * The current funnel persists only these package codes, and only from the
- * server allowlist in draft-order.php. Both packages are the HGV training offer.
+ * server allowlist in draft-order.php. Both packages are the website offer.
  * A browser-supplied vertical is never read.
  */
 function webco_vertical_for_stored_package(string $packageCode): ?string

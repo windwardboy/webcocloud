@@ -8,21 +8,21 @@ import { clientAreaHref, hostingLoginHref } from "../lib/links";
 
 <BaseLayout title={site.name} description={site.description}>
   <PageHero
-    eyebrow="The platform behind Webco websites"
+    eyebrow="The platform behind Webco Media"
     title={site.positioning}
     images={[
       {
         src: "/images/hero-showcase.png",
-        alt: "A Webco Professional training website shown on desktop and mobile, with hosting, domains, business email and support around it.",
+        alt: "A Webco Professional website shown on desktop and mobile, with hosting, domains, business email and support around it.",
       },
       {
         src: "/images/hero-showcase-essential.png",
-        alt: "A Webco Essential training website shown on desktop and mobile, with hosting, domains, business email and support around it.",
+        alt: "A Webco Essential website shown on desktop and mobile, with hosting, domains, business email and support around it.",
       },
     ]}
   >
     <p>
-      Hosting, domains, business email, renewals and support for websites built by Webco Media.
+      Buy products, manage your account and billing, and get support — for websites built by Webco Media.
     </p>
     <div class="actions">
       <a class="button" href={clientAreaHref()}>Client area</a>
@@ -34,7 +34,7 @@ import { clientAreaHref, hostingLoginHref } from "../lib/links";
     <div class="wrap">
       <div class="section-head">
         <h2 id="services-heading">What Webco Cloud looks after</h2>
-        <p class="section-intro">One service for the website once it has been built.</p>
+        <p class="section-intro">One place for the website once Webco Media has built it.</p>
       </div>
       <ul class="cards cards-4">
         <li>
@@ -101,7 +101,7 @@ import { clientAreaHref, hostingLoginHref } from "../lib/links";
         </div>
         <div>
           <p>
-            Small and medium UK businesses with a website built by Webco Media, including HGV and transport training providers introduced through LearnHGV.
+            UK businesses with a website built by Webco Media. Webco Cloud is where you purchase products, manage your account and billing, and get support.
           </p>
           <p>The website, domain, email and support sit together, so there is one place to go.</p>
         </div>
@@ -116,17 +116,15 @@ import { clientAreaHref, hostingLoginHref } from "../lib/links";
       </div>
       <ul class="cards cards-3">
         <li class="card">
-          <h3>LearnHGV</h3>
-          <p>
-            Introduces website services to HGV and transport training providers. Webco services do not affect LearnHGV ranking, verification or how a provider appears in the directory.
-          </p>
+          <h3>Webco Services Ltd</h3>
+          <p>The company behind Webco Media and Webco Cloud.</p>
         </li>
         <li class="card">
           <h3>Webco Media</h3>
-          <p>Designs and builds the website.</p>
+          <p>Designs and builds the websites and products.</p>
           {
             site.webcoMediaUrl && (
-              <a class="card-action" href={site.webcoMediaUrl}>
+              <a class="card-action" href={site.webcoMediaUrl} rel="noopener noreferrer">
                 Visit Webco Media
               </a>
             )
@@ -134,7 +132,7 @@ import { clientAreaHref, hostingLoginHref } from "../lib/links";
         </li>
         <li class="card">
           <h3>Webco Cloud</h3>
-          <p>Runs hosting, domains, email, billing, renewals and support.</p>
+          <p>The platform for purchasing, accounts, billing, hosting, domains, email and support.</p>
         </li>
       </ul>
     </div>

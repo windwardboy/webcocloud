@@ -1204,7 +1204,7 @@ function webco_admin_care_label(string $care): string
 function webco_admin_vertical_label(string $code): string
 {
     if ($code === 'hgv_training') {
-        return 'HGV training';
+        return 'Website';
     }
 
     return $code;

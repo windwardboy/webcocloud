@@ -5,7 +5,7 @@ import CtaBand from "../components/CtaBand.astro";
 import { websiteOffers } from "../config/site";
 
 const description =
-  "Essential Website at £595, or the Training Provider Website at £995, for HGV and transport training providers.";
+  "Essential Website at £595, or the Professional Website at £995 — built by Webco Media, looked after on Webco Cloud.";
 
 const offers = {
   essential: websiteOffers[0],
@@ -21,7 +21,7 @@ const questions = [
   {
     question: "Can I upgrade later?",
     answer:
-      "Yes. Start with Essential when you have one location and a straightforward offer. When you need separate course and location pages, we move you onto the Training Provider Website and quote that work.",
+      "Yes. Start with Essential when you have one location and a straightforward offer. When you need separate service and location pages, we move you onto the Professional Website and quote that work.",
   },
   {
     question: "What if I already have a domain?",
@@ -29,9 +29,9 @@ const questions = [
       "We connect the domain you already own to the website and to your business email. A new domain can be registered during setup when you need one.",
   },
   {
-    question: "What if I add more courses or locations?",
+    question: "What if I add more services or locations?",
     answer:
-      "Essential covers one main location and your core course information. Several courses or locations, each with its own page, are what the Training Provider Website is for.",
+      "Essential covers one main location and your core service information. Several services or locations, each with its own page, are what the Professional Website is for.",
   },
   {
     question: "Is booking, a shop, or custom software included?",
@@ -42,9 +42,9 @@ const questions = [
 ---
 
 <BaseLayout title="Website services" description={description}>
-  <PageHero eyebrow="HGV and transport training" title="Two websites. A clear choice.">
+  <PageHero eyebrow="Built by Webco Media" title="Two websites. A clear choice.">
     <p>
-      Essential is for a smaller provider with one main location. The Training Provider Website is for several courses or locations.
+      Essential suits a smaller business with one main location. Professional is for several services or locations.
     </p>
   </PageHero>
 
@@ -93,10 +93,10 @@ const questions = [
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">{offers.essential.name}</p>
-        <h2 id="example-essential-heading">A smaller provider, one location</h2>
+        <h2 id="example-essential-heading">A smaller business, one location</h2>
       </div>
       <p class="section-intro">
-        The Essential example is a straightforward instructor site. Visitors see the training on offer, the one location, and a clear way to call or send an enquiry. Courses stay on the core pages rather than each having a page of their own.
+        The Essential example is a straightforward business site. Visitors see what you offer, the one location, and a clear way to call or send an enquiry. Key services stay on the core pages rather than each having a page of their own.
       </p>
       <div class="actions">
         <a class="button button-quiet" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
@@ -110,14 +110,14 @@ const questions = [
     <div class="wrap">
       <div class="section-head">
         <p class="eyebrow">{offers.training.name}</p>
-        <h2 id="example-training-heading">Several courses and locations</h2>
+        <h2 id="example-training-heading">Several services and locations</h2>
       </div>
       <p class="section-intro">
-        The Training Provider example gives each course its own page and each training location its own page. Someone searching locally can land on the right place, then follow that course through to an enquiry.
+        The Professional example gives each key service its own page and each location its own page. Someone searching locally can land on the right place, then follow that service through to an enquiry.
       </p>
       <div class="actions">
         <a class="button button-quiet" href={offers.training.demoUrl} target="_blank" rel="noopener noreferrer">
-          View the Training Provider live demo
+          View the Professional live demo
         </a>
       </div>
     </div>
@@ -143,9 +143,9 @@ const questions = [
 
   <CtaBand
     title="One location, or several?"
-    text="Choose Essential for a smaller setup. Choose the Training Provider Website when courses or locations need their own pages."
+    text="Choose Essential for a smaller setup. Choose Professional when services or locations need their own pages."
   >
     <a class="button" href="#essential">Essential Website</a>
-    <a class="button button-quiet" href="#training">Training Provider Website</a>
+    <a class="button button-quiet" href="#training">Professional Website</a>
   </CtaBand>
 </BaseLayout>

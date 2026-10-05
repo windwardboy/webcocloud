@@ -1,5 +1,5 @@
 ---
-import { nav, site } from "../config/site";
+import { nav, site, websiteCategories } from "../config/site";
 import { clientAreaHref, hostingLoginHref } from "../lib/links";
 import Logo from "./Logo.astro";
 
@@ -16,7 +16,9 @@ const serviceLinks = nav.filter((item) => item.href !== "/");
       {
         site.webcoMediaUrl ? (
           <p>
-            <a href={site.webcoMediaUrl}>Webco Media</a>
+            <a href={site.webcoMediaUrl} rel="noopener noreferrer">
+              Webco Media
+            </a>
           </p>
         ) : null
       }
@@ -29,6 +31,18 @@ const serviceLinks = nav.filter((item) => item.href !== "/");
           serviceLinks.map((item) => (
             <li>
               <a href={item.href}>{item.label}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+    <div>
+      <p class="footer-label">Industries</p>
+      <ul class="footer-nav">
+        {
+          websiteCategories.map((category) => (
+            <li>
+              <a href={category.href}>{category.footerLabel}</a>
             </li>
           ))
         }

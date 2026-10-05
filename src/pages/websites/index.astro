@@ -1,0 +1,144 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import CtaBand from "../../components/CtaBand.astro";
+import { websiteCategories, websiteOffers } from "../../config/site";
+
+const description =
+  "Essential and Professional websites built by Webco Media — clear packages for UK businesses, with industry demos as they go live.";
+
+const questions = [
+  {
+    question: "What packages do you offer?",
+    answer:
+      "Two packages: Essential Website at £595 for one main location, and Professional Website at £995 when services or locations need their own pages. Both include the first year of hosting, SSL, domain setup and business email.",
+  },
+  {
+    question: "Do you only build for one type of business?",
+    answer:
+      "No. Webco Media builds for UK businesses across different industries. Industry landing pages show live demos for each category as they become available. HGV driver training is the first live category.",
+  },
+  {
+    question: "What if I already have a website?",
+    answer:
+      "Either package can replace the site you have now. Webco Media builds the new one. Webco Cloud then looks after hosting, the domain and email.",
+  },
+  {
+    question: "Can I upgrade later?",
+    answer:
+      "Yes. Start with Essential when you have one location and a straightforward offer. When you need separate service and location pages, we move you onto the Professional Website and quote that work.",
+  },
+  {
+    question: "Is booking, a shop, or custom software included?",
+    answer:
+      "Both packages are enquiry websites. Online booking, ecommerce and bespoke systems are quoted separately.",
+  },
+];
+---
+
+<BaseLayout title="Website services" description={description}>
+  <PageHero eyebrow="Built by Webco Media" title="Websites for UK businesses">
+    <p>
+      Two clear packages — Essential or Professional — then looked after on Webco Cloud for hosting, domain, email and support.
+    </p>
+  </PageHero>
+
+  <section class="section" aria-labelledby="offers-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="offers-heading">Choose a package</h2>
+        <p class="section-intro">
+          The same two packages apply across industries. Live demos sit on each category page so you can see how the design works for that type of business.
+        </p>
+      </div>
+      <div class="cards cards-2">
+        {
+          websiteOffers.map((offer) => (
+            <article class="card offer-card" id={offer.id}>
+              <figure class="website-preview">
+                <img
+                  src={offer.previewImage}
+                  alt={`Preview of the ${offer.name} starting design`}
+                  width="1280"
+                  height="800"
+                  onerror="this.closest('figure').hidden = true"
+                />
+              </figure>
+              <p class="eyebrow">{offer.audience}</p>
+              <h3>{offer.name}</h3>
+              <p class="price">{offer.price}</p>
+              <p>{offer.summary}</p>
+              <ul class="offer-points">
+                {offer.points.map((point) => (
+                  <li>{point}</li>
+                ))}
+              </ul>
+              <p class="offer-note">
+                Your finished website is customised for your business — not delivered as an unchanged template.
+              </p>
+              <div class="actions">
+                <a class="button" href={`/start/?package=${offer.startPackage}`}>Choose this website</a>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="industries" aria-labelledby="industries-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Examples</p>
+        <h2 id="industries-heading">Browse by industry</h2>
+        <p class="section-intro">
+          Each category page is built for advertising and search traffic for that industry. More categories will appear here as demos go live.
+        </p>
+      </div>
+      <ul class="cards cards-2">
+        {
+          websiteCategories.map((category) => (
+            <li class="card">
+              <h3>{category.name}</h3>
+              <p>{category.summary}</p>
+              <a class="card-action" href={category.href}>
+                View {category.name} websites
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="faq-heading">Common questions</h2>
+      </div>
+      <ul class="qa">
+        {
+          questions.map((item) => (
+            <li>
+              <details name="websites-faq">
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <CtaBand
+    title="Ready to get started?"
+    text="Choose Essential or Professional, or open an industry page to see a live demo first."
+  >
+    <a class="button" href="#essential">Essential Website</a>
+    <a class="button button-quiet" href="#professional">Professional Website</a>
+    <a class="button button-quiet" href={websiteCategories[0].href}>
+      {websiteCategories[0].name}
+    </a>
+  </CtaBand>
+</BaseLayout>

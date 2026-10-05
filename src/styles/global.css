@@ -900,7 +900,7 @@ main:has(> .cta-band:last-child) {
 
 @media (min-width: 52rem) {
   .footer-inner {
-    grid-template-columns: 1.5fr 0.8fr 0.8fr;
+    grid-template-columns: 1.4fr 0.75fr 0.95fr 0.75fr;
     align-items: start;
   }
 }
@@ -1296,7 +1296,8 @@ main:has(> .cta-band:last-child) {
 
 #essential,
 #professional,
-#demos {
+#demos,
+#industries {
   scroll-margin-top: 5.5rem;
 }
 

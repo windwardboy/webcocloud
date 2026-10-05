@@ -42,8 +42,7 @@ const essentialDemoUrl = "https://webco-essential.co.uk/";
 const professionalDemoUrl = "https://webco-professional.co.uk/";
 
 /**
- * Website packages. Demos are category examples — HGV training is the first
- * category live today; more industries will be added over time.
+ * Website packages. Industry demos live on category landing pages under /websites/.
  */
 export const websiteOffers = [
   {
@@ -57,7 +56,6 @@ export const websiteOffers = [
     exampleUrl: essentialDemoUrl,
     demoUrl: essentialDemoUrl,
     previewImage: "/images/website-essential.jpg",
-    demoCategory: "HGV training",
     points: [
       "One main location",
       "Core service information",
@@ -76,7 +74,6 @@ export const websiteOffers = [
     exampleUrl: professionalDemoUrl,
     demoUrl: professionalDemoUrl,
     previewImage: "/images/website-professional.jpg",
-    demoCategory: "HGV training",
     points: [
       "A page for each key service",
       "A page for each location",
@@ -84,6 +81,22 @@ export const websiteOffers = [
       "A fuller path from a service through to enquiry",
       "First year of hosting, SSL, domain setup and business email",
     ],
+  },
+] as const;
+
+/**
+ * Industry landing pages. Nested under /websites/ for a clear topic cluster.
+ * Keep these out of the primary nav; link from the footer and the websites catalogue.
+ */
+export const websiteCategories = [
+  {
+    slug: "hgv-driver-training",
+    name: "HGV Driver Training",
+    footerLabel: "HGV Driver Training Providers",
+    href: "/websites/hgv-driver-training/",
+    summary:
+      "Enquiry websites for HGV and transport training providers, with live Essential and Professional demos.",
+    audience: "HGV and transport training providers",
   },
 ] as const;
 

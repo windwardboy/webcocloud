@@ -4,8 +4,9 @@
  * The customer id comes from that project's paid order. Checkout and webhooks
  * are not involved.
  *
- * Temporary diagnostics use error_log() and never include secrets, customer
- * ids, portal URLs, tokens, or payment details.
+ * Temporary diagnostics use error_log() and a private log beside the secrets
+ * file. They never include secrets, customer ids, portal URLs, tokens, or
+ * payment details.
  */
 
 declare(strict_types=1);
@@ -68,6 +69,191 @@ function webco_billing_portal_log(string $marker): void
     }
 
     error_log('webco billing portal: ' . $marker);
+    webco_billing_debug_append($marker);
+}
+
+function webco_billing_debug_log_path(): ?string
+{
+    if (!defined('WEBCO_SECRETS_FILE') || !is_string(WEBCO_SECRETS_FILE) || WEBCO_SECRETS_FILE === '') {
+        return null;
+    }
+
+    $directory = dirname(WEBCO_SECRETS_FILE);
+    $directory = rtrim(str_replace('\\', '/', $directory), '/');
+    if ($directory === '' || $directory === '.' || $directory === '/') {
+        return null;
+    }
+
+    $path = $directory . '/webco-billing-debug.log';
+    if (webco_billing_debug_is_public_path($path)) {
+        return null;
+    }
+
+    return $path;
+}
+
+function webco_billing_debug_append(string $marker, ?string $path = null): bool
+{
+    $path ??= webco_billing_debug_log_path();
+    if (!is_string($path) || basename(str_replace('\\', '/', $path)) !== 'webco-billing-debug.log') {
+        return false;
+    }
+    if (webco_billing_debug_is_public_path($path)) {
+        return false;
+    }
+
+    $directory = dirname($path);
+    if (!is_dir($directory) || !is_writable($directory)) {
+        return false;
+    }
+
+    $marker = str_replace(["\r", "\n"], '', $marker);
+    if ($marker === '' || strlen($marker) > 300) {
+        $marker = 'diagnostic omitted';
+    }
+    $line = gmdate('Y-m-d\TH:i:s\Z') . ' ' . $marker . "\n";
+    $handle = fopen($path, 'ab');
+    if ($handle === false) {
+        return false;
+    }
+    $locked = flock($handle, LOCK_EX);
+    $written = $locked && fwrite($handle, $line) === strlen($line);
+    if ($locked) {
+        flock($handle, LOCK_UN);
+    }
+    fclose($handle);
+    if ($written) {
+        chmod($path, 0600);
+    }
+
+    return $written;
+}
+
+/**
+ * @return array{at: string, marker: string}|null
+ */
+function webco_billing_debug_latest(?string $path = null): ?array
+{
+    $path ??= webco_billing_debug_log_path();
+    if (!is_string($path) || basename(str_replace('\\', '/', $path)) !== 'webco-billing-debug.log') {
+        return null;
+    }
+    if (webco_billing_debug_is_public_path($path) || !is_file($path) || !is_readable($path)) {
+        return null;
+    }
+
+    $size = filesize($path);
+    if (!is_int($size) || $size < 1) {
+        return null;
+    }
+    $handle = fopen($path, 'rb');
+    if ($handle === false) {
+        return null;
+    }
+    $read = min($size, 8192);
+    if ($size > $read && fseek($handle, -$read, SEEK_END) !== 0) {
+        fclose($handle);
+
+        return null;
+    }
+    if (!flock($handle, LOCK_SH)) {
+        fclose($handle);
+
+        return null;
+    }
+    $chunk = stream_get_contents($handle);
+    flock($handle, LOCK_UN);
+    fclose($handle);
+    if (!is_string($chunk) || trim($chunk) === '') {
+        return null;
+    }
+
+    $lines = preg_split("/\r\n|\n|\r/", trim($chunk));
+    if (!is_array($lines)) {
+        return null;
+    }
+    for ($index = count($lines) - 1; $index >= 0; $index--) {
+        $parsed = webco_billing_debug_parse_line((string) $lines[$index]);
+        if ($parsed !== null) {
+            return $parsed;
+        }
+    }
+
+    return null;
+}
+
+/**
+ * @return array{at: string, marker: string}|null
+ */
+function webco_billing_debug_parse_line(string $line): ?array
+{
+    if (preg_match('/^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z) (.{1,300})$/', $line, $matches) !== 1) {
+        return null;
+    }
+    $marker = webco_billing_portal_safe_message($matches[2], 300);
+    if ($marker === 'none' || preg_match('/sk_|cus_|https?:|@/i', $marker) === 1) {
+        $marker = 'diagnostic omitted';
+    }
+
+    return [
+        'at' => $matches[1],
+        'marker' => $marker,
+    ];
+}
+
+function webco_billing_debug_is_public_path(string $path): bool
+{
+    $candidate = $path;
+    $real = realpath($path);
+    if (is_string($real) && $real !== '') {
+        $candidate = $real;
+    } else {
+        $parent = dirname($path);
+        $realParent = realpath($parent);
+        if (is_string($realParent) && $realParent !== '') {
+            $candidate = $realParent . DIRECTORY_SEPARATOR . basename($path);
+        }
+    }
+    $candidate = webco_billing_debug_normalize($candidate);
+    foreach (webco_billing_debug_public_roots() as $root) {
+        $root = webco_billing_debug_normalize($root);
+        if ($root === '') {
+            continue;
+        }
+        if ($candidate === $root || str_starts_with($candidate, $root . '/')) {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+/**
+ * @return list<string>
+ */
+function webco_billing_debug_public_roots(): array
+{
+    $roots = [
+        dirname(__DIR__),
+        dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'dist',
+    ];
+    $documentRoot = $_SERVER['DOCUMENT_ROOT'] ?? '';
+    if (is_string($documentRoot) && $documentRoot !== '') {
+        $roots[] = $documentRoot;
+    }
+
+    return $roots;
+}
+
+function webco_billing_debug_normalize(string $path): string
+{
+    $path = str_replace('\\', '/', $path);
+    $path = rtrim($path, '/');
+    if (DIRECTORY_SEPARATOR === '\\') {
+        $path = strtolower($path);
+    }
+
+    return $path;
 }
 
 function webco_billing_portal_safe_token(mixed $value): string
@@ -82,7 +268,7 @@ function webco_billing_portal_safe_token(mixed $value): string
     return $value;
 }
 
-function webco_billing_portal_safe_message(mixed $value): string
+function webco_billing_portal_safe_message(mixed $value, int $limit = 160): string
 {
     if (!is_string($value) || $value === '') {
         return 'none';
@@ -107,8 +293,11 @@ function webco_billing_portal_safe_message(mixed $value): string
     if ($message === '') {
         return 'none';
     }
-    if (strlen($message) > 160) {
-        $message = substr($message, 0, 160);
+    if ($limit < 1 || $limit > 300) {
+        $limit = 160;
+    }
+    if (strlen($message) > $limit) {
+        $message = substr($message, 0, $limit);
     }
 
     return $message;

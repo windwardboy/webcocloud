@@ -9,6 +9,7 @@ ini_set('display_errors', '0');
 
 require_once __DIR__ . '/lib/projects.php';
 require_once __DIR__ . '/lib/brief-wizard.php';
+require_once __DIR__ . '/lib/billing-portal.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'admin.php') {
     webco_handle_admin();
@@ -433,6 +434,7 @@ function webco_admin_project(array $project, string $csrf, string $view = 'atten
     webco_admin_row('Brief submitted', (string) ($project['submitted_at'] ?? ''));
     echo '</dl>';
 
+    webco_admin_billing_debug();
     webco_admin_callout($project);
     echo '<h3>Website brief</h3>';
     webco_admin_brief_filled('Who they are', (string) ($project['business_overview'] ?? ''));
@@ -532,6 +534,20 @@ function webco_admin_project(array $project, string $csrf, string $view = 'atten
     webco_admin_delete_panel($project, $csrf, $view);
 
     echo '</article>';
+}
+
+function webco_admin_billing_debug(): void
+{
+    $latest = webco_billing_debug_latest();
+    echo '<h3>Billing check</h3>';
+    if ($latest === null) {
+        echo '<p class="meta">No billing check has been recorded yet.</p>';
+
+        return;
+    }
+
+    echo '<p class="meta">' . webco_html($latest['at']) . '</p>';
+    echo '<p>' . webco_html($latest['marker']) . '</p>';
 }
 
 /**

@@ -80,10 +80,14 @@ check(str_contains($row, '2026-10-03'), 'a row shows the paid date');
 check(str_contains($row, 'Mark ready for clone'), 'a row shows the next action');
 check(str_contains($row, 'View project'), 'a row links to the project');
 check(!str_contains($row, 'Family training firm.'), 'a row does not include the full brief');
+check(!str_contains($row, 'Billing check'), 'a row does not show the billing diagnostic');
 
 $detail = admin_html_detail($active);
 check(str_contains($detail, 'Family training firm.'), 'the project page shows the brief');
 check(str_contains($detail, 'Mark ready for clone'), 'the project page keeps the workflow control');
+check(str_contains($detail, 'Billing check'), 'the project page shows the billing diagnostic');
+check(str_contains($detail, 'No billing check has been recorded yet.'), 'the project page stays quiet until a billing check is recorded');
+check(!str_contains($detail, 'webco-billing-debug.log') && !str_contains($detail, 'webco-secrets.php'), 'the project page does not reveal the private log path');
 check(str_contains($detail, 'This project cannot be deleted.'), 'a normal project has no delete action');
 check(!str_contains($detail, 'name="confirm_id"'), 'a normal project does not ask for delete confirmation');
 

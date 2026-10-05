@@ -191,5 +191,43 @@ if (is_file($log)) {
     unlink($log);
 }
 
+$privateDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'webco-billing-private-' . getmypid();
+if (!is_dir($privateDir)) {
+    mkdir($privateDir, 0700);
+}
+$privateLog = $privateDir . DIRECTORY_SEPARATOR . 'webco-billing-debug.log';
+if (is_file($privateLog)) {
+    unlink($privateLog);
+}
+$expectedLog = rtrim(str_replace('\\', '/', dirname(WEBCO_SECRETS_FILE)), '/') . '/webco-billing-debug.log';
+check(webco_billing_debug_log_path() === $expectedLog, 'the billing log sits beside the private secrets file');
+check(webco_billing_debug_is_public_path($expectedLog) === false, 'the secrets directory is outside the public web root');
+check(webco_billing_debug_append('billing order not eligible', $privateLog) === true, 'a diagnostic can be appended to the private log');
+check(webco_billing_debug_append('portal session ready', $privateLog) === true, 'a later diagnostic is appended');
+$privateText = (string) file_get_contents($privateLog);
+check(substr_count($privateText, "\n") === 2, 'the private log is appended rather than replaced');
+check(str_contains($privateText, 'billing order not eligible') && str_contains($privateText, 'portal session ready'), 'both diagnostics stay in the private log');
+$latest = webco_billing_debug_latest($privateLog);
+check(is_array($latest) && $latest['marker'] === 'portal session ready', 'the latest private diagnostic is the last line');
+check(is_array($latest) && preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/', $latest['at']) === 1, 'the latest private diagnostic has a timestamp');
+file_put_contents($privateLog, "2026-10-05T13:00:00Z billing order not eligible\n2026-10-05T13:01:00Z secret " . $secret . ' customer ' . $customer . ' https://billing.stripe.com/p/session/test_hidden owner@example.com' . "\n");
+$redacted = webco_billing_debug_latest($privateLog);
+check(is_array($redacted) && $redacted['at'] === '2026-10-05T13:01:00Z', 'a stored line keeps its timestamp');
+check(is_array($redacted) && !str_contains($redacted['marker'], $customer) && !str_contains($redacted['marker'], $secret), 'a stored line drops customer ids and secret keys');
+check(is_array($redacted) && !str_contains($redacted['marker'], 'billing.stripe.com') && !str_contains($redacted['marker'], 'owner@example.com'), 'a stored line drops portal addresses and email');
+$publicLog = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'public' . DIRECTORY_SEPARATOR . 'webco-billing-debug.log';
+$distLog = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'dist' . DIRECTORY_SEPARATOR . 'webco-billing-debug.log';
+check(webco_billing_debug_append('billing order not eligible', $publicLog) === false, 'the public web root cannot receive the billing log');
+check(webco_billing_debug_append('billing order not eligible', $distLog) === false, 'the deployed web root cannot receive the billing log');
+check(!is_file($publicLog) && !is_file($distLog), 'no billing log file is created under a web root');
+$clientHome = (string) file_get_contents(dirname(__DIR__) . '/public/lib/client-home.php');
+check(!str_contains($clientHome, 'webco_billing_debug') && !str_contains($clientHome, 'Billing check'), 'the customer home does not show the billing diagnostic');
+if (is_file($privateLog)) {
+    unlink($privateLog);
+}
+if (is_dir($privateDir)) {
+    rmdir($privateDir);
+}
+
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);

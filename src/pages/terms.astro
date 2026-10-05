@@ -1,0 +1,144 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import LegalDocNav from "../components/LegalDocNav.astro";
+import { site } from "../config/site";
+
+const description =
+  "Terms for buying and using Webco Cloud website packages, hosting, domains, email and Managed Care.";
+const updated = "5 October 2026";
+---
+
+<BaseLayout title="Terms of service" description={description}>
+  <PageHero eyebrow="Legal" title="Terms of service">
+    <p>The rules that apply when you buy or use Webco Cloud services.</p>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap legal-doc">
+      <p class="legal-updated">Last updated {updated}</p>
+
+      <h2>1. Who these terms are with</h2>
+      <p>
+        These terms are between you and {site.legalName} (company number {site.companyNumber}), trading as Webco Cloud.
+        Registered office: {site.registeredOffice}.
+      </p>
+      <p>
+        Contact: <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>.
+      </p>
+
+      <h2>2. Services</h2>
+      <p>Webco Cloud provides:</p>
+      <ul>
+        <li>Website packages (such as Essential and Professional), designed and built by Webco Media</li>
+        <li>Hosting, SSL, domain registration or connection, and business email as described on the site</li>
+        <li>Managed Care, where selected, for hosting plus routine maintenance and content updates</li>
+        <li>Customer tools such as the client area, webmail and hosting login</li>
+      </ul>
+      <p>
+        Package features, prices and inclusions on the website at the time you order form part of the contract, together
+        with these terms and any written confirmation we send you.
+      </p>
+
+      <h2>3. Ordering and payment</h2>
+      <ul>
+        <li>Website package fees are charged at checkout for the build and setup described for that package.</li>
+        <li>
+          Where Managed Care is added, the first Managed Care charge is due as stated at checkout (typically after a
+          short trial period), then monthly while it remains active. Hosting is included in Managed Care while it is
+          active.
+        </li>
+        <li>
+          Without Managed Care, standard hosting renews annually after the included first period, at the rate shown on
+          the site when you order (or as we notify you before renewal).
+        </li>
+        <li>Domain and other renewals are charged when due so the name and related services can continue.</li>
+        <li>Payments are processed by our payment provider. You must provide accurate billing details.</li>
+      </ul>
+
+      <h2>4. Website projects</h2>
+      <p>
+        You must provide the content, logos, photos and decisions we reasonably need to complete the site. Delays on
+        your side can delay launch. The finished site is customised for your business; live demos on this site are
+        examples, not the final product.
+      </p>
+      <p>
+        You confirm you have the rights to material you supply. You grant us and Webco Media permission to use that
+        material to deliver the project.
+      </p>
+
+      <h2>5. Hosting, domains and email</h2>
+      <ul>
+        <li>We aim to keep hosting available, but no online service is perfect. Planned maintenance may occur.</li>
+        <li>Domain registration depends on the registry and on accurate registrant details you provide.</li>
+        <li>
+          Email mailboxes are set up as agreed at the start. You are responsible for passwords, device settings and how
+          mailboxes are used day to day.
+        </li>
+        <li>
+          You must keep contact and renewal details up to date so we can reach you before domains or services expire.
+        </li>
+      </ul>
+
+      <h2>6. Managed Care</h2>
+      <p>
+        Managed Care covers hosting and a reasonable monthly allowance of routine content changes, as described on the
+        hosting pages. Unused time does not roll over. Larger redesigns, new sections or work outside the allowance are
+        quoted separately. You can cancel Managed Care by notice to us; hosting then continues on the standard renewal
+        basis unless you cancel hosting as well.
+      </p>
+
+      <h2>7. Acceptable use</h2>
+      <p>You must not use Webco Cloud services to:</p>
+      <ul>
+        <li>Break the law, or store or send unlawful, harmful or abusive content</li>
+        <li>Send spam or run phishing, malware or similar abuse</li>
+        <li>Attack, overload or interfere with our systems or other customers</li>
+        <li>Try to gain unauthorised access to accounts, mailboxes or infrastructure</li>
+      </ul>
+      <p>
+        We may suspend or restrict a service if we reasonably believe it is being misused, or to protect the platform
+        or other customers. We will try to contact you first where practical.
+      </p>
+
+      <h2>8. Cancellation and refunds</h2>
+      <p>
+        Digital services and custom website work begin once your order is accepted. Refunds are not automatic after work
+        has started or after mailboxes, domains or hosting have been provisioned. If something has gone wrong on our
+        side, contact us and we will look at a fair remedy. Domain fees paid to registries are often non-refundable.
+      </p>
+
+      <h2>9. Liability</h2>
+      <p>
+        Nothing in these terms limits liability for death or personal injury caused by negligence, fraud, or any other
+        liability that cannot be limited by law.
+      </p>
+      <p>
+        Subject to that, we are not liable for indirect or consequential loss, loss of profit, or loss of data to the
+        extent the law allows. Our total liability for any claim relating to a service is limited to the fees you paid
+        us for that service in the 12 months before the claim.
+      </p>
+
+      <h2>10. Changes</h2>
+      <p>
+        We may update these terms for legal, operational or product reasons. Material changes will be posted on this
+        page with a new “Last updated” date. Continued use after the change means you accept the updated terms for
+        ongoing services.
+      </p>
+
+      <h2>11. Law</h2>
+      <p>
+        These terms are governed by the law of England and Wales. The courts of England and Wales have exclusive
+        jurisdiction, without affecting any mandatory consumer rights that may apply if you are contracting as a
+        consumer.
+      </p>
+
+      <p class="legal-disclaimer">
+        These terms describe how we work with customers. They are not a substitute for advice about your own legal
+        position.
+      </p>
+
+      <LegalDocNav current="terms" />
+    </div>
+  </section>
+</BaseLayout>

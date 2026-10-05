@@ -1,0 +1,28 @@
+---
+interface Props {
+  current: "privacy" | "terms" | "cookies";
+}
+
+const { current } = Astro.props;
+
+const links = [
+  { id: "privacy", href: "/privacy/", label: "Privacy policy" },
+  { id: "terms", href: "/terms/", label: "Terms of service" },
+  { id: "cookies", href: "/cookies/", label: "Cookie notice" },
+] as const;
+---
+
+<nav class="legal-doc-nav" aria-label="Legal documents">
+  <p class="legal-doc-nav-label">Also see</p>
+  <ul>
+    {
+      links
+        .filter((link) => link.id !== current)
+        .map((link) => (
+          <li>
+            <a href={link.href}>{link.label}</a>
+          </li>
+        ))
+    }
+  </ul>
+</nav>

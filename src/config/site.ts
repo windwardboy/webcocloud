@@ -6,9 +6,7 @@
  * company registration details, or legal addresses.
  *
  * Pending:
- * - supportEmail
  * - supportPhone
- * - companyNumber, registeredOffice
  */
 export const site = {
   name: "Webco Cloud",
@@ -24,11 +22,12 @@ export const site = {
   /** Customer webmail login. */
   webmailUrl: "https://my.webcomail.net/",
   webcoMediaUrl: "https://webcomedia.net",
-  supportEmail: "",
+  supportEmail: "support@webcocloud.net",
   supportPhone: "",
   legalName: "Webco Services Ltd",
-  companyNumber: "",
-  registeredOffice: "",
+  companyNumber: "10607383",
+  registeredOffice:
+    "2 Laurel House, 1 Station Road, Worle, Weston-Super-Mare, United Kingdom, BS22 6AR",
 };
 
 export const nav = [

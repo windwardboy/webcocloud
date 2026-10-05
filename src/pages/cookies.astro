@@ -1,0 +1,71 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import LegalDocNav from "../components/LegalDocNav.astro";
+import { site } from "../config/site";
+
+const description =
+  "How cookies and similar technology are used on the Webco Cloud website.";
+const updated = "5 October 2026";
+---
+
+<BaseLayout title="Cookie notice" description={description}>
+  <PageHero eyebrow="Legal" title="Cookie notice">
+    <p>What cookies this site uses and how you can control them.</p>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap legal-doc">
+      <p class="legal-updated">Last updated {updated}</p>
+
+      <h2>Who this notice is from</h2>
+      <p>
+        This notice is from {site.legalName} (company number {site.companyNumber}), trading as Webco Cloud. For
+        questions, email <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>. More on personal data is in
+        our <a href="/privacy/">privacy policy</a>.
+      </p>
+
+      <h2>What cookies are</h2>
+      <p>
+        Cookies are small files stored on your device when you visit a website. Similar technology (such as local
+        storage in your browser) can also be used to remember choices during a visit.
+      </p>
+
+      <h2>Cookies we use</h2>
+      <h3>Essential</h3>
+      <p>
+        Needed for the site and order flow to work. For example, remembering progress through the start/checkout steps
+        in your browser, and keeping a secure session when you use the client area or related tools. These are not used
+        for advertising.
+      </p>
+      <h3>Payments</h3>
+      <p>
+        When you pay, you are taken to our payment provider (such as Stripe). That provider may set its own cookies on
+        its checkout pages. Those cookies are controlled by the provider’s own policies.
+      </p>
+      <h3>Analytics and advertising</h3>
+      <p>
+        This marketing site does not currently set third-party analytics or advertising cookies. If that changes, we
+        will update this notice.
+      </p>
+
+      <h2>How to control cookies</h2>
+      <p>
+        You can delete or block cookies in your browser settings. Blocking essential cookies may stop parts of the
+        order flow or logged-in tools from working properly.
+      </p>
+
+      <h2>Updates</h2>
+      <p>
+        We may update this notice when our use of cookies changes. The “Last updated” date at the top will change when
+        we do.
+      </p>
+
+      <p class="legal-disclaimer">
+        This notice is for information about this website. It is not legal advice.
+      </p>
+
+      <LegalDocNav current="cookies" />
+    </div>
+  </section>
+</BaseLayout>

@@ -1,0 +1,126 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import PageHero from "../components/PageHero.astro";
+import LegalDocNav from "../components/LegalDocNav.astro";
+import { site } from "../config/site";
+
+const description =
+  "How Webco Cloud collects, uses and looks after personal data for website, hosting, domain and email customers.";
+const updated = "5 October 2026";
+---
+
+<BaseLayout title="Privacy policy" description={description}>
+  <PageHero eyebrow="Legal" title="Privacy policy">
+    <p>How we handle personal data when you use Webco Cloud.</p>
+  </PageHero>
+
+  <section class="section">
+    <div class="wrap legal-doc">
+      <p class="legal-updated">Last updated {updated}</p>
+
+      <h2>Who we are</h2>
+      <p>
+        Webco Cloud is operated by {site.legalName} (company number {site.companyNumber}), registered in England and
+        Wales. Registered office: {site.registeredOffice}.
+      </p>
+      <p>
+        For privacy questions, email{" "}
+        <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>.
+      </p>
+
+      <h2>What this policy covers</h2>
+      <p>
+        This policy explains how we process personal data when you visit{" "}
+        <a href={site.url}>{site.url.replace(/^https?:\/\//, "")}</a>, buy a website package, use hosting, domains,
+        email, Managed Care, the client area, or contact support.
+      </p>
+      <p>
+        Website design and build work is delivered by{" "}
+        <a href={site.webcoMediaUrl} rel="noopener noreferrer">Webco Media</a>. Where your project needs it, we share
+        relevant order and brief details with Webco Media so the site can be designed and built.
+      </p>
+
+      <h2>Data we collect</h2>
+      <ul>
+        <li>
+          <strong>Account and order details</strong> — name, business name, email, phone, address, company number if
+          you provide it, package chosen, domain preferences, and billing information needed to take payment.
+        </li>
+        <li>
+          <strong>Project and support content</strong> — brief answers, content you send for the website, and messages
+          you send when asking for help.
+        </li>
+        <li>
+          <strong>Service data</strong> — technical details needed to run hosting, domains, email and SSL (for example
+          domain names, mailbox addresses we set up, and service logs).
+        </li>
+        <li>
+          <strong>Website use</strong> — standard server logs (IP address, browser type, pages requested, timestamps).
+          We do not currently run third-party advertising or analytics cookies on this marketing site.
+        </li>
+      </ul>
+
+      <h2>Why we use it</h2>
+      <ul>
+        <li>
+          <strong>Contract</strong> — to take orders, deliver the website package, hosting, domains, email and Managed
+          Care, and to manage your account.
+        </li>
+        <li>
+          <strong>Legitimate interests</strong> — to keep services secure, improve reliability, prevent abuse, and
+          reply to enquiries that are not yet under a contract.
+        </li>
+        <li>
+          <strong>Legal obligation</strong> — where we must keep records for tax, accounting or other law.
+        </li>
+      </ul>
+
+      <h2>Who we share it with</h2>
+      <p>We only share personal data where it is needed to run the service, for example:</p>
+      <ul>
+        <li>Webco Media, for design and build of the website you ordered</li>
+        <li>Hosting and infrastructure providers that power Webco Cloud, domains and email</li>
+        <li>Payment providers (such as Stripe) to process card payments</li>
+        <li>Professional advisers or authorities when the law requires it</li>
+      </ul>
+      <p>We do not sell your personal data.</p>
+
+      <h2>How long we keep it</h2>
+      <p>
+        We keep order, account and billing records for as long as you remain a customer and for a reasonable period
+        afterwards for support, accounting and legal purposes. Support messages and project files are kept while
+        useful for delivering and maintaining your service, then removed or archived when no longer needed.
+      </p>
+
+      <h2>Your rights</h2>
+      <p>
+        Under UK GDPR you can ask to access, correct, delete or restrict your personal data, object to certain
+        processing, and ask for data portability where it applies. You can also complain to the Information
+        Commissioner’s Office (
+        <a href="https://ico.org.uk/" rel="noopener noreferrer">ico.org.uk</a>
+        ).
+      </p>
+      <p>
+        To exercise your rights, email{" "}
+        <a href={`mailto:${site.supportEmail}`}>{site.supportEmail}</a>.
+      </p>
+
+      <h2>Cookies</h2>
+      <p>
+        See our <a href="/cookies/">cookie notice</a> for how this site uses cookies and similar technology.
+      </p>
+
+      <h2>Changes</h2>
+      <p>
+        We may update this policy from time to time. The “Last updated” date at the top of this page will change when
+        we do.
+      </p>
+
+      <p class="legal-disclaimer">
+        This page explains our practices in plain language. It is not legal advice for your own business.
+      </p>
+
+      <LegalDocNav current="privacy" />
+    </div>
+  </section>
+</BaseLayout>

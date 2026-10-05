@@ -4,7 +4,11 @@ import { clientAreaHref, hostingLoginHref, webmailHref } from "../lib/links";
 import Logo from "./Logo.astro";
 
 const hasLegal = site.legalName.length > 0;
-const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
+const legalParts = [
+  site.legalName,
+  site.companyNumber ? `Company number ${site.companyNumber}` : "",
+  site.registeredOffice,
+].filter(Boolean);
 const serviceLinks = nav.filter((item) => item.href !== "/");
 const webmail = webmailHref();
 ---
@@ -72,6 +76,14 @@ const webmail = webmailHref();
             </li>
           )
         }
+      </ul>
+    </div>
+    <div>
+      <p class="footer-label">Legal</p>
+      <ul class="footer-nav">
+        <li><a href="/privacy/">Privacy</a></li>
+        <li><a href="/terms/">Terms</a></li>
+        <li><a href="/cookies/">Cookies</a></li>
       </ul>
     </div>
   </div>

@@ -41,6 +41,10 @@ export const nav = [
 const essentialDemoUrl = "https://webco-essential.co.uk/";
 const professionalDemoUrl = "https://webco-professional.co.uk/";
 
+/**
+ * Website packages. Demos are category examples — HGV training is the first
+ * category live today; more industries will be added over time.
+ */
 export const websiteOffers = [
   {
     id: "essential",
@@ -53,6 +57,7 @@ export const websiteOffers = [
     exampleUrl: essentialDemoUrl,
     demoUrl: essentialDemoUrl,
     previewImage: "/images/website-essential.jpg",
+    demoCategory: "HGV training",
     points: [
       "One main location",
       "Core service information",
@@ -61,7 +66,7 @@ export const websiteOffers = [
     ],
   },
   {
-    id: "training",
+    id: "professional",
     name: "Professional Website",
     startPackage: "professional",
     startName: "Webco Professional",
@@ -71,6 +76,7 @@ export const websiteOffers = [
     exampleUrl: professionalDemoUrl,
     demoUrl: professionalDemoUrl,
     previewImage: "/images/website-professional.jpg",
+    demoCategory: "HGV training",
     points: [
       "A page for each key service",
       "A page for each location",

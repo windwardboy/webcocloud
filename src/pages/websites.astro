@@ -5,14 +5,19 @@ import CtaBand from "../components/CtaBand.astro";
 import { websiteOffers } from "../config/site";
 
 const description =
-  "Essential Website at £595, or the Professional Website at £995 — built by Webco Media, looked after on Webco Cloud.";
+  "Essential and Professional websites built by Webco Media — starting with HGV training demos, with more business categories to follow.";
 
 const offers = {
   essential: websiteOffers[0],
-  training: websiteOffers[1],
+  professional: websiteOffers[1],
 };
 
 const questions = [
+  {
+    question: "Is this only for HGV training providers?",
+    answer:
+      "No. HGV training is the first category with live demos today. The Essential and Professional packages are for UK businesses more widely. More industry examples will be added as we expand.",
+  },
   {
     question: "What if I already have a website?",
     answer:
@@ -42,15 +47,20 @@ const questions = [
 ---
 
 <BaseLayout title="Website services" description={description}>
-  <PageHero eyebrow="Built by Webco Media" title="Two websites. A clear choice.">
+  <PageHero eyebrow="Built by Webco Media" title="Two packages. Built for your business.">
     <p>
-      Essential suits a smaller business with one main location. Professional is for several services or locations.
+      Essential and Professional work across many types of UK business. The live demos below are from our first category — HGV training — with more industries coming soon.
     </p>
   </PageHero>
 
   <section class="section" aria-labelledby="offers-heading">
     <div class="wrap">
-      <h2 id="offers-heading" class="visually-hidden">Website packages</h2>
+      <div class="section-head">
+        <h2 id="offers-heading">Choose a package</h2>
+        <p class="section-intro">
+          Same two website packages either way. The demos show how they look for HGV training providers first.
+        </p>
+      </div>
       <div class="cards cards-2">
         {
           websiteOffers.map((offer) => (
@@ -58,7 +68,7 @@ const questions = [
               <figure class="website-preview">
                 <img
                   src={offer.previewImage}
-                  alt={`Preview of the ${offer.name} starting design`}
+                  alt={`Preview of the ${offer.name} starting design for ${offer.demoCategory}`}
                   width="1280"
                   height="800"
                   onerror="this.closest('figure').hidden = true"
@@ -74,7 +84,7 @@ const questions = [
                 ))}
               </ul>
               <p class="offer-note">
-                This demo is a starting design. Your finished website is customised for your business, not delivered as an unchanged template.
+                Live demo: {offer.demoCategory}. Your finished website is customised for your business — not delivered as an unchanged template.
               </p>
               <div class="actions">
                 <a class="button button-quiet" href={offer.demoUrl} target="_blank" rel="noopener noreferrer">
@@ -89,37 +99,35 @@ const questions = [
     </div>
   </section>
 
-  <section class="section" id="example-essential" aria-labelledby="example-essential-heading">
+  <section class="section" id="demos" aria-labelledby="demos-heading">
     <div class="wrap">
       <div class="section-head">
-        <p class="eyebrow">{offers.essential.name}</p>
-        <h2 id="example-essential-heading">A smaller business, one location</h2>
+        <p class="eyebrow">Examples</p>
+        <h2 id="demos-heading">First category: HGV training</h2>
+        <p class="section-intro">
+          These two live demos show Essential and Professional for HGV and transport training. They are examples of the packages — not the only businesses we build for. Further categories will appear here as they go live.
+        </p>
       </div>
-      <p class="section-intro">
-        The Essential example is a straightforward business site. Visitors see what you offer, the one location, and a clear way to call or send an enquiry. Key services stay on the core pages rather than each having a page of their own.
-      </p>
-      <div class="actions">
-        <a class="button button-quiet" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
-          View the Essential live demo
-        </a>
-      </div>
-    </div>
-  </section>
-
-  <section class="section" id="example-training" aria-labelledby="example-training-heading">
-    <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow">{offers.training.name}</p>
-        <h2 id="example-training-heading">Several services and locations</h2>
-      </div>
-      <p class="section-intro">
-        The Professional example gives each key service its own page and each location its own page. Someone searching locally can land on the right place, then follow that service through to an enquiry.
-      </p>
-      <div class="actions">
-        <a class="button button-quiet" href={offers.training.demoUrl} target="_blank" rel="noopener noreferrer">
-          View the Professional live demo
-        </a>
-      </div>
+      <ul class="cards cards-2">
+        <li class="card">
+          <h3>{offers.essential.name}</h3>
+          <p>
+            A straightforward site for one main location: what you offer, where you are, and a clear way to enquire.
+          </p>
+          <a class="card-action" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
+            View Essential demo
+          </a>
+        </li>
+        <li class="card">
+          <h3>{offers.professional.name}</h3>
+          <p>
+            Separate pages for key services and locations, so local searches can land in the right place and continue to an enquiry.
+          </p>
+          <a class="card-action" href={offers.professional.demoUrl} target="_blank" rel="noopener noreferrer">
+            View Professional demo
+          </a>
+        </li>
+      </ul>
     </div>
   </section>
 
@@ -132,8 +140,10 @@ const questions = [
         {
           questions.map((item) => (
             <li>
-              <h3>{item.question}</h3>
-              <p>{item.answer}</p>
+              <details name="websites-faq">
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
             </li>
           ))
         }
@@ -142,10 +152,10 @@ const questions = [
   </section>
 
   <CtaBand
-    title="One location, or several?"
-    text="Choose Essential for a smaller setup. Choose Professional when services or locations need their own pages."
+    title="Ready to choose a package?"
+    text="Pick Essential or Professional, then continue on Webco Cloud. More industry demos will follow the HGV training examples."
   >
     <a class="button" href="#essential">Essential Website</a>
-    <a class="button button-quiet" href="#training">Professional Website</a>
+    <a class="button button-quiet" href="#professional">Professional Website</a>
   </CtaBand>
 </BaseLayout>

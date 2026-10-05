@@ -1244,19 +1244,59 @@ main:has(> .cta-band:last-child) {
 }
 
 .qa li {
-  padding: 1.15rem 0;
   border-bottom: 1px solid var(--line);
 }
 
-.qa p {
+.qa details {
+  padding: 0;
+}
+
+.qa summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.15rem 0;
+  list-style: none;
+  cursor: pointer;
+  font-family: var(--serif);
+  font-size: 1.2rem;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.qa summary::-webkit-details-marker {
+  display: none;
+}
+
+.qa summary::after {
+  content: "";
+  flex: 0 0 auto;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-top: -0.15rem;
+  border-right: 2px solid var(--accent);
+  border-bottom: 2px solid var(--accent);
+  transform: rotate(45deg);
+  transition: transform 0.2s var(--ease);
+}
+
+.qa details[open] summary::after {
+  margin-top: 0.15rem;
+  transform: rotate(225deg);
+}
+
+.qa details p {
   max-width: 40rem;
+  margin: 0;
+  padding: 0 1.75rem 1.15rem 0;
   color: var(--muted);
 }
 
 #essential,
-#training,
-#example-essential,
-#example-training {
+#professional,
+#demos {
   scroll-margin-top: 5.5rem;
 }
 
@@ -2089,19 +2129,14 @@ html:has(body.funnel) {
   margin-top: 1.75rem;
 }
 
-.qa li {
-  padding: 1.5rem 0;
-}
-
-.qa h3 {
-  font-family: var(--serif);
+.qa summary {
+  padding: 1.35rem 0;
   font-size: 1.25rem;
-  font-weight: 500;
-  letter-spacing: -0.02em;
 }
 
-.qa p {
-  margin-top: 0.55rem;
+.qa details p {
+  margin-top: 0;
+  padding-bottom: 1.35rem;
 }
 
 /* Choice cards */

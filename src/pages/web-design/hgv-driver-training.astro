@@ -1,0 +1,195 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import PageHero from "../../components/PageHero.astro";
+import CtaBand from "../../components/CtaBand.astro";
+import { websiteCategories, websiteOffers } from "../../config/site";
+
+const category = websiteCategories[0];
+
+const description =
+  "Essential and Professional websites for HGV and transport training providers — built by Webco Media, looked after on Webco Cloud.";
+
+const offers = {
+  essential: websiteOffers[0],
+  professional: websiteOffers[1],
+};
+
+const questions = [
+  {
+    question: "Who is this for?",
+    answer:
+      "HGV and transport training providers who need a clear enquiry website — whether you are an independent instructor with one base, or a provider with several courses and locations.",
+  },
+  {
+    question: "What if I already have a website?",
+    answer:
+      "Either package can replace the site you have now. Webco Media builds the new one. Webco Cloud then looks after hosting, the domain and email.",
+  },
+  {
+    question: "Can I upgrade later?",
+    answer:
+      "Yes. Start with Essential when you have one location and a straightforward training offer. When you need separate course and location pages, we move you onto the Professional Website and quote that work.",
+  },
+  {
+    question: "What if I already have a domain?",
+    answer:
+      "We connect the domain you already own to the website and to your business email. A new domain can be registered during setup when you need one.",
+  },
+  {
+    question: "What if I add more courses or locations?",
+    answer:
+      "Essential covers one main location and your core course information. Several courses or locations, each with its own page, are what the Professional Website is for.",
+  },
+  {
+    question: "Is booking, a shop, or custom software included?",
+    answer:
+      "Both packages are enquiry websites. Online booking, ecommerce and bespoke systems are quoted separately.",
+  },
+];
+---
+
+<BaseLayout title={`${category.name} websites`} description={description}>
+  <PageHero eyebrow={category.audience} title="Websites for HGV driver training providers">
+    <p>
+      Essential for one main training base. Professional when courses or locations need their own pages. Built by Webco Media, then looked after on Webco Cloud.
+    </p>
+    <div class="actions">
+      <a class="button" href="#essential">Essential Website</a>
+      <a class="button button-quiet" href="#professional">Professional Website</a>
+    </div>
+  </PageHero>
+
+  <section class="section" aria-labelledby="offers-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="offers-heading">Choose a package</h2>
+        <p class="section-intro">
+          Two live demos show how Essential and Professional work for HGV and transport training. Your finished site is customised for your business.
+        </p>
+      </div>
+      <div class="cards cards-2">
+        {
+          websiteOffers.map((offer) => (
+            <article class="card offer-card" id={offer.id}>
+              <figure class="website-preview">
+                <img
+                  src={offer.previewImage}
+                  alt={`Preview of the ${offer.name} starting design for HGV driver training`}
+                  width="1280"
+                  height="800"
+                  onerror="this.closest('figure').hidden = true"
+                />
+              </figure>
+              <p class="eyebrow">
+                {offer.id === "essential"
+                  ? "Independent instructors and smaller providers"
+                  : "Providers with several courses or locations"}
+              </p>
+              <h3>{offer.name}</h3>
+              <p class="price">{offer.price}</p>
+              <p>
+                {offer.id === "essential"
+                  ? "A simple, professional site that brings enquiries for one main training location."
+                  : "Room for each course and each training location to have its own page."}
+              </p>
+              <ul class="offer-points">
+                {
+                  (offer.id === "essential"
+                    ? [
+                        "One main training location",
+                        "Core course and service information",
+                        "Enquiry and contact path",
+                        "First year of hosting, SSL, domain setup and business email",
+                      ]
+                    : [
+                        "A page for each course",
+                        "A page for each training location",
+                        "Stronger local search structure",
+                        "A fuller path from a course through to enquiry",
+                        "First year of hosting, SSL, domain setup and business email",
+                      ]
+                  ).map((point) => (
+                    <li>{point}</li>
+                  ))
+                }
+              </ul>
+              <p class="offer-note">
+                This demo is a starting design for HGV driver training. Your finished website is customised for your business, not delivered as an unchanged template.
+              </p>
+              <div class="actions">
+                <a class="button button-quiet" href={offer.demoUrl} target="_blank" rel="noopener noreferrer">
+                  View live demo
+                </a>
+                <a class="button" href={`/start/?package=${offer.startPackage}`}>Choose this website</a>
+              </div>
+            </article>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="demos" aria-labelledby="demos-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <p class="eyebrow">Live demos</p>
+        <h2 id="demos-heading">See the starting designs</h2>
+        <p class="section-intro">
+          Open either demo to walk through the layout. Essential keeps courses on the core pages. Professional gives courses and locations pages of their own.
+        </p>
+      </div>
+      <ul class="cards cards-2">
+        <li class="card">
+          <h3>{offers.essential.name}</h3>
+          <p>
+            A straightforward instructor site: the training on offer, one location, and a clear way to call or send an enquiry.
+          </p>
+          <a class="card-action" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
+            View Essential demo
+          </a>
+        </li>
+        <li class="card">
+          <h3>{offers.professional.name}</h3>
+          <p>
+            Each course and each training location has its own page, so local searches can land in the right place and continue to an enquiry.
+          </p>
+          <a class="card-action" href={offers.professional.demoUrl} target="_blank" rel="noopener noreferrer">
+            View Professional demo
+          </a>
+        </li>
+      </ul>
+      <p class="follow-on">
+        Looking for web design more generally?
+        <a href="/web-design/">Read about web design</a>.
+      </p>
+    </div>
+  </section>
+
+  <section class="section" aria-labelledby="faq-heading">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="faq-heading">Common questions</h2>
+      </div>
+      <ul class="qa">
+        {
+          questions.map((item) => (
+            <li>
+              <details name="hgv-faq">
+                <summary>{item.question}</summary>
+                <p>{item.answer}</p>
+              </details>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <CtaBand
+    title="Ready for an HGV training website?"
+    text="Choose Essential or Professional, then continue on Webco Cloud for domain, payment and setup."
+  >
+    <a class="button" href="#essential">Essential Website</a>
+    <a class="button button-quiet" href="#professional">Professional Website</a>
+  </CtaBand>
+</BaseLayout>

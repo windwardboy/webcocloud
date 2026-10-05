@@ -11,7 +11,8 @@ export default defineConfig({
     sitemap({
       filter: (page) =>
         !page.includes("/start/checkout/success/") &&
-        !page.includes("/start/checkout/cancel/"),
+        !page.includes("/start/checkout/cancel/") &&
+        !page.includes("/websites/"),
     }),
   ],
   build: {

@@ -1297,7 +1297,8 @@ main:has(> .cta-band:last-child) {
 #essential,
 #professional,
 #demos,
-#industries {
+#industries,
+#examples {
   scroll-margin-top: 5.5rem;
 }
 
@@ -2041,6 +2042,20 @@ html:has(body.funnel) {
   margin: -1.35rem -1.25rem 0.15rem;
   border-radius: 17px 17px 0 0;
   aspect-ratio: 16 / 9;
+}
+
+.offer-card-plain {
+  padding-top: 1.45rem;
+}
+
+.card-muted {
+  border-style: dashed;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.55) 0%, rgba(245, 250, 248, 0.9) 100%);
+}
+
+.card-muted .eyebrow {
+  color: var(--muted);
 }
 
 .offer-note {

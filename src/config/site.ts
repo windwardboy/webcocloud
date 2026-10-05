@@ -16,7 +16,7 @@ export const site = {
   description:
     "Webco Cloud is the platform for purchasing Webco products, managing accounts and billing, and getting support — for websites built by Webco Media.",
   positioning:
-    "Websites, hosting, email, domains and support — managed in one place.",
+    "Web design, hosting, email, domains and support — managed in one place.",
   /** Webco customer and project area. Access uses the existing brief session. */
   clientAreaPath: "/brief.php",
   /** Existing 20i/HostShop login. This is not the Webco client area. */
@@ -31,7 +31,7 @@ export const site = {
 
 export const nav = [
   { href: "/", label: "Home" },
-  { href: "/websites/", label: "Websites" },
+  { href: "/web-design/", label: "Web design" },
   { href: "/hosting/", label: "Hosting" },
   { href: "/domains/", label: "Domains" },
   { href: "/email/", label: "Email" },
@@ -42,7 +42,7 @@ const essentialDemoUrl = "https://webco-essential.co.uk/";
 const professionalDemoUrl = "https://webco-professional.co.uk/";
 
 /**
- * Website packages. Industry demos live on category landing pages under /websites/.
+ * Website packages. Industry demos live on category landing pages under /web-design/.
  */
 export const websiteOffers = [
   {
@@ -85,15 +85,15 @@ export const websiteOffers = [
 ] as const;
 
 /**
- * Industry landing pages. Nested under /websites/ for a clear topic cluster.
- * Keep these out of the primary nav; link from the footer and the websites catalogue.
+ * Industry landing pages. Nested under /web-design/ for a clear topic cluster.
+ * Keep these out of the primary nav; link from the footer and the web design page.
  */
 export const websiteCategories = [
   {
     slug: "hgv-driver-training",
     name: "HGV Driver Training",
     footerLabel: "HGV Driver Training Providers",
-    href: "/websites/hgv-driver-training/",
+    href: "/web-design/hgv-driver-training/",
     summary:
       "Enquiry websites for HGV and transport training providers, with live Essential and Professional demos.",
     audience: "HGV and transport training providers",

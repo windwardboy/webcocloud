@@ -1,7 +1,9 @@
 <?php
 /**
  * Opens Stripe Customer Portal for the brief session's own project.
- * GET does not create a session. The browser cannot choose the Stripe customer.
+ * POST creates the session. GET does not. Chrome treats a cross-origin
+ * redirect as part of the form post, so the post returns to this page and
+ * the following response opens the portal.
  */
 
 declare(strict_types=1);
@@ -22,8 +24,12 @@ function webco_handle_billing_portal(): void
     header('Referrer-Policy: no-referrer');
     header('X-Robots-Tag: noindex, nofollow');
 
-    if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
-        header('Allow: POST');
+    $method = $_SERVER['REQUEST_METHOD'] ?? '';
+    if ($method === 'GET') {
+        webco_billing_portal_continue();
+    }
+    if ($method !== 'POST') {
+        header('Allow: GET, POST');
         http_response_code(405);
         exit;
     }
@@ -61,7 +67,25 @@ function webco_handle_billing_portal(): void
         webco_brief_redirect('billing');
     }
 
+    if (!webco_billing_portal_remember($url)) {
+        webco_brief_redirect('billing');
+    }
+
     webco_billing_portal_log('portal session ready');
-    header('Location: ' . $url, true, 303);
+    header('Location: /billing-portal.php', true, 303);
+    exit;
+}
+
+function webco_billing_portal_continue(): void
+{
+    webco_private_headers();
+    webco_start_named_session('WEBCOBRIEF');
+    $url = webco_billing_portal_take();
+    $html = is_string($url) ? webco_billing_portal_continue_html($url) : null;
+    if ($html === null) {
+        webco_brief_redirect('billing');
+    }
+
+    echo $html;
     exit;
 }

@@ -396,6 +396,45 @@ function webco_is_test_billing_portal_url(string $url): bool
     return webco_billing_portal_url_problem($url) === 'none';
 }
 
+function webco_billing_portal_remember(string $url): bool
+{
+    if (!webco_is_test_billing_portal_url($url)) {
+        return false;
+    }
+
+    $_SESSION['billing_portal_url'] = $url;
+
+    return true;
+}
+
+function webco_billing_portal_take(): ?string
+{
+    $url = $_SESSION['billing_portal_url'] ?? null;
+    unset($_SESSION['billing_portal_url']);
+    if (!is_string($url) || !webco_is_test_billing_portal_url($url)) {
+        return null;
+    }
+
+    return $url;
+}
+
+function webco_billing_portal_continue_html(string $url): ?string
+{
+    if (!webco_is_test_billing_portal_url($url)) {
+        return null;
+    }
+
+    $safe = htmlspecialchars($url, ENT_QUOTES, 'UTF-8');
+
+    return '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">'
+        . '<meta name="referrer" content="no-referrer">'
+        . '<meta http-equiv="refresh" content="0;url=' . $safe . '">'
+        . '<title>Billing</title></head><body>'
+        . '<p>Opening billing.</p>'
+        . '<p><a href="' . $safe . '" rel="noopener noreferrer" referrerpolicy="no-referrer">Continue to billing</a></p>'
+        . '</body></html>';
+}
+
 /**
  * @param array<mixed> $body
  */

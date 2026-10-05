@@ -186,6 +186,7 @@ $portalStart = strpos($portalHome, 'id="billing"');
 $portalEnd = $portalStart === false ? false : strpos($portalHome, '</section>', $portalStart);
 $portalBilling = is_int($portalStart) && is_int($portalEnd) ? substr($portalHome, $portalStart, $portalEnd - $portalStart) : '';
 check(str_contains($portalBilling, 'action="/billing-portal.php"'), 'billing posts to the portal endpoint');
+check(!str_contains($portalBilling, 'action="http'), 'billing does not post to an absolute address');
 check(str_contains($portalBilling, 'method="post"'), 'billing uses a form post');
 check(str_contains($portalBilling, 'name="csrf"'), 'billing sends the brief session token');
 check(substr_count($portalBilling, '<button type="submit">') === 2, 'invoices and payment details are both buttons');

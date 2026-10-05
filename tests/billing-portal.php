@@ -250,6 +250,35 @@ check(webco_billing_debug_append('billing order not eligible', $distLog) === fal
 check(!is_file($publicLog) && !is_file($distLog), 'no billing log file is created under a web root');
 $clientHome = (string) file_get_contents(dirname(__DIR__) . '/public/lib/client-home.php');
 check(!str_contains($clientHome, 'webco_billing_debug') && !str_contains($clientHome, 'Billing check'), 'the customer home does not show the billing diagnostic');
+$handoff = webco_billing_portal_continue_html($portalQueryUrl);
+check(is_string($handoff) && str_contains($handoff, 'Continue to billing'), 'the portal handoff has a same-site continuation');
+check(is_string($handoff) && str_contains($handoff, htmlspecialchars($portalQueryUrl, ENT_QUOTES, 'UTF-8')), 'the portal handoff keeps the validated address');
+check(is_string($handoff) && !str_contains($handoff, '<form'), 'the portal handoff is not another form');
+check(webco_billing_portal_continue_html('https://billing.stripe.com/p/session/live_' . str_repeat('B', 24)) === null, 'a live portal address is not handed off');
+$ampUrl = $portalQueryUrl . '&foo=1';
+$ampHtml = webco_billing_portal_continue_html($ampUrl);
+check(is_string($ampHtml) && str_contains($ampHtml, '&amp;foo=1') && !str_contains($ampHtml, '&foo=1'), 'the portal handoff escapes the address');
+check(webco_billing_portal_remember('https://evil.example/') === false, 'another site cannot be stored for the handoff');
+check(webco_billing_portal_remember($portalQueryUrl) === true, 'the validated portal address can be stored for the handoff');
+check(webco_billing_portal_take() === $portalQueryUrl, 'the handoff reads the stored portal address');
+check(webco_billing_portal_take() === null, 'the handoff is used once');
+$endpoint = (string) file_get_contents(dirname(__DIR__) . '/public/billing-portal.php');
+check(str_contains($endpoint, "header('Location: /billing-portal.php', true, 303);"), 'the form post returns to this site');
+check(!str_contains($endpoint, "Location: ' . \$url"), 'the form post does not redirect straight to the portal');
+foreach (['public/brief.php', 'public/lib/projects.php'] as $policyFile) {
+    $policy = (string) file_get_contents(dirname(__DIR__) . '/' . $policyFile);
+    check(str_contains($policy, "form-action 'self'"), 'client pages keep form posts on this site');
+    check(!str_contains($policy, 'billing.stripe.com'), 'client pages do not allow form posts to Stripe');
+}
+foreach (['public/brief.php', 'public/lib/brief-wizard.php', 'public/lib/client-home.php'] as $formFile) {
+    $formSource = (string) file_get_contents(dirname(__DIR__) . '/' . $formFile);
+    preg_match_all('/action="([^"]*)"/', $formSource, $formActions);
+    check($formActions[1] !== [], 'client forms name an action');
+    foreach ($formActions[1] as $action) {
+        check(preg_match('#^/[A-Za-z0-9./_-]+$#', $action) === 1, 'a client form posts to a relative address');
+        check(!str_contains($action, 'stripe') && !str_contains(strtolower($action), 'http'), 'a client form does not post to Stripe');
+    }
+}
 if (is_file($privateLog)) {
     unlink($privateLog);
 }

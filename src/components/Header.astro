@@ -1,9 +1,9 @@
 ---
 import { nav } from "../config/site";
-import { clientLoginHref, clientLoginIsExternal, isCurrentPath } from "../lib/links";
+import { clientAreaHref, hostingLoginHref, isCurrentPath } from "../lib/links";
 
-const loginHref = clientLoginHref();
-const loginExternal = clientLoginIsExternal();
+const areaHref = clientAreaHref();
+const hostingHref = hostingLoginHref();
 ---
 
 <header class="site-header">
@@ -30,13 +30,18 @@ const loginExternal = clientLoginIsExternal();
             </li>
           ))
         }
+        {
+          hostingHref && (
+            <li>
+              <a class="nav-aside" href={hostingHref} rel="noopener noreferrer">
+                Hosting login
+              </a>
+            </li>
+          )
+        }
         <li>
-          <a
-            class="button"
-            href={loginHref}
-            rel={loginExternal ? "noopener noreferrer" : undefined}
-          >
-            Client login
+          <a class="button" href={areaHref}>
+            Client area
           </a>
         </li>
       </ul>

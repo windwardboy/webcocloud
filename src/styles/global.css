@@ -283,6 +283,25 @@ a:hover {
   border-radius: 999px;
 }
 
+.nav a.nav-aside {
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 450;
+}
+
+.nav a.nav-aside:hover {
+  background: transparent;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.footer-nav a.footer-aside {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.92rem;
+}
+
+.footer-nav a.footer-aside:hover {
+  color: rgba(255, 255, 255, 0.82);
+}
+
 /* ---------- Page rhythm ---------- */
 
 main {

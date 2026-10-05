@@ -1,11 +1,13 @@
 import { site } from "../config/site";
 
-export function clientLoginHref(): string {
-  return site.clientLoginUrl || "/support/#client-login";
+/** Webco client area: project, brief and customer home. */
+export function clientAreaHref(): string {
+  return site.clientAreaPath;
 }
 
-export function clientLoginIsExternal(): boolean {
-  return site.clientLoginUrl.length > 0;
+/** Existing hosting account login (20i/HostShop). */
+export function hostingLoginHref(): string {
+  return site.hostingLoginUrl;
 }
 
 export function canonicalUrl(pathname: string): string {

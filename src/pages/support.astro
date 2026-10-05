@@ -3,48 +3,75 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
 import { site } from "../config/site";
-import { clientLoginHref, clientLoginIsExternal } from "../lib/links";
+import { clientAreaHref, hostingLoginHref } from "../lib/links";
 
 const description =
-  "Support for Webco Cloud hosting, domains, email and websites, plus the customer login.";
+  "Support for Webco Cloud websites, hosting, domains and email, including the client area and hosting login.";
 const hasContact = site.supportEmail.length > 0 || site.supportPhone.length > 0;
-const loginExternal = clientLoginIsExternal();
+const areaHref = clientAreaHref();
+const hostingHref = hostingLoginHref();
 ---
 
 <BaseLayout title="Support" description={description}>
   <PageHero eyebrow="Support" title="Help with the website, domain and email">
     <p>
-      The customer area is where you manage services, invoices, renewals and support for your website.
+      The client area is for your website project. Hosting login is the existing hosting account, and it is separate.
     </p>
     <div class="actions">
-      <a class="button" href={clientLoginHref()} rel={loginExternal ? "noopener noreferrer" : undefined}>
-        Client login
-      </a>
+      <a class="button" href={areaHref}>Client area</a>
+      {
+        hostingHref && (
+          <a class="button button-quiet" href={hostingHref} rel="noopener noreferrer">
+            Hosting login
+          </a>
+        )
+      }
     </div>
   </PageHero>
 
-  <section class="section" id="client-login" aria-labelledby="login-heading">
+  <section class="section" id="client-area" aria-labelledby="client-area-heading">
     <div class="wrap">
       <div class="panel">
         <div>
-          <p class="eyebrow">Customers</p>
-          <h2 id="login-heading">Client login</h2>
+          <p class="eyebrow">Website customers</p>
+          <h2 id="client-area-heading">Client area</h2>
         </div>
         <div>
-          <p>Sign in to manage your website, domain, email, invoices and renewals.</p>
-          {
-            loginExternal && (
-              <div class="actions">
-                <a class="button" href={site.clientLoginUrl} rel="noopener noreferrer">
-                  Open customer area
-                </a>
-              </div>
-            )
-          }
+          <p>
+            Your website project, brief and requests. If you are not already in, open the secure link from your Webco email.
+          </p>
+          <div class="actions">
+            <a class="button" href={areaHref}>Open client area</a>
+          </div>
         </div>
       </div>
     </div>
   </section>
+
+  {
+    hostingHref && (
+      <section class="section" id="client-login" aria-labelledby="hosting-login-heading">
+        <div class="wrap">
+          <div class="panel">
+            <div>
+              <p class="eyebrow">Existing hosting</p>
+              <h2 id="hosting-login-heading">Hosting login</h2>
+            </div>
+            <div>
+              <p>
+                Opens the existing hosting account for domains, email and renewals. This is separate from the Webco client area.
+              </p>
+              <div class="actions">
+                <a class="button button-quiet" href={hostingHref} rel="noopener noreferrer">
+                  Hosting login
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   <section class="section" aria-labelledby="ask-heading">
     <div class="wrap">
@@ -107,6 +134,6 @@ const loginExternal = clientLoginIsExternal();
     text="Routine updates are included with Managed Care. Larger changes are quoted separately."
   >
     <a class="button" href="/hosting/#managed-care">View Managed Care</a>
-    <a class="button button-quiet" href={clientLoginHref()}>Client login</a>
+    <a class="button button-quiet" href={areaHref}>Client area</a>
   </CtaBand>
 </BaseLayout>

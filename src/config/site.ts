@@ -18,7 +18,10 @@ export const site = {
     "Webco Cloud looks after hosting, domains, business email, renewals and support for websites built by Webco Media.",
   positioning:
     "Websites, hosting, email, domains and support — managed in one place.",
-  clientLoginUrl: "https://my.webcocloud.net/basket-summary-login?r=%2Fmanage",
+  /** Webco customer and project area. Access uses the existing brief session. */
+  clientAreaPath: "/brief.php",
+  /** Existing 20i/HostShop login. This is not the Webco client area. */
+  hostingLoginUrl: "https://my.webcocloud.net/basket-summary-login?r=%2Fmanage",
   webcoMediaUrl: "",
   supportEmail: "",
   supportPhone: "",

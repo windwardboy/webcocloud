@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
 import { site } from "../config/site";
-import { clientLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref } from "../lib/links";
 ---
 
 <BaseLayout title={site.name} description={site.description}>
@@ -12,7 +12,7 @@ import { clientLoginHref } from "../lib/links";
       Hosting, domains, business email, renewals and support for websites built by Webco Media.
     </p>
     <div class="actions">
-      <a class="button" href={clientLoginHref()}>Client login</a>
+      <a class="button" href={clientAreaHref()}>Client area</a>
       <a class="button button-quiet" href="/support/">Get support</a>
     </div>
   </PageHero>
@@ -128,10 +128,11 @@ import { clientLoginHref } from "../lib/links";
   </section>
 
   <CtaBand
-    title="Already with Webco Cloud?"
-    text="Sign in to manage hosting, domains, email and billing, or contact support about the website."
+    title="Already with Webco?"
+    text="Open the client area for your website project. Use hosting login for an existing hosting account."
   >
-    <a class="button" href={clientLoginHref()}>Client login</a>
+    <a class="button" href={clientAreaHref()}>Client area</a>
+    <a class="button button-quiet" href={hostingLoginHref()} rel="noopener noreferrer">Hosting login</a>
     <a class="button button-quiet" href="/support/">Get support</a>
   </CtaBand>
 </BaseLayout>

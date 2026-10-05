@@ -2,7 +2,7 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
-import { clientLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref } from "../lib/links";
 
 const description =
   "Domain registration, connection and renewal for websites and email looked after by Webco Cloud.";
@@ -69,7 +69,8 @@ const description =
     title="Keep the domain with the website"
     text="Registration, connection and renewal stay with your Webco Cloud services."
   >
-    <a class="button" href={clientLoginHref()}>Client login</a>
+    <a class="button" href={clientAreaHref()}>Client area</a>
+    <a class="button button-quiet" href={hostingLoginHref()} rel="noopener noreferrer">Hosting login</a>
     <a class="button button-quiet" href="/support/">Get support</a>
   </CtaBand>
 </BaseLayout>

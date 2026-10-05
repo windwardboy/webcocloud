@@ -3,7 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
 import { commercial } from "../config/site";
-import { clientLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref } from "../lib/links";
 
 const description =
   "Website hosting for sites built by Webco Media, including SSL, a simple renewal, and optional Managed Care.";
@@ -68,10 +68,11 @@ const description =
   </section>
 
   <CtaBand
-    title="Manage hosting from your customer area"
-    text="Sign in to look after the service, or contact support about renewal and Managed Care."
+    title="Your website project, or an existing hosting account"
+    text="The client area is for your Webco website. Hosting login opens the existing hosting account."
   >
-    <a class="button" href={clientLoginHref()}>Client login</a>
+    <a class="button" href={clientAreaHref()}>Client area</a>
+    <a class="button button-quiet" href={hostingLoginHref()} rel="noopener noreferrer">Hosting login</a>
     <a class="button button-quiet" href="/support/">Get support</a>
   </CtaBand>
 </BaseLayout>

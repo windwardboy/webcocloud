@@ -1,6 +1,6 @@
 ---
 import { nav, site } from "../config/site";
-import { clientLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref } from "../lib/links";
 
 const hasLegal = site.legalName.length > 0;
 const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
@@ -37,7 +37,16 @@ const serviceLinks = nav.filter((item) => item.href !== "/");
       <p class="footer-label">Customers</p>
       <ul class="footer-nav">
         <li><a href="/support/">Support</a></li>
-        <li><a href={clientLoginHref()}>Client login</a></li>
+        <li><a href={clientAreaHref()}>Client area</a></li>
+        {
+          hostingLoginHref() && (
+            <li>
+              <a class="footer-aside" href={hostingLoginHref()} rel="noopener noreferrer">
+                Hosting login
+              </a>
+            </li>
+          )
+        }
       </ul>
     </div>
   </div>

@@ -1,6 +1,6 @@
 # Webco Cloud
 
-Public website for [webcocloud.net](https://webcocloud.net). Static Astro site. The longer-term platform architecture is in `WEBCO-CLOUD-PROJECT-BRIEF.md`. Client login currently opens the existing HostShop customer area and stays there until Webco Cloud has its own accounts.
+Public website for [webcocloud.net](https://webcocloud.net). Static Astro site. The longer-term platform architecture is in `WEBCO-CLOUD-PROJECT-BRIEF.md`. **Client area** opens the Webco customer and project area. **Hosting login** opens the existing HostShop account for older hosting customers.
 
 ## Edit
 

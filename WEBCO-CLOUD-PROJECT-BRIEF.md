@@ -16,7 +16,7 @@ Webco Cloud should not try to look like a generic commodity hosting company. Its
 - billing
 - renewals
 - support
-- client login
+- client area
 
 The intended brand relationship is:
 
@@ -43,7 +43,7 @@ The project will use:
 - 20i hosting for production
 - the same GitHub → 20i deployment approach already proven on `drivercompliance.co.uk`
 - 20i for hosting, domains, email, SSL and provisioning
-- HostShop / StackCP only as the current temporary customer login and as an internal or advanced fallback
+- HostShop / StackCP only as the current hosting login and as an internal or advanced fallback
 
 The public pages stay static. A small PHP layer can store a draft order in MySQL. There are still no custom accounts.
 
@@ -53,7 +53,7 @@ The public pages stay static. A small PHP layer can store a draft order in MySQL
 
 Webco Cloud is becoming the customer-facing platform.
 
-Normal customers should not need to use HostShop or StackCP. Those can remain available to Webco internally, or as an advanced fallback. Do not remove the current HostShop/StackCP client login until Webco Cloud can replace it.
+Normal customers should not need to use HostShop or StackCP. Those can remain available to Webco internally, or as an advanced fallback. Do not remove the current HostShop/StackCP hosting login until Webco Cloud can replace it.
 
 ### Webco Cloud owns
 
@@ -120,7 +120,7 @@ The static files on 20i cannot safely hold the reseller API key. When API work s
 Do not start a phase until it is explicitly requested. Do not pull authentication, billing, provisioning or a database forward to make a later phase easier.
 
 **Phase 0 — Public site. Done.**  
-The Astro site for Home, Hosting, Domains, Email, Support and Client Login. Client Login still opens the existing HostShop customer area at `my.webcocloud.net`. Keep that link until Webco Cloud accounts exist.
+The Astro site for Home, Hosting, Domains, Email and Support. Client area opens the Webco customer and project area. Hosting login opens the existing HostShop account at `my.webcocloud.net`. Keep that hosting login, and do not present it as the client area.
 
 **Phase 1 — Domain availability proof of concept. First API work.**  
 `public/domain-search.php` checks one domain through the 20i Reseller API. The domains page calls it. The General API key stays in the private server file, not in this repository.
@@ -348,7 +348,7 @@ Initial public navigation:
 - Domains
 - Email
 - Support
-- Client Login
+- Client area
 
 Potential route structure:
 
@@ -360,7 +360,7 @@ Potential route structure:
  /support
 ```
 
-`Client Login` currently points at the existing HostShop customer area. That is temporary. Do not build a custom login system until Phase 3.
+Client area opens the Webco customer and project area. Hosting login opens the existing HostShop account. Do not build a second customer login.
 
 ---
 
@@ -460,7 +460,7 @@ The customer experience to build towards is:
 
 > Choose the package → choose the domain → enter business details → pay.
 
-Until Webco Cloud checkout and accounts exist, Client Login on the public site continues to open the existing HostShop customer area. Do not remove that link in the meantime.
+Hosting login on the public site opens the existing HostShop account. Client area is the Webco customer and project area. Do not remove the HostShop link, and do not present it as the client area.
 
 Do not invest in making HostShop the onboarding product. Hidden products, custom quotes and HostShop payment methods are not the planned path. Provisioning goes through the 20i Reseller API. Payment and invoices go through Webco Cloud.
 
@@ -635,7 +635,7 @@ The Astro pages do not connect to MySQL. `draft-order.php` stores a draft order.
 
 ### No custom authentication yet
 
-Client Login still links to the existing HostShop customer area. Webco Cloud accounts are Phase 3. Do not add sign-in before then.
+There is no separate password login for the client area. Customers open it with the secure email link. Hosting login still opens the existing HostShop account. Do not add a second sign-in.
 
 ### API work starts with domain search
 
@@ -657,7 +657,7 @@ The public site contains:
 6. Domains page
 7. Email page
 8. Support page
-9. Client Login CTA
+9. Client area and hosting login
 10. responsive styling
 11. metadata / canonical support
 12. sitemap

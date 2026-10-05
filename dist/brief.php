@@ -39,8 +39,8 @@ function webco_handle_brief(): void
     $projectId = webco_session_project_id();
     if ($projectId === null) {
         webco_brief_message(
-            'Website brief',
-            'Open the secure link in your Webco email to continue this brief.'
+            'Client area',
+            'Open the secure link in your Webco email to open your client area.'
         );
     }
 
@@ -53,8 +53,8 @@ function webco_handle_brief(): void
     if ($project === null) {
         $_SESSION = [];
         webco_brief_message(
-            'Website brief',
-            'Open the secure link in your Webco email to continue this brief.'
+            'Client area',
+            'Open the secure link in your Webco email to open your client area.'
         );
     }
 

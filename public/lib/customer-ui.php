@@ -88,7 +88,7 @@ function webco_customer_css(): string
 
       /* Type */
       h1, h2, h3 { margin: 0; color: var(--ink); font-family: var(--serif); font-weight: 600; letter-spacing: -0.01em; overflow-wrap: anywhere; }
-      h1 { font-size: 2.125rem; line-height: 1.1; }
+      h1 { font-size: 1.9375rem; line-height: 1.12; }
       h2 { font-size: 1.5rem; line-height: 1.2; }
       h3 { font-size: 1.1875rem; line-height: 1.3; letter-spacing: 0; }
       p { margin: 0.6rem 0 0; }
@@ -178,7 +178,7 @@ function webco_customer_css(): string
 
       /* Client area header and navigation */
       .client-bar { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 1.1rem; }
-      .client-nav { display: flex; gap: 0.1rem; padding: 0.25rem; overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; background: #fff; scrollbar-width: none; }
+      .client-nav { display: flex; gap: 0.1rem; max-width: 100%; padding: 0.25rem; overflow-x: auto; overscroll-behavior-x: contain; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 12px; background: #fff; scrollbar-width: none; }
       .client-nav::-webkit-scrollbar { display: none; }
       .client-nav a:focus-visible { outline-offset: -3px; }
       .client-nav a { flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; min-height: 2.5rem; padding: 0 0.6rem; border-radius: 9px; color: var(--ink-2); font-size: 0.9375rem; font-weight: 600; text-decoration: none; white-space: nowrap; }
@@ -195,7 +195,8 @@ function webco_customer_css(): string
       .kv div { display: flex; flex-wrap: wrap; gap: 0 0.4rem; min-width: 0; }
       .kv dt { color: var(--muted); }
       .kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
-      .call-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; margin: 0.9rem 0 0; padding-top: 0.8rem; border-top: 1px solid var(--line); }
+      .call-line { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.75rem; margin: 0.75rem 0 0; padding-top: 0.65rem; border-top: 1px solid var(--line); }
+      .call-line .kv { gap: 0 1.25rem; line-height: 1.4; }
       .tracker { margin: 1rem 0 0; padding: 0; list-style: none; counter-reset: stage; }
       .tracker li { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); column-gap: 0.75rem; padding-bottom: 1rem; counter-increment: stage; }
       .tracker li:last-child { padding-bottom: 0; }
@@ -303,6 +304,7 @@ function webco_customer_css(): string
       .dock .btn-secondary { min-width: 5.5rem; }
 
       @media (max-width: 23.4375rem) { .client-nav a { padding: 0 0.5rem; font-size: 0.875rem; } }
+      @media (max-width: 20rem) { .client-nav a { padding: 0 0.4rem; } }
       @media (min-width: 36rem) {
         .action-grid { grid-template-columns: 1fr 1fr; }
         .action-primary { grid-column: 1 / -1; }

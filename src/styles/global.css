@@ -397,6 +397,51 @@ main:has(> .cta-band:last-child) {
   animation-delay: 0.14s;
 }
 
+.hero-with-media {
+  padding-bottom: 0;
+}
+
+.hero-media {
+  position: relative;
+  margin-top: 2.5rem;
+  overflow: hidden;
+  animation: rise 0.9s var(--ease) both;
+  animation-delay: 0.2s;
+}
+
+.hero-media::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 4.5rem;
+  z-index: 1;
+  background: linear-gradient(180deg, var(--night) 0%, transparent 100%);
+  pointer-events: none;
+}
+
+.hero-media img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: none;
+}
+
+@media (max-width: 47.99rem) {
+  .hero-with-media {
+    padding-top: 3rem;
+  }
+
+  .hero-media {
+    margin-top: 2rem;
+  }
+
+  .hero-media img {
+    min-height: 16rem;
+    object-fit: cover;
+    object-position: center center;
+  }
+}
+
 .eyebrow {
   display: inline-flex;
   align-items: center;

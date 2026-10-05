@@ -2,12 +2,14 @@
 interface Props {
   eyebrow: string;
   title: string;
+  imageSrc?: string;
+  imageAlt?: string;
 }
 
-const { eyebrow, title } = Astro.props;
+const { eyebrow, title, imageSrc, imageAlt = "" } = Astro.props;
 ---
 
-<section class="hero">
+<section class:list={["hero", imageSrc && "hero-with-media"]}>
   <div class="wrap">
     <p class="eyebrow">{eyebrow}</p>
     <h1>{title}</h1>
@@ -15,4 +17,11 @@ const { eyebrow, title } = Astro.props;
       <slot />
     </div>
   </div>
+  {
+    imageSrc && (
+      <div class="hero-media">
+        <img src={imageSrc} alt={imageAlt} width="1600" height="900" decoding="async" fetchpriority="high" />
+      </div>
+    )
+  }
 </section>

@@ -26,6 +26,8 @@ function check(bool $condition, string $message): void
 $customer = 'cus_' . str_repeat('a', 14);
 $other = 'cus_' . str_repeat('b', 14);
 $portalUrl = 'https://billing.stripe.com/p/session/test_exampleSession';
+$portalSecret = 'test_' . str_repeat('A', 24);
+$portalQueryUrl = 'https://billing.stripe.com/p/session?secret=' . $portalSecret;
 
 check(webco_billing_portal_allowed($customer, 0, 'paid'), 'a paid test customer can open the portal');
 check(webco_billing_portal_allowed($customer, '0', 'paid'), 'a string test mode still counts as test');
@@ -82,6 +84,32 @@ check(webco_billing_portal_url([
 check(webco_is_test_billing_portal_url('http://billing.stripe.com/p/session/test_example') === false, 'the portal address must be https');
 check(webco_is_test_billing_portal_url('https://billing.stripe.com.evil.com/p/session/test_example') === false, 'a lookalike host is rejected');
 check(webco_is_test_billing_portal_url("https://billing.stripe.com/p/session/test_example\r\nLocation: https://evil.example") === false, 'a portal address cannot break the redirect');
+check(webco_is_test_billing_portal_url($portalQueryUrl) === true, 'a test portal secret on the session path is accepted');
+check(webco_is_test_billing_portal_url('https://billing.stripe.com/p/session/' . $portalSecret) === true, 'a test token in the session path is accepted');
+check(webco_billing_portal_url_problem('https://billing.stripe.com/p/session?secret=live_' . str_repeat('B', 24)) === 'query', 'a live portal secret is rejected');
+check(webco_billing_portal_url_problem('https://billing.stripe.com/p/login?secret=' . $portalSecret) === 'path', 'a login path is not a portal session');
+check(webco_billing_portal_url_problem('https://billing.stripe.com/p/session?secret=' . $portalSecret . '&next=https://evil.example') === 'query', 'a portal secret cannot carry another address');
+check(webco_billing_portal_url_problem('https://user:pass@billing.stripe.com/p/session?secret=' . $portalSecret) === 'userinfo', 'a portal address cannot carry userinfo');
+check(webco_billing_portal_url_problem('http://billing.stripe.com/p/session?secret=' . $portalSecret) === 'scheme', 'a portal secret still requires https');
+check(webco_billing_portal_url_problem('https://billing.stripe.com.evil.com/p/session?secret=' . $portalSecret) === 'host', 'a lookalike host is rejected with a portal secret');
+check(webco_billing_portal_url([
+    'object' => 'billing_portal.session',
+    'customer' => $customer,
+    'livemode' => false,
+    'url' => $portalQueryUrl,
+], $customer) === $portalQueryUrl, 'a query-form test portal address for this customer is accepted');
+check(webco_billing_portal_url([
+    'object' => 'billing_portal.session',
+    'customer' => $other,
+    'livemode' => false,
+    'url' => $portalQueryUrl,
+], $customer) === null, 'a query-form portal for a different customer is rejected');
+check(webco_billing_portal_response_failure([
+    'object' => 'billing_portal.session',
+    'customer' => $customer,
+    'livemode' => true,
+    'url' => $portalQueryUrl,
+], $customer) === 'returned livemode mismatch value=true', 'a query-form portal in live mode is rejected');
 
 $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'webco-billing-' . getmypid() . '.sqlite';
 if (is_file($path)) {

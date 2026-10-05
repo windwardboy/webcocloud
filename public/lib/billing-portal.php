@@ -350,9 +350,42 @@ function webco_billing_portal_url_problem(string $url): string
     if (isset($parts['port']) && (int) $parts['port'] !== 443) {
         return 'port';
     }
-    $path = $parts['path'] ?? '';
-    if (!is_string($path) || !str_contains($path, '/session/test_')) {
+    if (isset($parts['fragment']) && $parts['fragment'] !== '') {
         return 'path';
+    }
+    $path = $parts['path'] ?? '';
+    if (!is_string($path)) {
+        return 'path';
+    }
+    if (preg_match('#^/(?:p/)?session/test_[A-Za-z0-9_-]{8,}$#', $path) === 1) {
+        $query = $parts['query'] ?? null;
+        if ($query === null || $query === '') {
+            return 'none';
+        }
+
+        return 'query';
+    }
+    if (preg_match('#^/p/session/?$#', $path) === 1) {
+        return webco_billing_portal_query_problem($parts['query'] ?? null);
+    }
+
+    return 'path';
+}
+
+function webco_billing_portal_query_problem(mixed $query): string
+{
+    if (!is_string($query) || $query === '' || preg_match('/[\s\r\n\\\\]/', $query) === 1) {
+        return 'query';
+    }
+    if (str_contains($query, '://') || str_contains($query, '@')) {
+        return 'query';
+    }
+
+    $params = [];
+    parse_str($query, $params);
+    $secret = $params['secret'] ?? null;
+    if (!is_string($secret) || preg_match('/^test_[A-Za-z0-9_-]{8,}$/', $secret) !== 1) {
+        return 'query';
     }
 
     return 'none';

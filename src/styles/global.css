@@ -398,46 +398,103 @@ main:has(> .cta-band:last-child) {
 }
 
 .hero-with-media {
-  padding-bottom: 0;
+  display: flex;
+  align-items: center;
+  min-height: min(78vh, 44rem);
+  padding: 4.5rem 0 4rem;
+}
+
+.hero-with-media::before,
+.hero-with-media::after {
+  display: none;
+}
+
+.hero-with-media > .wrap {
+  position: relative;
+  z-index: 1;
+  max-width: 38rem;
+  margin-left: max(var(--gutter), calc((100% - var(--page)) / 2));
+  margin-right: auto;
+  width: min(100% - (var(--gutter) * 2), 38rem);
+}
+
+.hero-with-media h1 {
+  max-width: 11em;
+  font-size: clamp(2.2rem, 5vw, 3.6rem);
+}
+
+.hero-with-media .hero-body {
+  max-width: 28rem;
+  font-size: 1.1rem;
 }
 
 .hero-media {
-  position: relative;
-  margin-top: 2.5rem;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  margin: 0;
   overflow: hidden;
-  animation: rise 0.9s var(--ease) both;
-  animation-delay: 0.2s;
+  pointer-events: none;
 }
 
 .hero-media::before {
   content: "";
   position: absolute;
-  inset: 0 0 auto;
-  height: 4.5rem;
+  inset: 0;
   z-index: 1;
-  background: linear-gradient(180deg, var(--night) 0%, transparent 100%);
+  background:
+    linear-gradient(
+      90deg,
+      rgba(7, 22, 26, 0.96) 0%,
+      rgba(7, 22, 26, 0.88) 34%,
+      rgba(7, 22, 26, 0.45) 58%,
+      rgba(7, 22, 26, 0.12) 78%,
+      transparent 100%
+    ),
+    linear-gradient(180deg, rgba(7, 22, 26, 0.35) 0%, transparent 28%, transparent 72%, rgba(7, 22, 26, 0.55) 100%);
   pointer-events: none;
 }
 
 .hero-media img {
   display: block;
   width: 100%;
-  height: auto;
+  height: 100%;
   max-width: none;
+  object-fit: cover;
+  object-position: 68% center;
 }
 
 @media (max-width: 47.99rem) {
   .hero-with-media {
-    padding-top: 3rem;
+    display: block;
+    min-height: 0;
+    padding: 3rem 0 0;
+  }
+
+  .hero-with-media > .wrap {
+    width: min(var(--page), calc(100% - 2 * var(--gutter)));
+    max-width: none;
+    margin-inline: auto;
+    padding-bottom: 0.5rem;
+  }
+
+  .hero-with-media h1 {
+    font-size: clamp(2.2rem, 9vw, 3rem);
   }
 
   .hero-media {
-    margin-top: 2rem;
+    position: relative;
+    inset: auto;
+    margin-top: 1.75rem;
+    min-height: 18rem;
+  }
+
+  .hero-media::before {
+    background: linear-gradient(180deg, var(--night) 0%, transparent 42%, transparent 78%, rgba(7, 22, 26, 0.4) 100%);
   }
 
   .hero-media img {
-    min-height: 16rem;
-    object-fit: cover;
+    min-height: 18rem;
     object-position: center center;
   }
 }

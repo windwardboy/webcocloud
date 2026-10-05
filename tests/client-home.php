@@ -176,7 +176,25 @@ $billingStart = strpos($home, 'id="billing"');
 $billingEnd = $billingStart === false ? false : strpos($home, '</section>', $billingStart);
 $billing = is_int($billingStart) && is_int($billingEnd) ? substr($home, $billingStart, $billingEnd - $billingStart) : '';
 check($billing !== '' && !str_contains($billing, 'href='), 'billing does not use a link');
+check(!str_contains($billing, 'action="/billing-portal.php"'), 'billing stays closed without a stored test customer');
 check(!str_contains($home, 'billing.stripe.com') && !str_contains($home, 'customer_portal'), 'billing does not pretend to open Stripe');
+$portalHome = client_html(project_with($project, [
+    'billing_portal' => true,
+    'stripe_customer_id' => 'cus_' . str_repeat('e', 14),
+]), 'home');
+$portalStart = strpos($portalHome, 'id="billing"');
+$portalEnd = $portalStart === false ? false : strpos($portalHome, '</section>', $portalStart);
+$portalBilling = is_int($portalStart) && is_int($portalEnd) ? substr($portalHome, $portalStart, $portalEnd - $portalStart) : '';
+check(str_contains($portalBilling, 'action="/billing-portal.php"'), 'billing posts to the portal endpoint');
+check(str_contains($portalBilling, 'method="post"'), 'billing uses a form post');
+check(str_contains($portalBilling, 'name="csrf"'), 'billing sends the brief session token');
+check(substr_count($portalBilling, '<button type="submit">') === 2, 'invoices and payment details are both buttons');
+check(str_contains($portalBilling, 'Billing &amp; invoices'), 'the invoice action is labelled');
+check(str_contains($portalBilling, 'Manage payment details'), 'the payment action is labelled');
+check(!str_contains($portalBilling, 'href='), 'the portal buttons are not links');
+check(!str_contains($portalBilling, 'Coming next'), 'an available portal is not marked as coming next');
+check(!str_contains($portalHome, 'cus_' . str_repeat('e', 14)), 'the Stripe customer id is not shown');
+check(!str_contains($portalHome, 'billing.stripe.com'), 'the portal address is created on the server');
 check(!str_contains($home, 'SECRET ADMIN NOTE'), 'an internal note is not shown');
 check(!str_contains($home, 'SECRET REQUEST NOTE'), 'a request call note is not shown on the home');
 check(!str_contains($home, 'Talk about the yard photo.'), 'the brief call note stays on the brief');

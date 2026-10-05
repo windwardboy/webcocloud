@@ -1,8 +1,8 @@
 <?php
 /**
  * Client home for the website in the current brief session.
- * A later account can reuse this shape for Stripe Customer Portal, invoices,
- * Managed Care, renewals, and more than one project. Those are not built here.
+ * Billing opens Stripe Customer Portal only when this project already has a
+ * test-mode customer. Managed Care, renewals and more than one project are not built here.
  */
 
 declare(strict_types=1);
@@ -267,7 +267,7 @@ function webco_client_view_home(array $project): void
     }
     echo '</section>';
 
-    webco_client_billing();
+    webco_client_billing(($project['billing_portal'] ?? false) === true);
 }
 
 /**
@@ -371,17 +371,28 @@ function webco_client_view_contact(array $project): void
 }
 
 /**
- * Billing is a placeholder. Checkout does not expose a customer portal.
+ * Both actions open the same Stripe Customer Portal session for this project.
  */
-function webco_client_billing(): void
+function webco_client_billing(bool $available = false): void
 {
     echo '<section class="card billing" id="billing">';
     echo '<h2>Billing</h2>';
-    echo '<p class="lead">Invoices and payment details are not available in this area yet.</p>';
-    echo '<ul class="placeholder-list">';
-    echo '<li><span>Billing &amp; invoices</span> <span class="soon">Coming next</span></li>';
-    echo '<li><span>Manage payment details</span> <span class="soon">Coming next</span></li>';
-    echo '</ul></section>';
+    if (!$available) {
+        echo '<p class="lead">Invoices and payment details are not available in this area yet.</p>';
+        echo '<ul class="placeholder-list">';
+        echo '<li><span>Billing &amp; invoices</span> <span class="soon">Coming next</span></li>';
+        echo '<li><span>Manage payment details</span> <span class="soon">Coming next</span></li>';
+        echo '</ul></section>';
+
+        return;
+    }
+
+    echo '<p class="lead">Invoices, receipts and the card used for this website are managed in Stripe.</p>';
+    echo '<form method="post" action="/billing-portal.php">';
+    echo '<input type="hidden" name="csrf" value="' . webco_html(webco_brief_csrf_token()) . '">';
+    echo '<button type="submit">Billing &amp; invoices</button>';
+    echo '<button type="submit">Manage payment details</button>';
+    echo '</form></section>';
 }
 
 function webco_client_action(string $href, string $title, string $detail, bool $primary): void
@@ -629,6 +640,8 @@ function webco_client_styles(): string
         margin-top: 0.55rem; padding: 0.75rem 0.85rem; border: 1px dashed #d5e0dc; border-radius: 12px;
       }
       .soon { padding: 0.12rem 0.5rem; border-radius: 999px; background: #f3f6f5; color: #3e4e58; font-size: 0.82rem; font-weight: 700; white-space: nowrap; }
+      body.client-home .billing form { display: grid; gap: 0.65rem; margin-top: 0.9rem; }
+      body.client-home .billing button { width: 100%; margin: 0; min-height: 2.75rem; }
       .brief-read h2 { margin-top: 1.1rem; }
       .brief-read h2:first-child { margin-top: 0; }
       .request-files { margin-top: 0.7rem; }
@@ -646,6 +659,7 @@ function webco_client_styles(): string
         .facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .call-line { flex-direction: row; flex-wrap: wrap; gap: 0.35rem 1rem; align-items: baseline; }
         .action-grid { grid-template-columns: 1fr 1fr; }
+        body.client-home .billing form { grid-template-columns: 1fr 1fr; }
       }
       @media (min-width: 64rem) {
         .stages { grid-template-columns: repeat(5, minmax(0, 1fr)); }

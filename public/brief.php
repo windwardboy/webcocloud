@@ -11,6 +11,7 @@ ini_set('display_errors', '0');
 require_once __DIR__ . '/lib/projects.php';
 require_once __DIR__ . '/lib/brief-wizard.php';
 require_once __DIR__ . '/lib/client-home.php';
+require_once __DIR__ . '/lib/billing-portal.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'brief.php') {
     webco_handle_brief();
@@ -57,6 +58,7 @@ function webco_handle_brief(): void
         );
     }
 
+    $project['billing_portal'] = webco_project_billing_portal_open($db, $projectId);
     webco_brief_form($project, webco_brief_notice($_GET['notice'] ?? null));
 }
 
@@ -182,6 +184,7 @@ function webco_brief_notice(mixed $notice): string
         'invalid' => 'The note could not be saved. Keep it under 8,000 characters.',
         'again' => 'That action was not accepted. Try again.',
         'error' => 'The brief could not be saved. Try again.',
+        'billing' => 'Billing could not be opened just now. Try again in a moment.',
     ];
     if (!is_string($notice) || !isset($messages[$notice])) {
         return '';

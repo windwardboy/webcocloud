@@ -639,6 +639,9 @@ function webco_ensure_project_provisioning_columns(PDO $db): bool
         if (!isset($existing['provisioning_attempted_at'])) {
             $db->exec('ALTER TABLE projects ADD COLUMN provisioning_attempted_at DATETIME NULL');
         }
+        if (!isset($existing['domain_registered_at'])) {
+            $db->exec('ALTER TABLE projects ADD COLUMN domain_registered_at DATETIME NULL');
+        }
         if (!webco_ensure_project_unique_index($db, 'projects_twentyi_package_id', 'twentyi_package_id')) {
             return false;
         }

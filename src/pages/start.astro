@@ -34,11 +34,14 @@ const packages = websitePackagePresentation;
 
     <div class="funnel-step">
       <h1 id="domain-choice-heading">Your domain</h1>
-      <p class="funnel-lead">Choose a new domain or use one you already own. This does not register it.</p>
+      <p class="funnel-lead">
+        Choose a new .uk or .co.uk domain (included with hosting or Managed Care), or use one you already own. Checking a
+        name does not register it yet.
+      </p>
       <div class="cards cards-2" role="group" aria-label="Domain choice">
         <button class="card choice-card" type="button" data-path="new" aria-pressed="false">
           <span class="choice-title">I need a new domain</span>
-          <p>Search for a name and see if it can be registered.</p>
+          <p>Search for a .uk or .co.uk name included with the package.</p>
         </button>
         <button class="card choice-card" type="button" data-path="existing" aria-pressed="false">
           <span class="choice-title">I already have a domain</span>
@@ -48,7 +51,10 @@ const packages = websitePackagePresentation;
 
       <div id="new-domain" class="card domain-search" hidden>
         <h3 id="domain-search-heading">Check a domain for this website</h3>
-        <p>See whether a name such as example.co.uk can be registered. This does not register it.</p>
+        <p>
+          Included names end in .uk or .co.uk. Other endings may be available to buy separately. Checking does not
+          register the name.
+        </p>
         <form id="domain-search" class="domain-form">
           <div class="domain-field">
             <label for="domain">Domain name</label>
@@ -136,6 +142,10 @@ const packages = websitePackagePresentation;
       return "";
     }
     return domain;
+  }
+
+  function isIncludedTld(domain) {
+    return /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:co\.)?uk$/.test(domain);
   }
 
   function updateContinue(state) {
@@ -243,8 +253,13 @@ const packages = websitePackagePresentation;
       }
       if (carried && !normaliseDomain(searchInput.value)) searchInput.value = carried;
       const typed = normaliseDomain(searchInput.value);
-      const stillConfirmed = previous.domainPath === "new" && previous.domain === typed;
-      const checkedHere = searchResult.dataset.state === "available" && typed !== "" && searchResult.textContent.indexOf(typed) === 0;
+      const stillConfirmed =
+        previous.domainPath === "new" && previous.domain === typed && isIncludedTld(typed);
+      const checkedHere =
+        searchResult.dataset.state === "available" &&
+        typed !== "" &&
+        isIncludedTld(typed) &&
+        searchResult.textContent.indexOf(typed) === 0;
       showSaved(writeState({ domainPath: "new", domain: stillConfirmed || checkedHere ? typed : "" }));
     }
 
@@ -302,10 +317,22 @@ const packages = websitePackagePresentation;
         });
         const data = await response.json();
         if (data.status === "available") {
-          result.dataset.state = "available";
-          result.replaceChildren(domainStrong(data.domain), document.createTextNode(" is available."));
-          if (!normaliseDomain(existingInput.value)) existingInput.value = data.domain;
-          showSaved(writeState({ domainPath: "new", domain: data.domain }));
+          if (!isIncludedTld(data.domain)) {
+            result.dataset.state = "unavailable";
+            result.replaceChildren(
+              domainStrong(data.domain),
+              document.createTextNode(" is available, but only .uk and .co.uk names are included. Other endings are charged separately."),
+            );
+            showSaved(writeState({ domainPath: "new", domain: "" }));
+          } else {
+            result.dataset.state = "available";
+            result.replaceChildren(
+              domainStrong(data.domain),
+              document.createTextNode(" is available and included with hosting or Managed Care."),
+            );
+            if (!normaliseDomain(existingInput.value)) existingInput.value = data.domain;
+            showSaved(writeState({ domainPath: "new", domain: data.domain }));
+          }
         } else if (data.status === "unavailable") {
           result.dataset.state = "unavailable";
           result.textContent = data.domain + " is not available.";

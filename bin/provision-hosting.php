@@ -1,12 +1,12 @@
 <?php
 /**
- * Hosting provisioning for an existing domain.
+ * Hosting provisioning for existing domains, and for new .uk / .co.uk domains.
  *
  * Preview is the default. It does not claim a project and it does not call 20i:
  *   php bin/provision-hosting.php
  *   php bin/provision-hosting.php --project=1
  *
- * A hosting package is created only when --apply is present:
+ * A domain may be registered and a hosting package created only when --apply is present:
  *   php bin/provision-hosting.php --apply
  *   php bin/provision-hosting.php --apply --project=1
  *
@@ -16,12 +16,13 @@
  *   php bin/provision-hosting.php --project=1 --allow-test-order --apply
  *
  * Eligible projects are ready, or already in progress with a stored package
- * id. The order must be paid, Stripe live mode, and domain_path existing.
+ * id. The order must be paid and Stripe live mode. domain_path may be existing,
+ * or new when the name is an included .uk / .co.uk domain.
  * --allow-test-order also accepts stripe_livemode 0 for that one project.
  * Package type 117014 is used for Essential and Professional.
  *
- * Run php bin/provision-schema.php first so projects.twentyi_package_id and
- * projects.provisioning_attempted_at exist.
+ * Run php bin/provision-schema.php first so projects.twentyi_package_id,
+ * projects.provisioning_attempted_at and projects.domain_registered_at exist.
  *
  * This file is not a web page. The dry-run worker does not call it.
  */
@@ -100,7 +101,34 @@ $result = webco_provision_hosting_apply(
         }
     },
     $options['project_id'],
-    $allowTestOrder
+    $allowTestOrder,
+    static function (string $domain, array $order) use (&$bearer): array {
+        return webco_twentyi_register_domain(
+            static function (string $path, string $body) use (&$bearer): array {
+                return webco_twentyi_http_post($path, $bearer, $body);
+            },
+            $domain,
+            $order
+        );
+    },
+    static function (string $domain) use (&$bearer): string {
+        return webco_twentyi_check_domain_availability(
+            static function (string $path) use (&$bearer, $domain): array {
+                // Path is /domain-search/{domain}; use the dedicated GET helper.
+                unset($path);
+
+                return webco_twentyi_http_get_domain_search($domain, $bearer);
+            },
+            $domain
+        );
+    },
+    static function () use (&$bearer): array {
+        return webco_twentyi_list_registered_domains(
+            static function (string $path) use (&$bearer): array {
+                return webco_twentyi_http_get($path, $bearer);
+            }
+        );
+    }
 );
 $bearer = '';
 

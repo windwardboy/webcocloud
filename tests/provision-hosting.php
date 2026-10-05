@@ -43,6 +43,12 @@ function test_db(): PDO
             contact_name TEXT,
             email TEXT,
             phone TEXT,
+            address_line_1 TEXT,
+            address_line_2 TEXT,
+            town TEXT,
+            county TEXT,
+            postcode TEXT,
+            company_number TEXT,
             care_choice TEXT,
             hosting_status TEXT,
             hosting_included_until TEXT,
@@ -62,6 +68,7 @@ function test_db(): PDO
             twentyi_package_id TEXT,
             provisioning_attempted_at TEXT,
             provisioned_at TEXT,
+            domain_registered_at TEXT,
             updated_at TEXT
         )'
     );
@@ -89,6 +96,12 @@ function insert_case(PDO $db, array $order = [], array $project = []): int
         'contact_name' => 'Alex Example',
         'email' => 'alex@example.com',
         'phone' => '07123456789',
+        'address_line_1' => '1 High Street',
+        'address_line_2' => null,
+        'town' => 'Weston-super-Mare',
+        'county' => 'Somerset',
+        'postcode' => 'BS22 6AR',
+        'company_number' => null,
         'care_choice' => 'standard',
         'hosting_status' => 'trialing',
         'hosting_included_until' => '2027-10-02 17:25:00',
@@ -98,11 +111,13 @@ function insert_case(PDO $db, array $order = [], array $project = []): int
     $statement = $db->prepare(
         'INSERT INTO orders (
             public_id, status, package_code, package_name, domain_path, domain_name,
-            business_name, contact_name, email, phone, care_choice, hosting_status,
+            business_name, contact_name, email, phone, address_line_1, address_line_2,
+            town, county, postcode, company_number, care_choice, hosting_status,
             hosting_included_until, care_status, stripe_livemode
          ) VALUES (
             :public_id, :status, :package_code, :package_name, :domain_path, :domain_name,
-            :business_name, :contact_name, :email, :phone, :care_choice, :hosting_status,
+            :business_name, :contact_name, :email, :phone, :address_line_1, :address_line_2,
+            :town, :county, :postcode, :company_number, :care_choice, :hosting_status,
             :hosting_included_until, :care_status, :stripe_livemode
          )'
     );
@@ -116,14 +131,15 @@ function insert_case(PDO $db, array $order = [], array $project = []): int
         'provisioning_status' => 'ready',
         'provisioning_error' => 'previous failure',
         'twentyi_package_id' => null,
+        'domain_registered_at' => null,
     ], $project);
     $insert = $db->prepare(
         'INSERT INTO projects (
             order_id, order_public_id, vertical_code, status, provisioning_status,
-            provisioning_error, twentyi_package_id
+            provisioning_error, twentyi_package_id, domain_registered_at
          ) VALUES (
             :order_id, :order_public_id, :vertical_code, :status, :provisioning_status,
-            :provisioning_error, :twentyi_package_id
+            :provisioning_error, :twentyi_package_id, :domain_registered_at
          )'
     );
     $insert->execute($projectRow);
@@ -138,7 +154,7 @@ function project_row(PDO $db, int $projectId): array
 {
     $statement = $db->prepare(
         'SELECT provisioning_status, twentyi_package_id, provisioning_error,
-                provisioning_attempted_at, provisioned_at
+                provisioning_attempted_at, provisioned_at, domain_registered_at
          FROM projects WHERE id = :id'
     );
     $statement->execute(['id' => $projectId]);
@@ -433,14 +449,157 @@ check($markListCalls === 0 && count($markCreated->calls) === 1, 'finishing a sto
 check(($finished['results'][0]['outcome'] ?? '') === 'provisioned', 'the stored package is marked provisioned on the next run');
 check($finishedRow['provisioning_status'] === 'provisioned' && $finishedRow['provisioning_error'] === null, 'the next run completes the stored package');
 
-$newDomainId = insert_case($db, ['domain_name' => 'new.example', 'domain_path' => 'new']);
+$newDomainId = insert_case($db, ['domain_name' => 'new.example.com', 'domain_path' => 'new']);
+$includedNewId = insert_case($db, ['domain_name' => 'brand-new.co.uk', 'domain_path' => 'new']);
 $testModeId = insert_case($db, ['domain_name' => 'test.example', 'stripe_livemode' => 0]);
 $otherTestId = insert_case($db, ['domain_name' => 'other-test.example', 'stripe_livemode' => 0]);
 $candidates = webco_provision_hosting_candidate_ids($db);
 check(
-    is_array($candidates) && !in_array($newDomainId, $candidates, true) && !in_array($testModeId, $candidates, true),
-    'a new domain and a test-mode order are not provisioned'
+    is_array($candidates)
+        && in_array($includedNewId, $candidates, true)
+        && in_array($newDomainId, $candidates, true)
+        && !in_array($testModeId, $candidates, true),
+    'included and other new domains are candidates; test-mode orders are not'
 );
+$paidCom = webco_provision_hosting_project(
+    $db,
+    $newDomainId,
+    ['ok' => true, 'domains' => []],
+    fake_create(['ok' => true, 'package_id' => '1', 'failure' => '', 'status' => 200])[1],
+    quiet_log()
+);
+check($paidCom['outcome'] === 'failed', 'a new .com domain is refused');
+check(
+    (project_row($db, $newDomainId)['provisioning_error'] ?? '') === 'Only .uk and .co.uk domains are included with hosting',
+    'a new .com domain explains the included TLD rule'
+);
+
+$registerCalls = [];
+[$includedCreated, $includedCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '900100',
+    'failure' => '',
+    'status' => 200,
+]);
+$included = webco_provision_hosting_project(
+    $db,
+    $includedNewId,
+    ['ok' => true, 'domains' => []],
+    $includedCreate,
+    quiet_log(),
+    null,
+    null,
+    false,
+    static function (string $domain, array $order) use (&$registerCalls): array {
+        $registerCalls[] = ['domain' => $domain, 'order' => $order];
+
+        return ['ok' => true, 'failure' => '', 'status' => 200];
+    },
+    static function (string $domain): string {
+        return $domain === 'brand-new.co.uk' ? 'available' : 'error';
+    },
+    static function (): array {
+        return ['ok' => true, 'domains' => []];
+    }
+);
+check($included['outcome'] === 'provisioned', 'an included new domain is provisioned');
+check(count($registerCalls) === 1 && ($registerCalls[0]['domain'] ?? '') === 'brand-new.co.uk', 'an included new domain is registered once');
+check(count($includedCreated->calls) === 1, 'hosting is created after registration');
+check((project_row($db, $includedNewId)['domain_registered_at'] ?? null) !== null, 'domain_registered_at is stored');
+
+$alreadyId = insert_case(
+    $db,
+    ['domain_name' => 'already.uk', 'domain_path' => 'new'],
+    ['domain_registered_at' => '2026-10-05 12:00:00']
+);
+$alreadyRegister = [];
+[$alreadyCreated, $alreadyCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '900101',
+    'failure' => '',
+    'status' => 200,
+]);
+$already = webco_provision_hosting_project(
+    $db,
+    $alreadyId,
+    ['ok' => true, 'domains' => []],
+    $alreadyCreate,
+    quiet_log(),
+    null,
+    null,
+    false,
+    static function (string $domain, array $order) use (&$alreadyRegister): array {
+        $alreadyRegister[] = $domain;
+
+        return ['ok' => true, 'failure' => '', 'status' => 200];
+    },
+    static function (): string {
+        return 'available';
+    },
+    static function (): array {
+        return ['ok' => true, 'domains' => []];
+    }
+);
+check($already['outcome'] === 'provisioned' && $alreadyRegister === [], 'a previously registered domain skips addDomain');
+check(count($alreadyCreated->calls) === 1, 'a previously registered domain still creates hosting');
+
+$unownedId = insert_case($db, ['domain_name' => 'taken-now.co.uk', 'domain_path' => 'new']);
+[$unownedCreated, $unownedCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '1',
+    'failure' => '',
+    'status' => 200,
+]);
+$unowned = webco_provision_hosting_project(
+    $db,
+    $unownedId,
+    ['ok' => true, 'domains' => []],
+    $unownedCreate,
+    quiet_log(),
+    null,
+    null,
+    false,
+    static function (): array {
+        return ['ok' => true, 'failure' => '', 'status' => 200];
+    },
+    static function (): string {
+        return 'unavailable';
+    },
+    static function (): array {
+        return ['ok' => true, 'domains' => []];
+    }
+);
+check($unownedCreated->calls === [] && $unowned['outcome'] === 'failed', 'an unavailable new domain does not create hosting');
+check(
+    (project_row($db, $unownedId)['provisioning_error'] ?? '') === 'Domain is no longer available to register',
+    'an unavailable new domain stores a clear error'
+);
+
+$existingNeverRegisters = [];
+$existingId = insert_case($db, ['domain_name' => 'keep.example', 'domain_path' => 'existing']);
+[$existingCreated, $existingCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '900102',
+    'failure' => '',
+    'status' => 200,
+]);
+webco_provision_hosting_project(
+    $db,
+    $existingId,
+    ['ok' => true, 'domains' => []],
+    $existingCreate,
+    quiet_log(),
+    null,
+    null,
+    false,
+    static function () use (&$existingNeverRegisters): array {
+        $existingNeverRegisters[] = true;
+
+        return ['ok' => true, 'failure' => '', 'status' => 200];
+    }
+);
+check($existingNeverRegisters === [] && count($existingCreated->calls) === 1, 'an existing domain never calls register');
+
 $defaultPreview = webco_provision_hosting_preview($db, $testModeId);
 check(($defaultPreview[0]['action'] ?? '') === 'not_eligible', 'a test order stays ineligible without the override');
 check(

@@ -39,6 +39,9 @@ const standardHosting =
       <h2>Order summary</h2>
       <dl class="summary" id="checkout-summary"></dl>
       <p class="checkout-note">Today's payment is the website build. The later care or hosting charge follows the schedule below.</p>
+      <p class="checkout-note" id="domain-include-note" hidden>
+        A new .uk or .co.uk domain is registered after payment as part of hosting or Managed Care. Existing domains are connected manually.
+      </p>
       <p id="draft-result" class="start-note" role="status"></p>
     </article>
     </div>
@@ -153,6 +156,9 @@ const standardHosting =
       rows.push(["Hosting", standardHosting]);
     }
     rows.forEach(([label, value]) => summary.append(row(label, value)));
+
+    const domainNote = document.getElementById("domain-include-note");
+    if (domainNote) domainNote.hidden = state.domainPath !== "new";
 
     const result = document.getElementById("draft-result");
     const button = document.getElementById("save-draft");

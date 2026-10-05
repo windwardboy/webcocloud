@@ -1,12 +1,14 @@
 <?php
 /**
- * Hosting provisioning for an existing domain.
+ * Hosting provisioning for existing domains, and for new .uk / .co.uk domains.
  *
  * Preview lists eligible projects and does not write. Apply claims a ready
- * project, checks the 20i package list, then creates one hosting package.
+ * project, registers an included new domain when needed, checks the 20i
+ * package list, then creates one hosting package.
  * The dry-run worker and the Stripe webhook do not call this file.
  *
- * This step does not register domains, change DNS, issue SSL, create
+ * New domains outside .uk / .co.uk are refused (not included). Existing-domain
+ * transfers stay manual. This step does not change DNS, issue SSL, create
  * mailboxes, deploy files, or copy a site template.
  */
 
@@ -42,7 +44,7 @@ function webco_provision_hosting_candidate_ids(PDO $db, ?int $projectId = null, 
             INNER JOIN orders o ON o.id = p.order_id
             WHERE o.status = \'paid\'
               AND ' . webco_provision_hosting_livemode_sql($allowTestOrder, $projectId) . '
-              AND o.domain_path = \'existing\'
+              AND o.domain_path IN (\'existing\', \'new\')
               AND (
                     p.provisioning_status = \'ready\'
                     OR (
@@ -125,7 +127,7 @@ function webco_provision_hosting_state(PDO $db, int $projectId, bool $allowTestO
     try {
         $statement = $db->prepare(
             'SELECT p.id, p.order_public_id, p.provisioning_status, p.twentyi_package_id,
-                    p.provisioning_error, o.public_id, o.status AS order_status,
+                    p.provisioning_error, p.domain_registered_at, o.public_id, o.status AS order_status,
                     o.stripe_livemode, o.domain_path, o.domain_name, o.package_code
              FROM projects p
              INNER JOIN orders o ON o.id = p.order_id
@@ -145,6 +147,9 @@ function webco_provision_hosting_state(PDO $db, int $projectId, bool $allowTestO
     $livemode = $livemode === null || $livemode === '' ? null : (int) $livemode;
     $live = $livemode === 1;
     $test = webco_provision_hosting_test_override($allowTestOrder, $projectId) && $livemode === 0;
+    $domainPath = (string) ($row['domain_path'] ?? '');
+    $domainName = (string) ($row['domain_name'] ?? '');
+    $domainOk = $domainPath === 'existing' || $domainPath === 'new';
 
     return [
         'id' => (int) ($row['id'] ?? 0),
@@ -153,14 +158,15 @@ function webco_provision_hosting_state(PDO $db, int $projectId, bool $allowTestO
         'provisioning_status' => (string) ($row['provisioning_status'] ?? ''),
         'package_id' => $packageId,
         'provisioning_error' => webco_provision_nullable($row['provisioning_error'] ?? null),
+        'domain_registered_at' => webco_provision_nullable($row['domain_registered_at'] ?? null),
         'order_status' => (string) ($row['order_status'] ?? ''),
         'stripe_livemode' => $livemode,
-        'domain_path' => (string) ($row['domain_path'] ?? ''),
-        'domain_name' => (string) ($row['domain_name'] ?? ''),
+        'domain_path' => $domainPath,
+        'domain_name' => $domainName,
         'package_code' => (string) ($row['package_code'] ?? ''),
         'eligible' => (string) ($row['order_status'] ?? '') === 'paid'
             && ($live || $test)
-            && (string) ($row['domain_path'] ?? '') === 'existing',
+            && $domainOk,
     ];
 }
 
@@ -420,6 +426,9 @@ function webco_provision_hosting_list_live(string $bearer): array
  * @param callable(): array{ok: bool, domains?: list<string>} $listPackages
  * @param callable(string, string, string): array<string, mixed> $createHosting
  * @param callable(array{event: string, context: array<string, mixed>}): void $log
+ * @param callable(string, array<string, mixed>): array<string, mixed>|null $registerDomain
+ * @param callable(string): string|null $checkAvailability returns available|unavailable|error
+ * @param callable(): array{ok: bool, domains?: list<string>}|null $listRegistered
  * @return array{ok: bool, results: list<array<string, mixed>>}
  */
 function webco_provision_hosting_apply(
@@ -428,7 +437,10 @@ function webco_provision_hosting_apply(
     callable $createHosting,
     callable $log,
     ?int $projectId = null,
-    bool $allowTestOrder = false
+    bool $allowTestOrder = false,
+    ?callable $registerDomain = null,
+    ?callable $checkAvailability = null,
+    ?callable $listRegistered = null
 ): array {
     $testOverride = webco_provision_hosting_test_override($allowTestOrder, $projectId);
     $started = ['mode' => 'apply'];
@@ -484,7 +496,10 @@ function webco_provision_hosting_apply(
             $log,
             null,
             null,
-            $allowTestOrder
+            $allowTestOrder,
+            $registerDomain,
+            $checkAvailability,
+            $listRegistered
         );
     }
 
@@ -510,6 +525,9 @@ function webco_provision_hosting_apply(
  * @param callable(array{event: string, context: array<string, mixed>}): void $log
  * @param callable(PDO, int, string): bool|null $storePackageId
  * @param callable(PDO, int, string): bool|null $markProvisioned
+ * @param callable(string, array<string, mixed>): array<string, mixed>|null $registerDomain
+ * @param callable(string): string|null $checkAvailability
+ * @param callable(): array{ok: bool, domains?: list<string>}|null $listRegistered
  * @return array{project_id: int, outcome: string, package_id: ?string, error: ?string}
  */
 function webco_provision_hosting_project(
@@ -520,7 +538,10 @@ function webco_provision_hosting_project(
     callable $log,
     ?callable $storePackageId = null,
     ?callable $markProvisioned = null,
-    bool $allowTestOrder = false
+    bool $allowTestOrder = false,
+    ?callable $registerDomain = null,
+    ?callable $checkAvailability = null,
+    ?callable $listRegistered = null
 ): array {
     $store = $storePackageId ?? 'webco_provision_hosting_store_package_id';
     $mark = $markProvisioned ?? 'webco_provision_hosting_mark_provisioned';
@@ -565,11 +586,31 @@ function webco_provision_hosting_project(
         return webco_provision_hosting_failed($log, $projectId, $error);
     }
     $payload = $decision['payload'];
-    if (($payload['domain_path'] ?? '') !== 'existing') {
-        $error = 'Only an existing domain can be hosted in this step';
+    $domainPath = (string) ($payload['domain_path'] ?? '');
+    if ($domainPath !== 'existing' && $domainPath !== 'new') {
+        $error = 'Unsupported domain choice for hosting provisioning';
         webco_provision_fail($db, $projectId, $error);
 
         return webco_provision_hosting_failed($log, $projectId, $error);
+    }
+
+    $domain = (string) $payload['domain_name'];
+    if ($domainPath === 'new') {
+        $registered = webco_provision_hosting_ensure_domain_registered(
+            $db,
+            $projectId,
+            $claimed,
+            $domain,
+            $log,
+            $registerDomain,
+            $checkAvailability,
+            $listRegistered
+        );
+        if ($registered !== true) {
+            return is_array($registered)
+                ? $registered
+                : webco_provision_hosting_failed($log, $projectId, 'Domain registration could not be completed');
+        }
     }
 
     if (($packageList['ok'] ?? false) !== true || !is_array($packageList['domains'] ?? null)) {
@@ -579,7 +620,6 @@ function webco_provision_hosting_project(
         return webco_provision_hosting_failed($log, $projectId, $error);
     }
 
-    $domain = (string) $payload['domain_name'];
     if (webco_provision_hosting_domain_taken($domain, $packageList['domains'])) {
         $error = 'Domain already exists on a 20i hosting package';
         webco_provision_fail($db, $projectId, $error);
@@ -625,6 +665,182 @@ function webco_provision_hosting_project(
     ]);
 
     return webco_provision_hosting_finish($db, $projectId, $packageId, $mark, $log);
+}
+
+/**
+ * Register an included new domain when needed. Returns true on success, or a
+ * failed project result array.
+ *
+ * @param array<string, mixed> $claimed
+ * @param callable(array{event: string, context: array<string, mixed>}): void $log
+ * @param callable(string, array<string, mixed>): array<string, mixed>|null $registerDomain
+ * @param callable(string): string|null $checkAvailability
+ * @param callable(): array{ok: bool, domains?: list<string>}|null $listRegistered
+ * @return true|array{project_id: int, outcome: string, package_id: ?string, error: ?string}
+ */
+function webco_provision_hosting_ensure_domain_registered(
+    PDO $db,
+    int $projectId,
+    array $claimed,
+    string $domain,
+    callable $log,
+    ?callable $registerDomain,
+    ?callable $checkAvailability,
+    ?callable $listRegistered
+): array|bool {
+    if (!webco_domain_is_included_tld($domain)) {
+        $error = 'Only .uk and .co.uk domains are included with hosting';
+        webco_provision_fail($db, $projectId, $error);
+
+        return webco_provision_hosting_failed($log, $projectId, $error);
+    }
+
+    $already = webco_provision_nullable($claimed['domain_registered_at'] ?? null);
+    if ($already !== null) {
+        return true;
+    }
+
+    $owned = false;
+    if ($listRegistered !== null) {
+        $listed = $listRegistered();
+        $domains = is_array($listed) ? ($listed['domains'] ?? null) : null;
+        if (is_array($listed) && ($listed['ok'] ?? false) === true && is_array($domains)) {
+            foreach ($domains as $name) {
+                if (is_string($name) && webco_twentyi_domain($name) === $domain) {
+                    $owned = true;
+                    break;
+                }
+            }
+        }
+    }
+
+    if (!$owned) {
+        if ($checkAvailability === null || $registerDomain === null) {
+            $error = 'Domain registration is not configured';
+            webco_provision_fail($db, $projectId, $error);
+
+            return webco_provision_hosting_failed($log, $projectId, $error);
+        }
+
+        $availability = $checkAvailability($domain);
+        if ($availability === 'unavailable') {
+            $error = 'Domain is no longer available to register';
+            webco_provision_fail($db, $projectId, $error);
+
+            return webco_provision_hosting_failed($log, $projectId, $error);
+        }
+        if ($availability !== 'available') {
+            $error = 'Domain availability could not be confirmed';
+            webco_provision_fail($db, $projectId, $error);
+
+            return webco_provision_hosting_failed($log, $projectId, $error);
+        }
+
+        $contact = [
+            'business_name' => $claimed['business_name'] ?? null,
+            'contact_name' => $claimed['contact_name'] ?? null,
+            'email' => $claimed['email'] ?? null,
+            'phone' => $claimed['phone'] ?? null,
+            'address_line_1' => $claimed['address_line_1'] ?? null,
+            'address_line_2' => $claimed['address_line_2'] ?? null,
+            'town' => $claimed['town'] ?? null,
+            'county' => $claimed['county'] ?? null,
+            'postcode' => $claimed['postcode'] ?? null,
+            'company_number' => $claimed['company_number'] ?? null,
+        ];
+        $registered = $registerDomain($domain, $contact);
+        if (!is_array($registered) || ($registered['ok'] ?? false) !== true) {
+            // Retry path: registration may have succeeded earlier without our stamp.
+            $ownedAfter = false;
+            if ($listRegistered !== null) {
+                $again = $listRegistered();
+                $againDomains = is_array($again) ? ($again['domains'] ?? null) : null;
+                if (is_array($again) && ($again['ok'] ?? false) === true && is_array($againDomains)) {
+                    foreach ($againDomains as $name) {
+                        if (is_string($name) && webco_twentyi_domain($name) === $domain) {
+                            $ownedAfter = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            if (!$ownedAfter) {
+                $error = webco_provision_hosting_register_error(is_array($registered) ? $registered : []);
+                webco_provision_fail($db, $projectId, $error);
+
+                return webco_provision_hosting_failed($log, $projectId, $error);
+            }
+        } else {
+            webco_provision_log($log, 'domain_registered', [
+                'project_id' => $projectId,
+                'domain_name' => $domain,
+            ]);
+        }
+    } else {
+        webco_provision_log($log, 'domain_already_registered', [
+            'project_id' => $projectId,
+            'domain_name' => $domain,
+        ]);
+    }
+
+    if (!webco_provision_hosting_mark_domain_registered($db, $projectId)) {
+        $error = 'Domain was registered but could not be recorded';
+        webco_provision_fail($db, $projectId, $error);
+
+        return webco_provision_hosting_failed($log, $projectId, $error);
+    }
+
+    return true;
+}
+
+/**
+ * @param array<string, mixed> $registered
+ */
+function webco_provision_hosting_register_error(array $registered): string
+{
+    $failure = (string) ($registered['failure'] ?? '');
+    $status = (int) ($registered['status'] ?? 0);
+    if ($failure === 'http' && $status > 0) {
+        return 'Domain registration failed (HTTP ' . $status . ')';
+    }
+    if ($failure === 'invalid') {
+        return 'Domain registration details are incomplete';
+    }
+
+    return 'Domain registration could not be completed';
+}
+
+function webco_provision_hosting_mark_domain_registered(PDO $db, int $projectId): bool
+{
+    if ($projectId < 1) {
+        return false;
+    }
+
+    try {
+        $update = $db->prepare(
+            'UPDATE projects
+             SET domain_registered_at = CURRENT_TIMESTAMP,
+                 updated_at = CURRENT_TIMESTAMP
+             WHERE id = :id
+               AND provisioning_status = \'in_progress\'
+               AND (domain_registered_at IS NULL OR domain_registered_at = \'\')'
+        );
+        $update->execute(['id' => $projectId]);
+        if ($update->rowCount() === 1) {
+            return true;
+        }
+
+        $select = $db->prepare('SELECT domain_registered_at FROM projects WHERE id = :id');
+        $select->execute(['id' => $projectId]);
+        $row = $select->fetch();
+    } catch (PDOException) {
+        return false;
+    }
+    if ($row === false) {
+        return false;
+    }
+
+    return webco_provision_nullable($row['domain_registered_at'] ?? null) !== null;
 }
 
 /**
@@ -713,10 +929,11 @@ function webco_provision_hosting_claim(PDO $db, int $projectId, bool $allowTestO
         $db->beginTransaction();
         $select = $db->prepare(
             'SELECT p.id, p.order_id, p.order_public_id, p.vertical_code, p.status AS project_status,
-                    p.twentyi_package_id,
+                    p.twentyi_package_id, p.domain_registered_at,
                     o.id AS linked_order_id, o.public_id, o.status AS order_status,
                     o.package_code, o.package_name, o.domain_path, o.domain_name,
                     o.business_name, o.contact_name, o.email, o.phone, o.care_choice,
+                    o.address_line_1, o.address_line_2, o.town, o.county, o.postcode, o.company_number,
                     o.hosting_status, o.hosting_included_until, o.care_status
              FROM projects p
              INNER JOIN orders o ON o.id = p.order_id
@@ -724,7 +941,7 @@ function webco_provision_hosting_claim(PDO $db, int $projectId, bool $allowTestO
                AND p.provisioning_status = \'ready\'
                AND o.status = \'paid\'
                AND ' . webco_provision_hosting_livemode_sql($allowTestOrder, $projectId) . '
-               AND o.domain_path = \'existing\'' . webco_for_update($db)
+               AND o.domain_path IN (\'existing\', \'new\')' . webco_for_update($db)
         );
         $select->execute(['id' => $projectId]);
         $row = $select->fetch();

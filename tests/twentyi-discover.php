@@ -59,7 +59,7 @@ check(str_contains((string) $cli, "PHP_SAPI !== 'cli'"), 'CLI entry refuses a we
 check(!str_contains((string) $library, 'webco_db') && !str_contains($source, 'webco_db'), 'discovery does not open the database');
 check(!str_contains($source, 'addWeb'), 'discovery CLI does not call addWeb');
 check(!str_contains($source, 'webco_twentyi_http_post'), 'discovery CLI does not use the write transport');
-check(!str_contains((string) $library, 'addDomain'), 'discovery does not call addDomain');
+check(!str_contains($source, 'addDomain'), 'discovery CLI does not call addDomain');
 check(!str_contains($source, 'CURLOPT_POST'), 'discovery CLI does not send a POST');
 check(!str_contains(strtolower((string) $library . $source), 'ftp'), 'discovery does not request FTP');
 check(!str_contains(strtolower((string) $library . $source), 'ssh'), 'discovery does not request SSH');
@@ -72,6 +72,7 @@ check(
     webco_twentyi_read_url('/reseller/*/packageTypes') === 'https://api.20i.com/reseller/*/packageTypes',
     'package type URL is the documented GET'
 );
+check(webco_twentyi_read_url('/domain') === 'https://api.20i.com/domain', 'registered domain list URL is allowed for ownership checks');
 foreach (['/reseller/*/addWeb', '/reseller/*/addDomain', '/package/1/email/example.com', '/domain/1/nameservers'] as $blocked) {
     check(webco_twentyi_read_url($blocked) === null, $blocked . ' is not a discovery read');
 }

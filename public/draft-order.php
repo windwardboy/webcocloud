@@ -204,6 +204,9 @@ function order_from_state(array $state): ?array
     if ($domain === null) {
         return null;
     }
+    if ($domainPath === 'new' && !domain_is_included_tld($domain)) {
+        return null;
+    }
 
     $details = $state['details'] ?? null;
     if (!is_array($details)) {
@@ -316,6 +319,11 @@ function optional_text(mixed $value, int $max): string|false|null
     }
 
     return $value;
+}
+
+function domain_is_included_tld(string $domain): bool
+{
+    return preg_match('/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.(?:co\.)?uk$/', $domain) === 1;
 }
 
 function normalise_domain(string $value): ?string

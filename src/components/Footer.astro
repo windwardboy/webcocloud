@@ -1,11 +1,12 @@
 ---
 import { nav, site, websiteCategories } from "../config/site";
-import { clientAreaHref, hostingLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref, webmailHref } from "../lib/links";
 import Logo from "./Logo.astro";
 
 const hasLegal = site.legalName.length > 0;
 const legalParts = [site.legalName, site.companyNumber, site.registeredOffice].filter(Boolean);
 const serviceLinks = nav.filter((item) => item.href !== "/");
+const webmail = webmailHref();
 ---
 
 <footer class="site-footer">
@@ -53,6 +54,15 @@ const serviceLinks = nav.filter((item) => item.href !== "/");
       <ul class="footer-nav">
         <li><a href="/support/">Support</a></li>
         <li><a href={clientAreaHref()}>Client area</a></li>
+        {
+          webmail && (
+            <li>
+              <a href={webmail} rel="noopener noreferrer">
+                Webmail
+              </a>
+            </li>
+          )
+        }
         {
           hostingLoginHref() && (
             <li>

@@ -10,6 +10,11 @@ export function hostingLoginHref(): string {
   return site.hostingLoginUrl;
 }
 
+/** Customer webmail login. */
+export function webmailHref(): string {
+  return site.webmailUrl;
+}
+
 export function canonicalUrl(pathname: string): string {
   const path = pathname === "/" ? "/" : pathname.endsWith("/") ? pathname : `${pathname}/`;
   return new URL(path, site.url).href;

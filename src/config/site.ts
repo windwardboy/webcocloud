@@ -21,6 +21,8 @@ export const site = {
   clientAreaPath: "/brief.php",
   /** Existing 20i/HostShop login. This is not the Webco client area. */
   hostingLoginUrl: "https://my.webcocloud.net/basket-summary-login?r=%2Fmanage",
+  /** Customer webmail login. */
+  webmailUrl: "https://my.webcomail.net/",
   webcoMediaUrl: "https://webcomedia.net",
   supportEmail: "",
   supportPhone: "",

@@ -2,10 +2,11 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
-import { clientAreaHref, hostingLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref, webmailHref } from "../lib/links";
 
 const description =
   "Professional business email on your own domain, with an agreed number of mailboxes set up by Webco Cloud.";
+const webmail = webmailHref();
 ---
 
 <BaseLayout title="Email" description={description}>
@@ -13,6 +14,15 @@ const description =
     <p>
       Professional addresses come with your website. Each mailbox has 10GB of storage. We set up the agreed mailboxes and send the settings you need.
     </p>
+    {
+      webmail && (
+        <div class="actions">
+          <a class="button" href={webmail} rel="noopener noreferrer">
+            Open webmail
+          </a>
+        </div>
+      )
+    }
   </PageHero>
 
   <section class="section" aria-labelledby="email-scope-heading">
@@ -30,9 +40,20 @@ const description =
           <p>The agreed mailboxes are created at the start, with the settings to add them to your mail app.</p>
         </li>
         <li class="card">
-          <h3>Further help</h3>
+          <h3>Webmail</h3>
           <p>
-            Help with a mail app on a particular phone or computer is arranged separately. Additional mailboxes can be added by arrangement.
+            Check mail in the browser when you need to.
+            {
+              webmail && (
+                <>
+                  {" "}
+                  <a href={webmail} rel="noopener noreferrer">
+                    Open webmail
+                  </a>
+                  .
+                </>
+              )
+            }
           </p>
         </li>
       </ul>
@@ -41,10 +62,16 @@ const description =
 
   <CtaBand
     title="Email that uses your domain"
-    text="Mailbox setup is part of the website service. The client area is for your website project. Hosting login is for an existing hosting account."
+    text="Open webmail to check your inbox. The client area is for your website project. Hosting login is for an existing hosting account."
   >
-    <a class="button" href={clientAreaHref()}>Client area</a>
+    {
+      webmail && (
+        <a class="button" href={webmail} rel="noopener noreferrer">
+          Open webmail
+        </a>
+      )
+    }
+    <a class="button button-quiet" href={clientAreaHref()}>Client area</a>
     <a class="button button-quiet" href={hostingLoginHref()} rel="noopener noreferrer">Hosting login</a>
-    <a class="button button-quiet" href="/support/">Get support</a>
   </CtaBand>
 </BaseLayout>

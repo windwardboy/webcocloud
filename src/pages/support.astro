@@ -3,22 +3,30 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import PageHero from "../components/PageHero.astro";
 import CtaBand from "../components/CtaBand.astro";
 import { site } from "../config/site";
-import { clientAreaHref, hostingLoginHref } from "../lib/links";
+import { clientAreaHref, hostingLoginHref, webmailHref } from "../lib/links";
 
 const description =
-  "Support for websites, hosting, domains and email on Webco Cloud, including the client area and hosting login.";
+  "Support for websites, hosting, domains and email on Webco Cloud, including the client area, webmail and hosting login.";
 const hasContact = site.supportEmail.length > 0 || site.supportPhone.length > 0;
 const areaHref = clientAreaHref();
 const hostingHref = hostingLoginHref();
+const webmail = webmailHref();
 ---
 
 <BaseLayout title="Support" description={description}>
   <PageHero eyebrow="Support" title="Help with the website, domain and email">
     <p>
-      The client area is for your website project. Hosting login is the existing hosting account, and it is separate.
+      The client area is for your website project. Webmail is for checking email. Hosting login is the existing hosting account.
     </p>
     <div class="actions">
       <a class="button" href={areaHref}>Client area</a>
+      {
+        webmail && (
+          <a class="button button-quiet" href={webmail} rel="noopener noreferrer">
+            Open webmail
+          </a>
+        )
+      }
       {
         hostingHref && (
           <a class="button button-quiet" href={hostingHref} rel="noopener noreferrer">
@@ -47,6 +55,29 @@ const hostingHref = hostingLoginHref();
       </div>
     </div>
   </section>
+
+  {
+    webmail && (
+      <section class="section" id="webmail" aria-labelledby="webmail-heading">
+        <div class="wrap">
+          <div class="panel">
+            <div>
+              <p class="eyebrow">Business email</p>
+              <h2 id="webmail-heading">Webmail</h2>
+            </div>
+            <div>
+              <p>Open webmail in the browser to check the mailboxes set up with your website.</p>
+              <div class="actions">
+                <a class="button" href={webmail} rel="noopener noreferrer">
+                  Open webmail
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    )
+  }
 
   {
     hostingHref && (
@@ -88,8 +119,21 @@ const hostingHref = hostingLoginHref();
           <p>Renewals, the site staying online, and SSL.</p>
         </li>
         <li class="card">
-          <h3>Email setup</h3>
-          <p>The mailboxes we created and the settings we provided.</p>
+          <h3>Email</h3>
+          <p>
+            The mailboxes we created and the settings we provided.
+            {
+              webmail && (
+                <>
+                  {" "}
+                  <a href={webmail} rel="noopener noreferrer">
+                    Open webmail
+                  </a>
+                  .
+                </>
+              )
+            }
+          </p>
         </li>
       </ul>
       <p class="follow-on">

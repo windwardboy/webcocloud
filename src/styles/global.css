@@ -398,29 +398,22 @@ main:has(> .cta-band:last-child) {
 }
 
 .hero-with-media {
-  display: flex;
+  padding: 3.5rem 0 3.75rem;
+}
+
+.hero-split {
+  display: grid;
   align-items: center;
-  min-height: min(78vh, 44rem);
-  padding: 4.5rem 0 4rem;
+  gap: 2rem 2.5rem;
 }
 
-.hero-with-media::before,
-.hero-with-media::after {
-  display: none;
-}
-
-.hero-with-media > .wrap {
-  position: relative;
-  z-index: 1;
-  max-width: 38rem;
-  margin-left: max(var(--gutter), calc((100% - var(--page)) / 2));
-  margin-right: auto;
-  width: min(100% - (var(--gutter) * 2), 38rem);
+.hero-copy {
+  min-width: 0;
 }
 
 .hero-with-media h1 {
   max-width: 11em;
-  font-size: clamp(2.2rem, 5vw, 3.6rem);
+  font-size: clamp(2.2rem, 4.6vw, 3.5rem);
 }
 
 .hero-with-media .hero-body {
@@ -429,53 +422,31 @@ main:has(> .cta-band:last-child) {
 }
 
 .hero-media {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  margin: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.hero-media::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  background:
-    linear-gradient(
-      90deg,
-      rgba(7, 22, 26, 0.96) 0%,
-      rgba(7, 22, 26, 0.88) 34%,
-      rgba(7, 22, 26, 0.45) 58%,
-      rgba(7, 22, 26, 0.12) 78%,
-      transparent 100%
-    ),
-    linear-gradient(180deg, rgba(7, 22, 26, 0.35) 0%, transparent 28%, transparent 72%, rgba(7, 22, 26, 0.55) 100%);
-  pointer-events: none;
+  min-width: 0;
+  animation: rise 0.9s var(--ease) both;
+  animation-delay: 0.18s;
 }
 
 .hero-media img {
   display: block;
   width: 100%;
-  height: 100%;
-  max-width: none;
-  object-fit: cover;
-  object-position: 68% center;
+  height: auto;
 }
 
-@media (max-width: 47.99rem) {
+@media (min-width: 56rem) {
+  .hero-split {
+    grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+    gap: 2.5rem 3rem;
+  }
+}
+
+@media (max-width: 55.99rem) {
   .hero-with-media {
-    display: block;
-    min-height: 0;
     padding: 3rem 0 0;
   }
 
-  .hero-with-media > .wrap {
-    width: min(var(--page), calc(100% - 2 * var(--gutter)));
-    max-width: none;
-    margin-inline: auto;
-    padding-bottom: 0.5rem;
+  .hero-split {
+    gap: 1.75rem;
   }
 
   .hero-with-media h1 {
@@ -483,19 +454,8 @@ main:has(> .cta-band:last-child) {
   }
 
   .hero-media {
-    position: relative;
-    inset: auto;
-    margin-top: 1.75rem;
-    min-height: 18rem;
-  }
-
-  .hero-media::before {
-    background: linear-gradient(180deg, var(--night) 0%, transparent 42%, transparent 78%, rgba(7, 22, 26, 0.4) 100%);
-  }
-
-  .hero-media img {
-    min-height: 18rem;
-    object-position: center center;
+    margin-inline: calc(-1 * var(--gutter));
+    width: calc(100% + 2 * var(--gutter));
   }
 }
 

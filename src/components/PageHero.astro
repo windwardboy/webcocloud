@@ -10,18 +10,20 @@ const { eyebrow, title, imageSrc, imageAlt = "" } = Astro.props;
 ---
 
 <section class:list={["hero", imageSrc && "hero-with-media"]}>
-  <div class="wrap">
-    <p class="eyebrow">{eyebrow}</p>
-    <h1>{title}</h1>
-    <div class="hero-body">
-      <slot />
-    </div>
-  </div>
-  {
-    imageSrc && (
-      <div class="hero-media">
-        <img src={imageSrc} alt={imageAlt} width="1600" height="900" decoding="async" fetchpriority="high" />
+  <div class:list={["wrap", imageSrc && "hero-split"]}>
+    <div class="hero-copy">
+      <p class="eyebrow">{eyebrow}</p>
+      <h1>{title}</h1>
+      <div class="hero-body">
+        <slot />
       </div>
-    )
-  }
+    </div>
+    {
+      imageSrc && (
+        <div class="hero-media">
+          <img src={imageSrc} alt={imageAlt} width="1600" height="900" decoding="async" fetchpriority="high" />
+        </div>
+      )
+    }
+  </div>
 </section>

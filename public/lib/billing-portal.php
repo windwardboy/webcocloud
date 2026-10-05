@@ -3,6 +3,9 @@
  * Stripe Customer Portal for the website in the current brief session.
  * The customer id comes from that project's paid order. Checkout and webhooks
  * are not involved.
+ *
+ * Temporary diagnostics use error_log() and never include secrets, customer
+ * ids, portal URLs, tokens, or payment details.
  */
 
 declare(strict_types=1);
@@ -57,32 +60,201 @@ function webco_billing_portal_fields(string $customerId): ?string
     ]);
 }
 
-function webco_is_test_billing_portal_url(string $url): bool
+function webco_billing_portal_log(string $marker): void
 {
-    if (strlen($url) > 2048 || preg_match('/[\s\r\n\\\\]/', $url) === 1) {
-        return false;
+    $marker = str_replace(["\r", "\n"], '', $marker);
+    if ($marker === '' || strlen($marker) > 300) {
+        $marker = 'diagnostic omitted';
+    }
+
+    error_log('webco billing portal: ' . $marker);
+}
+
+function webco_billing_portal_safe_token(mixed $value): string
+{
+    if (!is_string($value) || preg_match('/^[A-Za-z0-9_]{1,64}$/', $value) !== 1) {
+        return 'none';
+    }
+    if (preg_match('/^(?:sk|rk|pk|cus|whsec|bps|cs|seti|pi|pm)_/i', $value) === 1) {
+        return 'none';
+    }
+
+    return $value;
+}
+
+function webco_billing_portal_safe_message(mixed $value): string
+{
+    if (!is_string($value) || $value === '') {
+        return 'none';
+    }
+
+    $message = str_replace(["\r", "\n", "\t"], ' ', $value);
+    $patterns = [
+        '/sk_(?:test|live)_[A-Za-z0-9]+/',
+        '/rk_(?:test|live)_[A-Za-z0-9]+/',
+        '/whsec_[A-Za-z0-9+\/=_-]+/',
+        '/cus_[A-Za-z0-9]+/',
+        '/[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+/',
+        '#https?://\S+#',
+        '/\b[a-f0-9]{32,}\b/i',
+    ];
+    foreach ($patterns as $pattern) {
+        $replaced = preg_replace($pattern, '[redacted]', $message);
+        $message = is_string($replaced) ? $replaced : '';
+    }
+    $collapsed = preg_replace('/\s+/', ' ', trim($message));
+    $message = is_string($collapsed) ? $collapsed : '';
+    if ($message === '') {
+        return 'none';
+    }
+    if (strlen($message) > 160) {
+        $message = substr($message, 0, 160);
+    }
+
+    return $message;
+}
+
+function webco_billing_portal_livemode_kind(mixed $value): string
+{
+    if ($value === false) {
+        return 'false';
+    }
+    if ($value === true) {
+        return 'true';
+    }
+    if ($value === 0 || $value === '0') {
+        return '0';
+    }
+    if ($value === 1 || $value === '1') {
+        return '1';
+    }
+    if ($value === null) {
+        return 'null';
+    }
+
+    return 'other';
+}
+
+function webco_billing_portal_url_problem(string $url): string
+{
+    if (strlen($url) > 2048) {
+        return 'length';
+    }
+    if (preg_match('/[\s\r\n\\\\]/', $url) === 1) {
+        return 'whitespace';
     }
 
     $parts = parse_url($url);
     if (!is_array($parts)) {
-        return false;
+        return 'parse';
     }
-    if (($parts['scheme'] ?? '') !== 'https' || isset($parts['user']) || isset($parts['pass'])) {
-        return false;
+    if (($parts['scheme'] ?? '') !== 'https') {
+        return 'scheme';
+    }
+    if (isset($parts['user']) || isset($parts['pass'])) {
+        return 'userinfo';
     }
     $host = $parts['host'] ?? '';
     if (!is_string($host) || strcasecmp($host, 'billing.stripe.com') !== 0) {
-        return false;
+        return 'host';
     }
     if (isset($parts['port']) && (int) $parts['port'] !== 443) {
-        return false;
+        return 'port';
     }
     $path = $parts['path'] ?? '';
     if (!is_string($path) || !str_contains($path, '/session/test_')) {
-        return false;
+        return 'path';
     }
 
-    return true;
+    return 'none';
+}
+
+function webco_is_test_billing_portal_url(string $url): bool
+{
+    return webco_billing_portal_url_problem($url) === 'none';
+}
+
+/**
+ * @param array<mixed> $body
+ */
+function webco_billing_portal_log_api_error(int $status, array $body): void
+{
+    if ($status < 100 || $status > 599) {
+        $status = 0;
+    }
+    $error = $body['error'] ?? null;
+    $type = 'none';
+    $code = 'none';
+    $message = 'none';
+    if (is_array($error)) {
+        $type = webco_billing_portal_safe_token($error['type'] ?? null);
+        $code = webco_billing_portal_safe_token($error['code'] ?? null);
+        $message = webco_billing_portal_safe_message($error['message'] ?? null);
+    }
+
+    webco_billing_portal_log(
+        'Stripe HTTP/API error status=' . $status
+        . ' type=' . $type
+        . ' code=' . $code
+        . ' message=' . $message
+    );
+}
+
+/**
+ * @param array{status: string, stripe_customer_id: ?string, stripe_livemode: ?int, livemode_kind?: string}|null $row
+ */
+function webco_billing_portal_eligibility_failure(?array $row): ?string
+{
+    if ($row === null) {
+        return 'billing order not eligible';
+    }
+    $customerId = $row['stripe_customer_id'] ?? null;
+    if (!is_string($customerId) || !webco_billing_portal_customer_id($customerId)) {
+        return 'missing/invalid customer id';
+    }
+    if (webco_billing_livemode($row['stripe_livemode'] ?? null) !== 0) {
+        $kind = $row['livemode_kind'] ?? 'other';
+        if (!in_array($kind, ['false', 'true', '0', '1', 'null', 'other'], true)) {
+            $kind = 'other';
+        }
+
+        return 'livemode mismatch value=' . $kind;
+    }
+    if (($row['status'] ?? '') !== 'paid') {
+        $status = $row['status'] ?? '';
+        $label = is_string($status) && preg_match('/^[a-z_]{1,40}$/', $status) === 1 ? $status : 'other';
+
+        return 'billing order not eligible status=' . $label;
+    }
+
+    return null;
+}
+
+/**
+ * @param array<mixed> $body
+ */
+function webco_billing_portal_response_failure(array $body, string $customerId): ?string
+{
+    if (($body['object'] ?? '') !== 'billing_portal.session') {
+        return 'unexpected portal response';
+    }
+    $returned = $body['customer'] ?? null;
+    if (!is_string($returned) || !hash_equals($customerId, $returned)) {
+        return 'returned customer mismatch';
+    }
+    if (webco_stripe_livemode_column($body['livemode'] ?? null) !== 0) {
+        return 'returned livemode mismatch value=' . webco_billing_portal_livemode_kind($body['livemode'] ?? null);
+    }
+    $url = $body['url'] ?? null;
+    if (!is_string($url)) {
+        return 'invalid Billing Portal URL reason=type';
+    }
+    $problem = webco_billing_portal_url_problem($url);
+    if ($problem !== 'none') {
+        return 'invalid Billing Portal URL reason=' . $problem;
+    }
+
+    return null;
 }
 
 /**
@@ -90,37 +262,53 @@ function webco_is_test_billing_portal_url(string $url): bool
  */
 function webco_billing_portal_url(array $body, string $customerId): ?string
 {
-    if (($body['object'] ?? '') !== 'billing_portal.session') {
-        return null;
-    }
-    $returned = $body['customer'] ?? null;
-    if (!is_string($returned) || !hash_equals($customerId, $returned)) {
-        return null;
-    }
-    if (webco_stripe_livemode_column($body['livemode'] ?? null) !== 0) {
+    if (webco_billing_portal_response_failure($body, $customerId) !== null) {
         return null;
     }
     $url = $body['url'] ?? null;
-    if (!is_string($url) || !webco_is_test_billing_portal_url($url)) {
-        return null;
-    }
 
-    return $url;
+    return is_string($url) ? $url : null;
 }
 
 function webco_open_billing_portal(string $customerId): ?string
 {
     $body = webco_billing_portal_fields($customerId);
+    if ($body === null) {
+        webco_billing_portal_log('missing/invalid customer id');
+
+        return null;
+    }
+
     $secret = webco_stripe_secret();
-    if ($body === null || $secret === null) {
-        $secret = '';
+    if ($secret === null) {
+        webco_billing_portal_log('Stripe test secret unavailable');
 
         return null;
     }
 
     $response = webco_stripe_api($secret, 'POST', '/v1/billing_portal/sessions', $body, null);
     $secret = '';
-    if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
+    if ($response === null) {
+        webco_billing_portal_log('Stripe API transport failure');
+
+        return null;
+    }
+    if (!is_array($response['body'])) {
+        $status = (int) ($response['status'] ?? 0);
+        webco_billing_portal_log('malformed JSON response status=' . $status);
+
+        return null;
+    }
+    if ($response['status'] !== 200) {
+        webco_billing_portal_log_api_error((int) $response['status'], $response['body']);
+
+        return null;
+    }
+
+    $reason = webco_billing_portal_response_failure($response['body'], $customerId);
+    if ($reason !== null) {
+        webco_billing_portal_log($reason);
+
         return null;
     }
 
@@ -128,7 +316,7 @@ function webco_open_billing_portal(string $customerId): ?string
 }
 
 /**
- * @return array{status: string, stripe_customer_id: ?string, stripe_livemode: ?int}|null
+ * @return array{status: string, stripe_customer_id: ?string, stripe_livemode: ?int, livemode_kind: string}|null
  */
 function webco_project_order_billing(PDO $db, int $projectId): ?array
 {
@@ -156,11 +344,13 @@ function webco_project_order_billing(PDO $db, int $projectId): ?array
     if (!is_string($customer) || $customer === '') {
         $customer = null;
     }
+    $rawMode = $row['stripe_livemode'] ?? null;
 
     return [
         'status' => (string) ($row['status'] ?? ''),
         'stripe_customer_id' => $customer,
-        'stripe_livemode' => webco_billing_livemode($row['stripe_livemode'] ?? null),
+        'stripe_livemode' => webco_billing_livemode($rawMode),
+        'livemode_kind' => webco_billing_portal_livemode_kind($rawMode),
     ];
 }
 

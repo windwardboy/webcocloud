@@ -125,5 +125,71 @@ check(webco_project_billing_portal_open($db, 1) === true, 'the dashboard can sho
 check(webco_project_billing_portal_open($db, 3) === false, 'the dashboard stays closed without a customer id');
 check(webco_brief_notice('billing') === 'Billing could not be opened just now. Try again in a moment.', 'a failed portal returns a plain notice');
 
+$paid = ['status' => 'paid', 'stripe_customer_id' => $customer, 'stripe_livemode' => 0, 'livemode_kind' => '0'];
+check(webco_billing_portal_eligibility_failure($paid) === null, 'an eligible order has no failure marker');
+check(webco_billing_portal_eligibility_failure(null) === 'billing order not eligible', 'a missing order is not eligible');
+check(webco_billing_portal_eligibility_failure(['status' => 'paid', 'stripe_customer_id' => null, 'stripe_livemode' => 0]) === 'missing/invalid customer id', 'a missing customer id has its own marker');
+check(webco_billing_portal_eligibility_failure(['status' => 'paid', 'stripe_customer_id' => 'cust_bad', 'stripe_livemode' => 0]) === 'missing/invalid customer id', 'a malformed customer id has its own marker');
+check(webco_billing_portal_eligibility_failure(['status' => 'paid', 'stripe_customer_id' => $customer, 'stripe_livemode' => 1, 'livemode_kind' => '1']) === 'livemode mismatch value=1', 'a live order has a livemode marker');
+check(webco_billing_portal_eligibility_failure(['status' => 'paid', 'stripe_customer_id' => $customer, 'stripe_livemode' => null, 'livemode_kind' => 'null']) === 'livemode mismatch value=null', 'an unknown mode has a livemode marker');
+check(webco_billing_portal_eligibility_failure(['status' => 'refunded', 'stripe_customer_id' => $customer, 'stripe_livemode' => 0]) === 'billing order not eligible status=refunded', 'an unpaid order stays not eligible');
+
+$session = [
+    'object' => 'billing_portal.session',
+    'customer' => $customer,
+    'livemode' => false,
+    'url' => $portalUrl,
+];
+check(webco_billing_portal_response_failure($session, $customer) === null, 'a matching test portal response has no failure marker');
+check(webco_billing_portal_response_failure(['object' => 'checkout.session'] + $session, $customer) === 'unexpected portal response', 'a checkout object is not a portal response');
+check(str_starts_with((string) webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => $other, 'livemode' => false, 'url' => $portalUrl], $customer), 'returned customer mismatch'), 'a different customer has a mismatch marker');
+check(webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => ['id' => $customer], 'livemode' => false, 'url' => $portalUrl], $customer) === 'returned customer mismatch', 'an expanded customer has a mismatch marker');
+check(webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => $customer, 'livemode' => true, 'url' => $portalUrl], $customer) === 'returned livemode mismatch value=true', 'a live response has a livemode marker');
+check(webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => $customer, 'livemode' => false, 'url' => 'https://billing.stripe.com/p/session/live_example'], $customer) === 'invalid Billing Portal URL reason=path', 'a non-test portal path has a URL marker');
+check(webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => $customer, 'livemode' => false, 'url' => 'https://checkout.stripe.com/c/pay/cs_test_example'], $customer) === 'invalid Billing Portal URL reason=host', 'a checkout host has a URL marker');
+check(!str_contains((string) webco_billing_portal_response_failure(['object' => 'billing_portal.session', 'customer' => $customer, 'livemode' => false, 'url' => $portalUrl . 'x'], $customer), $portalUrl), 'a URL marker does not include the address');
+
+$secret = 'sk_test_' . str_repeat('k', 20);
+$unsafe = 'No such customer: ' . $customer . ' key ' . $secret . ' see https://billing.stripe.com/p/session/test_secret mail owner@example.com token ' . str_repeat('ab', 16);
+$safe = webco_billing_portal_safe_message($unsafe);
+check(str_contains($safe, 'No such customer:'), 'a Stripe message can keep its plain wording');
+check(!str_contains($safe, $customer), 'a Stripe message drops the customer id');
+check(!str_contains($safe, $secret) && !str_contains($safe, 'sk_test_'), 'a Stripe message drops the secret key');
+check(!str_contains($safe, 'billing.stripe.com') && !str_contains($safe, 'http'), 'a Stripe message drops addresses');
+check(!str_contains($safe, 'owner@example.com'), 'a Stripe message drops email addresses');
+check(!str_contains($safe, str_repeat('ab', 16)), 'a Stripe message drops long tokens');
+check(webco_billing_portal_safe_token('invalid_request_error') === 'invalid_request_error', 'a Stripe error type can be logged');
+check(webco_billing_portal_safe_token($secret) === 'none', 'a secret is not a safe error token');
+
+$log = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'webco-billing-log-' . getmypid() . '.log';
+if (is_file($log)) {
+    unlink($log);
+}
+ini_set('error_log', $log);
+webco_billing_portal_log('billing order not eligible');
+webco_billing_portal_log_api_error(400, [
+    'error' => [
+        'type' => 'invalid_request_error',
+        'code' => 'resource_missing',
+        'message' => $unsafe,
+    ],
+]);
+webco_billing_portal_log_api_error(400, [
+    'error' => [
+        'type' => $secret,
+        'code' => $customer,
+        'message' => $portalUrl,
+    ],
+]);
+webco_open_billing_portal('');
+$written = is_file($log) ? (string) file_get_contents($log) : '';
+check(str_contains($written, 'webco billing portal: billing order not eligible'), 'a failure marker is written to the error log');
+check(str_contains($written, 'Stripe HTTP/API error status=400 type=invalid_request_error code=resource_missing'), 'a Stripe error logs its status, type, and code');
+check(str_contains($written, 'missing/invalid customer id'), 'a blank customer is logged before Stripe is called');
+check(!str_contains($written, $customer) && !str_contains($written, $secret) && !str_contains($written, 'billing.stripe.com'), 'the error log does not contain secrets, customer ids, or portal addresses');
+if (is_file($log)) {
+    unlink($log);
+}
+
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);

@@ -43,12 +43,25 @@ function webco_handle_billing_portal(): void
     }
 
     $db = webco_db();
-    $customerId = $db instanceof PDO ? webco_billing_portal_customer_for_project($db, $projectId) : null;
-    $url = is_string($customerId) ? webco_open_billing_portal($customerId) : null;
+    if (!$db instanceof PDO) {
+        webco_billing_portal_log('billing order not eligible');
+        webco_brief_redirect('billing');
+    }
+
+    $row = webco_project_order_billing($db, $projectId);
+    $failure = webco_billing_portal_eligibility_failure($row);
+    $customerId = is_array($row) ? ($row['stripe_customer_id'] ?? null) : null;
+    if ($failure !== null || !is_string($customerId)) {
+        webco_billing_portal_log($failure ?? 'missing/invalid customer id');
+        webco_brief_redirect('billing');
+    }
+
+    $url = webco_open_billing_portal($customerId);
     if ($url === null) {
         webco_brief_redirect('billing');
     }
 
+    webco_billing_portal_log('portal session ready');
     header('Location: ' . $url, true, 303);
     exit;
 }

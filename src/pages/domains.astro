@@ -80,6 +80,57 @@ const description =
   const result = document.querySelector("#domain-search-result");
   const button = form?.querySelector("button");
 
+  function copyDomain(domain, trigger) {
+    const done = function () {
+      trigger.setAttribute("data-copied", "true");
+      trigger.setAttribute("aria-label", "Copied " + domain);
+      window.clearTimeout(trigger._copyTimer);
+      trigger._copyTimer = window.setTimeout(function () {
+        trigger.removeAttribute("data-copied");
+        trigger.setAttribute("aria-label", "Copy " + domain);
+      }, 1400);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(domain).then(done).catch(function () {
+        fallbackCopy(domain, done);
+      });
+      return;
+    }
+
+    fallbackCopy(domain, done);
+  }
+
+  function fallbackCopy(domain, done) {
+    const input = document.createElement("input");
+    input.value = domain;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand("copy");
+      done();
+    } catch (_error) {
+      /* ignore */
+    }
+    document.body.removeChild(input);
+  }
+
+  function domainCopyButton(domain) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "domain-copy";
+    btn.setAttribute("aria-label", "Copy " + domain);
+    btn.title = "Click to copy";
+    btn.textContent = domain;
+    btn.addEventListener("click", function () {
+      copyDomain(domain, btn);
+    });
+    return btn;
+  }
+
   function showMessage(state, message) {
     if (!result) return;
     result.dataset.state = state;
@@ -96,10 +147,10 @@ const description =
     primary.className = "domain-result-primary";
     if (data.status === "available") {
       result.dataset.state = "available";
-      primary.textContent = data.domain + " is available.";
+      primary.append(domainCopyButton(data.domain), document.createTextNode(" is available."));
     } else {
       result.dataset.state = "unavailable";
-      primary.textContent = data.domain + " is not available.";
+      primary.append(domainCopyButton(data.domain), document.createTextNode(" is not available."));
     }
 
     const nodes = [primary];
@@ -119,9 +170,8 @@ const description =
         const li = document.createElement("li");
         li.dataset.state = item.status;
 
-        const name = document.createElement("span");
-        name.className = "domain-alt-name";
-        name.textContent = item.domain;
+        const name = domainCopyButton(item.domain);
+        name.classList.add("domain-alt-name");
 
         const badge = document.createElement("span");
         badge.className = "domain-alt-badge";

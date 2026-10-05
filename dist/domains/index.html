@@ -1,4 +1,4 @@
-<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Domains — Webco Cloud</title><meta name="description" content="Domain registration, connection and renewal for websites and email looked after by Webco Cloud."><link rel="canonical" href="https://webcocloud.net/domains/"><link rel="icon" href="/favicon.png" type="image/png"><link rel="preload" href="/_astro/inter-latin-wght-normal.Dx4kXJAl.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/_astro/fraunces-latin-wght-normal.ukD16Tqj.woff2" as="font" type="font/woff2" crossorigin><meta name="theme-color" content="#07161a"><meta property="og:title" content="Domains — Webco Cloud"><meta property="og:description" content="Domain registration, connection and renewal for websites and email looked after by Webco Cloud."><meta property="og:url" content="https://webcocloud.net/domains/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.ClDIxhBm.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/images/logo-webco-cloud.png" width="1024" height="426" alt="Webco Cloud" decoding="async"></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav"><span class="visually-hidden">Menu</span><span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span></button><nav id="primary-nav" class="primary-nav" aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/" aria-current="page">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="nav-aside" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Hosting login</a></li><li><a class="button" href="/brief.php">Client area</a></li></ul></nav></div><script>
+<!DOCTYPE html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Domains — Webco Cloud</title><meta name="description" content="Domain registration, connection and renewal for websites and email looked after by Webco Cloud."><link rel="canonical" href="https://webcocloud.net/domains/"><link rel="icon" href="/favicon.png" type="image/png"><link rel="preload" href="/_astro/inter-latin-wght-normal.Dx4kXJAl.woff2" as="font" type="font/woff2" crossorigin><link rel="preload" href="/_astro/fraunces-latin-wght-normal.ukD16Tqj.woff2" as="font" type="font/woff2" crossorigin><meta name="theme-color" content="#07161a"><meta property="og:title" content="Domains — Webco Cloud"><meta property="og:description" content="Domain registration, connection and renewal for websites and email looked after by Webco Cloud."><meta property="og:url" content="https://webcocloud.net/domains/"><meta property="og:type" content="website"><meta property="og:site_name" content="Webco Cloud"><script type="application/ld+json">{"@context":"https://schema.org","@type":"Organization","name":"Webco Cloud","url":"https://webcocloud.net"}</script><link rel="stylesheet" href="/_astro/global.Bd-nryTE.css"></head><body><a class="skip" href="#content">Skip to content</a><header class="site-header"><div class="wrap header-inner"><a class="logo" href="/"><img src="/images/logo-webco-cloud.png" width="1024" height="426" alt="Webco Cloud" decoding="async"></a><button class="nav-toggle" type="button" aria-expanded="false" aria-controls="primary-nav"><span class="visually-hidden">Menu</span><span class="nav-toggle-bars" aria-hidden="true"><span></span><span></span><span></span></span></button><nav id="primary-nav" class="primary-nav" aria-label="Primary"><ul class="nav"><li><a href="/">Home</a></li><li><a href="/websites/">Websites</a></li><li><a href="/hosting/">Hosting</a></li><li><a href="/domains/" aria-current="page">Domains</a></li><li><a href="/email/">Email</a></li><li><a href="/support/">Support</a></li><li><a class="nav-aside" href="https://my.webcocloud.net/basket-summary-login?r=%2Fmanage" rel="noopener noreferrer">Hosting login</a></li><li><a class="button" href="/brief.php">Client area</a></li></ul></nav></div><script>
     (function () {
       var header = document.currentScript.closest(".site-header");
       var toggle = header.querySelector(".nav-toggle");
@@ -36,6 +36,57 @@
   const result = document.querySelector("#domain-search-result");
   const button = form?.querySelector("button");
 
+  function copyDomain(domain, trigger) {
+    const done = function () {
+      trigger.setAttribute("data-copied", "true");
+      trigger.setAttribute("aria-label", "Copied " + domain);
+      window.clearTimeout(trigger._copyTimer);
+      trigger._copyTimer = window.setTimeout(function () {
+        trigger.removeAttribute("data-copied");
+        trigger.setAttribute("aria-label", "Copy " + domain);
+      }, 1400);
+    };
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(domain).then(done).catch(function () {
+        fallbackCopy(domain, done);
+      });
+      return;
+    }
+
+    fallbackCopy(domain, done);
+  }
+
+  function fallbackCopy(domain, done) {
+    const input = document.createElement("input");
+    input.value = domain;
+    input.setAttribute("readonly", "");
+    input.style.position = "fixed";
+    input.style.opacity = "0";
+    document.body.appendChild(input);
+    input.select();
+    try {
+      document.execCommand("copy");
+      done();
+    } catch (_error) {
+      /* ignore */
+    }
+    document.body.removeChild(input);
+  }
+
+  function domainCopyButton(domain) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "domain-copy";
+    btn.setAttribute("aria-label", "Copy " + domain);
+    btn.title = "Click to copy";
+    btn.textContent = domain;
+    btn.addEventListener("click", function () {
+      copyDomain(domain, btn);
+    });
+    return btn;
+  }
+
   function showMessage(state, message) {
     if (!result) return;
     result.dataset.state = state;
@@ -52,10 +103,10 @@
     primary.className = "domain-result-primary";
     if (data.status === "available") {
       result.dataset.state = "available";
-      primary.textContent = data.domain + " is available.";
+      primary.append(domainCopyButton(data.domain), document.createTextNode(" is available."));
     } else {
       result.dataset.state = "unavailable";
-      primary.textContent = data.domain + " is not available.";
+      primary.append(domainCopyButton(data.domain), document.createTextNode(" is not available."));
     }
 
     const nodes = [primary];
@@ -75,9 +126,8 @@
         const li = document.createElement("li");
         li.dataset.state = item.status;
 
-        const name = document.createElement("span");
-        name.className = "domain-alt-name";
-        name.textContent = item.domain;
+        const name = domainCopyButton(item.domain);
+        name.classList.add("domain-alt-name");
 
         const badge = document.createElement("span");
         badge.className = "domain-alt-badge";

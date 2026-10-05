@@ -1092,6 +1092,37 @@ main:has(> .cta-band:last-child) {
   margin: 0;
 }
 
+.domain-copy {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.domain-copy:hover,
+.domain-copy:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+.domain-copy[data-copied="true"] {
+  text-decoration: none;
+}
+
+.domain-copy[data-copied="true"]::after {
+  content: " · Copied";
+  font-weight: 650;
+}
+
 .domain-search .domain-result[data-state="available"] .domain-result-primary {
   color: var(--accent-strong);
   font-weight: 600;
@@ -1135,7 +1166,7 @@ main:has(> .cta-band:last-child) {
   background: #fff;
 }
 
-.domain-alt-name {
+.domain-alt-list .domain-copy.domain-alt-name {
   color: var(--ink);
   font-weight: 600;
   word-break: break-word;

@@ -1078,22 +1078,80 @@ main:has(> .cta-band:last-child) {
   margin-top: 0.9rem;
 }
 
+.domain-search .domain-result:empty {
+  min-height: 0;
+  margin-top: 0;
+}
+
 .funnel .domain-search .domain-result:empty {
   min-height: 0;
   margin-top: 0;
 }
 
-.domain-search .domain-result[data-state="available"] {
+.domain-result-primary {
+  margin: 0;
+}
+
+.domain-search .domain-result[data-state="available"] .domain-result-primary {
   color: var(--accent-strong);
   font-weight: 600;
 }
 
-.domain-search .domain-result[data-state="unavailable"] {
+.domain-search .domain-result[data-state="unavailable"] .domain-result-primary {
   color: var(--ink);
   font-weight: 600;
 }
 
+.domain-search .domain-result[data-state="error"] .domain-result-primary,
 .domain-search .domain-result[data-state="error"] {
+  color: var(--muted);
+}
+
+.domain-alt-heading {
+  margin: 1.1rem 0 0.55rem;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.domain-alt-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.domain-alt-list li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+}
+
+.domain-alt-name {
+  color: var(--ink);
+  font-weight: 600;
+  word-break: break-word;
+}
+
+.domain-alt-badge {
+  flex: 0 0 auto;
+  font-size: 0.84rem;
+  font-weight: 650;
+}
+
+.domain-alt-list li[data-state="available"] .domain-alt-badge {
+  color: var(--accent-strong);
+}
+
+.domain-alt-list li[data-state="unavailable"] .domain-alt-badge {
   color: var(--muted);
 }
 
@@ -1816,7 +1874,7 @@ html:has(body.funnel) {
   color: #9b2c20;
 }
 
-.domain-search .domain-result[data-state="available"] {
+.domain-search .domain-result[data-state="available"] .domain-result-primary {
   color: var(--accent-strong);
 }
 

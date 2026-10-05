@@ -37,7 +37,7 @@ const description =
           </div>
           <button class="button" type="submit">Check availability</button>
         </form>
-        <p id="domain-search-result" class="domain-result" role="status"></p>
+        <div id="domain-search-result" class="domain-result" role="status" aria-live="polite"></div>
       </div>
     </div>
   </section>
@@ -80,10 +80,63 @@ const description =
   const result = document.querySelector("#domain-search-result");
   const button = form?.querySelector("button");
 
-  function showResult(state, message) {
+  function showMessage(state, message) {
     if (!result) return;
     result.dataset.state = state;
-    result.textContent = message;
+    const p = document.createElement("p");
+    p.className = "domain-result-primary";
+    p.textContent = message;
+    result.replaceChildren(p);
+  }
+
+  function showSearchResult(data) {
+    if (!result) return;
+
+    const primary = document.createElement("p");
+    primary.className = "domain-result-primary";
+    if (data.status === "available") {
+      result.dataset.state = "available";
+      primary.textContent = data.domain + " is available.";
+    } else {
+      result.dataset.state = "unavailable";
+      primary.textContent = data.domain + " is not available.";
+    }
+
+    const nodes = [primary];
+    const alternatives = Array.isArray(data.alternatives) ? data.alternatives : [];
+    if (alternatives.length > 0) {
+      const heading = document.createElement("p");
+      heading.className = "domain-alt-heading";
+      heading.textContent = "Other popular UK endings";
+
+      const list = document.createElement("ul");
+      list.className = "domain-alt-list";
+
+      alternatives.forEach(function (item) {
+        if (!item || typeof item.domain !== "string") return;
+        if (item.status !== "available" && item.status !== "unavailable") return;
+
+        const li = document.createElement("li");
+        li.dataset.state = item.status;
+
+        const name = document.createElement("span");
+        name.className = "domain-alt-name";
+        name.textContent = item.domain;
+
+        const badge = document.createElement("span");
+        badge.className = "domain-alt-badge";
+        badge.textContent = item.status === "available" ? "Available" : "Not available";
+
+        li.append(name, badge);
+        list.appendChild(li);
+      });
+
+      if (list.childNodes.length > 0) {
+        nodes.push(heading, list);
+      }
+    }
+
+    result.replaceChildren.apply(result, nodes);
   }
 
   form?.addEventListener("submit", async (event) => {
@@ -92,7 +145,7 @@ const description =
     if (!domain || !button) return;
 
     button.disabled = true;
-    showResult("", "Checking…");
+    showMessage("", "Checking…");
 
     try {
       const response = await fetch("/domain-search.php", {
@@ -101,17 +154,15 @@ const description =
         body: new URLSearchParams({ domain }),
       });
       const data = await response.json();
-      if (data.status === "available") {
-        showResult("available", data.domain + " is available.");
-      } else if (data.status === "unavailable") {
-        showResult("unavailable", data.domain + " is not available.");
+      if (data.status === "available" || data.status === "unavailable") {
+        showSearchResult(data);
       } else if (response.status === 400) {
-        showResult("error", "Enter a domain such as example.co.uk.");
+        showMessage("error", "Enter a domain such as example.co.uk.");
       } else {
-        showResult("error", "We could not check that domain just now.");
+        showMessage("error", "We could not check that domain just now.");
       }
     } catch {
-      showResult("error", "We could not check that domain just now.");
+      showMessage("error", "We could not check that domain just now.");
     } finally {
       button.disabled = false;
     }

@@ -433,6 +433,31 @@ main:has(> .cta-band:last-child) {
   height: auto;
 }
 
+.hero-media[data-hero-rotate] {
+  display: grid;
+}
+
+.hero-media[data-hero-rotate] img {
+  grid-area: 1 / 1;
+  opacity: 0;
+  transition: opacity 0.8s var(--ease);
+  pointer-events: none;
+}
+
+.hero-media[data-hero-rotate] img.is-active {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-media[data-hero-rotate] img {
+    transition: none;
+  }
+
+  .hero-media[data-hero-rotate] img:not(.is-active) {
+    display: none;
+  }
+}
+
 @media (min-width: 56rem) {
   .hero-split {
     grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);

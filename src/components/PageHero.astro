@@ -1,16 +1,32 @@
 ---
+interface HeroImage {
+  src: string;
+  alt: string;
+}
+
 interface Props {
   eyebrow: string;
   title: string;
   imageSrc?: string;
   imageAlt?: string;
+  images?: HeroImage[];
 }
 
-const { eyebrow, title, imageSrc, imageAlt = "" } = Astro.props;
+const { eyebrow, title, imageSrc, imageAlt = "", images } = Astro.props;
+
+const slides: HeroImage[] =
+  images && images.length > 0
+    ? images
+    : imageSrc
+      ? [{ src: imageSrc, alt: imageAlt }]
+      : [];
+
+const hasMedia = slides.length > 0;
+const rotates = slides.length > 1;
 ---
 
-<section class:list={["hero", imageSrc && "hero-with-media"]}>
-  <div class:list={["wrap", imageSrc && "hero-split"]}>
+<section class:list={["hero", hasMedia && "hero-with-media"]}>
+  <div class:list={["wrap", hasMedia && "hero-split"]}>
     <div class="hero-copy">
       <p class="eyebrow">{eyebrow}</p>
       <h1>{title}</h1>
@@ -19,11 +35,62 @@ const { eyebrow, title, imageSrc, imageAlt = "" } = Astro.props;
       </div>
     </div>
     {
-      imageSrc && (
-        <div class="hero-media">
-          <img src={imageSrc} alt={imageAlt} width="1600" height="900" decoding="async" fetchpriority="high" />
+      hasMedia && (
+        <div class="hero-media" data-hero-rotate={rotates ? "" : undefined}>
+          {slides.map((slide, index) => (
+            <img
+              src={slide.src}
+              alt={slide.alt}
+              width="1600"
+              height="900"
+              decoding="async"
+              fetchpriority={index === 0 ? "high" : "low"}
+              class:list={[index === 0 && "is-active"]}
+            />
+          ))}
         </div>
       )
     }
   </div>
 </section>
+
+{
+  rotates && (
+    <script>
+      const roots = document.querySelectorAll("[data-hero-rotate]");
+
+      for (const root of roots) {
+        const slides = Array.from(root.querySelectorAll("img"));
+        if (slides.length < 2) continue;
+        if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) continue;
+
+        let index = 0;
+        let timer = 0;
+
+        const show = (next: number) => {
+          slides[index]?.classList.remove("is-active");
+          index = next;
+          slides[index]?.classList.add("is-active");
+        };
+
+        const start = () => {
+          window.clearInterval(timer);
+          timer = window.setInterval(() => {
+            show((index + 1) % slides.length);
+          }, 4000);
+        };
+
+        const stop = () => {
+          window.clearInterval(timer);
+        };
+
+        document.addEventListener("visibilitychange", () => {
+          if (document.hidden) stop();
+          else start();
+        });
+
+        start();
+      }
+    </script>
+  )
+}

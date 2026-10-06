@@ -178,6 +178,18 @@ $managed = webco_stripe_checkout_session_fields([
 ], $publicId);
 check($managed === null, 'Managed Care fields stay null until the Managed Care price is configured');
 
+check(
+    str_contains($source, 'WEBCO_STRIPE_PRICE_PROFESSIONAL_WEBSITE')
+        && str_contains($source, 'WEBCO_STRIPE_PRICE_ESSENTIAL_MANAGED_CARE')
+        && str_contains($source, 'WEBCO_STRIPE_PRICE_PROFESSIONAL_MANAGED_CARE'),
+    'checkout line prices wire all five configured live Price secrets'
+);
+check(
+    str_contains($source, "subscription_data[trial_period_days]'] = '30'")
+        && str_contains($source, 'webco_stripe_calendar_year_timestamp'),
+    'Managed Care uses a 30-day trial and annual hosting uses a one-year trial_end'
+);
+
 @unlink($secretsPath);
 
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";

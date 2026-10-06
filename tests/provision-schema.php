@@ -107,5 +107,37 @@ check(
     'absent provisioning_status column is unreadable'
 );
 
+$schemaScript = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'bin' . DIRECTORY_SEPARATOR . 'provision-schema.php';
+$schemaReal = realpath($schemaScript);
+check(is_string($schemaReal) && $schemaReal !== '', 'schema script realpath resolves');
+check(
+    webco_schema_is_cli_entrypoint(__FILE__) === false,
+    'including the schema script from tests is not treated as the CLI entrypoint'
+);
+check(
+    webco_schema_is_cli_entrypoint($schemaReal) === true,
+    'an absolute path to the schema script is treated as the CLI entrypoint'
+);
+
+$previousCwd = getcwd();
+check($previousCwd !== false, 'current working directory is available');
+if ($previousCwd !== false) {
+    chdir(dirname(__DIR__));
+    check(
+        webco_schema_is_cli_entrypoint('bin/provision-schema.php') === true,
+        'a relative path to the schema script is treated as the CLI entrypoint'
+    );
+    chdir($previousCwd);
+}
+
+check(
+    !str_contains($source, "str_ends_with(\$script, '/bin/provision-schema.php')"),
+    'schema entrypoint no longer relies on a /bin/ suffix match alone'
+);
+check(
+    str_contains($source, 'webco_schema_is_cli_entrypoint'),
+    'schema migration uses webco_schema_is_cli_entrypoint for CLI detection'
+);
+
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);

@@ -430,7 +430,22 @@ function webco_schema_run(array $argv): int
     return $failed ? 1 : 0;
 }
 
-$script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
-if (str_ends_with($script, '/bin/provision-schema.php')) {
+/**
+ * True when this file is the PHP process entrypoint (relative or absolute path).
+ * False when included from tests or another script.
+ */
+function webco_schema_is_cli_entrypoint(?string $scriptFilename = null): bool
+{
+    $entry = realpath(__FILE__);
+    if (!is_string($entry) || $entry === '') {
+        return false;
+    }
+
+    $script = realpath((string) ($scriptFilename ?? ($_SERVER['SCRIPT_FILENAME'] ?? '')));
+
+    return is_string($script) && $script === $entry;
+}
+
+if (webco_schema_is_cli_entrypoint()) {
     exit(webco_schema_run($argv));
 }

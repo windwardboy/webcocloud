@@ -79,6 +79,14 @@ foreach ($offers as [$package, $care, $website, $recurring]) {
 
 check(webco_collected_website_pence(line_items(100, 9900)) === 100, 'a wrong one-time amount stays visible for rejection');
 
+$discounted = line_items(59500, 9900);
+$discounted['data'][0]['amount_subtotal'] = 59500;
+$discounted['data'][0]['amount_total'] = 50000;
+check(
+    webco_collected_website_pence($discounted) === 59500,
+    'a promotion-code discount still matches the catalog website fee via amount_subtotal'
+);
+
 $publicId = 'wc_' . str_repeat('a', 20);
 $sessionId = 'cs_test_' . str_repeat('b', 16);
 $otherSession = 'cs_test_' . str_repeat('c', 16);
@@ -286,12 +294,55 @@ check(webco_finish_stripe_event($db, $eventId, $first['claimed_at'], 'applied'),
 $third = webco_claim_stripe_event($other, $eventId, 'checkout.session.completed');
 check(($third['state'] ?? '') === 'done', 'a later delivery of the same event is already done');
 
+$rejectId = 'evt_' . str_repeat('f', 16);
+$rejectClaim = webco_claim_stripe_event($db, $rejectId, 'checkout.session.completed');
+check(($rejectClaim['state'] ?? '') === 'claimed', 'a failing delivery can claim a fresh event');
+check(
+    webco_finish_stripe_event($db, $rejectId, (string) $rejectClaim['claimed_at'], 'rejected'),
+    'a failed delivery can be marked rejected'
+);
+$rejectRetry = webco_claim_stripe_event($other, $rejectId, 'checkout.session.completed');
+check(($rejectRetry['state'] ?? '') === 'claimed', 'a rejected event can be reclaimed for Stripe Resend');
+$rejectPaidId = 'wc_' . str_repeat('8', 20);
+$rejectSession = 'cs_live_' . str_repeat('8', 16);
+$insert->execute(['public_id' => $rejectPaidId, 'session_id' => $rejectSession]);
+$db->prepare('UPDATE orders SET status = \'checkout_created\' WHERE public_id = :id')->execute(['id' => $rejectPaidId]);
+$rejectPayment = $payment;
+$rejectPayment['public_id'] = $rejectPaidId;
+$rejectPayment['session_id'] = $rejectSession;
+$rejectPayment['stripe_livemode'] = 1;
+check(webco_record_checkout_payment($db, $rejectPayment) === 'paid', 'the reclaimed event can mark the order paid once');
+check(webco_record_checkout_payment($db, $rejectPayment) === 'already', 'a second apply of the same payment stays idempotent');
+check(
+    webco_finish_stripe_event($db, $rejectId, (string) $rejectRetry['claimed_at'], 'applied'),
+    'the reclaimed event can finish as applied'
+);
+$rejectDone = webco_claim_stripe_event($db, $rejectId, 'checkout.session.completed');
+check(($rejectDone['state'] ?? '') === 'done', 'an applied event is not reclaimed again');
+$rejectRow = $db->query(
+    'SELECT status FROM orders WHERE public_id = ' . $db->quote($rejectPaidId)
+)->fetch();
+check(($rejectRow['status'] ?? '') === 'paid', 'the recovered order stays paid exactly once');
+
 $staleId = 'evt_' . str_repeat('e', 16);
 $stale = webco_claim_stripe_event($db, $staleId, 'checkout.session.completed');
 $db->prepare('UPDATE stripe_events SET claimed_at = :claimed_at WHERE stripe_event_id = :id')
     ->execute(['claimed_at' => gmdate('Y-m-d H:i:s', time() - 300), 'id' => $staleId]);
 $reclaimed = webco_claim_stripe_event($other, $staleId, 'checkout.session.completed');
 check(($stale['state'] ?? '') === 'claimed' && ($reclaimed['state'] ?? '') === 'claimed', 'a stale unfinished claim can be recovered');
+
+$webhookSource = (string) file_get_contents(dirname(__DIR__) . '/public/stripe-webhook.php');
+check(
+    !preg_match(
+        '/outcome === \'reject\'\)\s*\{\s*webco_webhook_respond\(400/',
+        $webhookSource
+    ),
+    'a rejected webhook no longer answers Stripe with HTTP 400 after finishing'
+);
+check(
+    str_contains($webhookSource, "outcome === 'reject' ? 'rejected' : \$outcome"),
+    'rejected outcomes are still recorded on stripe_events'
+);
 
 $projectsSource = (string) file_get_contents(dirname(__DIR__) . '/public/lib/projects.php');
 check($projectsSource !== '', 'projects library source can be read');

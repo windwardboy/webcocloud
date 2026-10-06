@@ -87,12 +87,24 @@ function webco_handle_stripe_webhook(): void
 
     $outcome = webco_apply_stripe_event($db, $event);
     if ($outcome === 'retry') {
+        // Leave processed_at null so Stripe can retry or a stale claim can be reclaimed.
+        webco_checkout_log('stripe webhook retry for ' . $eventType);
         webco_webhook_respond(500, ['status' => 'error']);
     }
 
-    webco_finish_stripe_event($db, $eventId, $claim['claimed_at'], $outcome === 'reject' ? 'rejected' : $outcome);
+    // applied / ignored / reject are terminal for this delivery. Acknowledge with 200 so
+    // Stripe does not retry a finished reject into a no-op "done" success.
+    $finished = webco_finish_stripe_event(
+        $db,
+        $eventId,
+        $claim['claimed_at'],
+        $outcome === 'reject' ? 'rejected' : $outcome
+    );
+    if (!$finished) {
+        webco_webhook_respond(500, ['status' => 'error']);
+    }
     if ($outcome === 'reject') {
-        webco_webhook_respond(400, ['status' => 'error']);
+        webco_checkout_log('stripe webhook rejected ' . $eventType);
     }
 
     webco_webhook_respond(200, ['received' => true]);

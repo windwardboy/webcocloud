@@ -154,7 +154,8 @@ function webco_collected_website_pence(array $lineItems): ?int
         if ($currency !== 'gbp') {
             return null;
         }
-        $amount = webco_stripe_amount($item['amount_total'] ?? null);
+        // Prefer amount_subtotal so a Stripe promotion code does not fail catalog matching.
+        $amount = webco_stripe_amount($item['amount_subtotal'] ?? $item['amount_total'] ?? null);
         if ($amount === null) {
             return null;
         }

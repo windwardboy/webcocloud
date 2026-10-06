@@ -891,8 +891,9 @@ function webco_cancel_open_checkout(PDO $db, string $publicId, string $sessionId
 
 /**
  * Claims a Stripe event before side effects.
- * A second delivery of a finished event is done.
- * A second delivery while the first claim is fresh is busy.
+ * A second delivery of an applied or ignored event is done.
+ * A rejected event can be reclaimed so Stripe Resend or a later retry can apply
+ * after a code fix. A second delivery while the first claim is fresh is busy.
  *
  * @return array{state: 'claimed', claimed_at: string}|array{state: 'done'|'busy'|'error'}
  */
@@ -927,7 +928,7 @@ function webco_claim_stripe_event(PDO $db, string $eventId, string $eventType): 
 
     try {
         $select = $db->prepare(
-            'SELECT claimed_at, processed_at
+            'SELECT claimed_at, processed_at, result
              FROM stripe_events
              WHERE stripe_event_id = :id'
         );
@@ -939,7 +940,10 @@ function webco_claim_stripe_event(PDO $db, string $eventId, string $eventType): 
     if ($row === false) {
         return ['state' => 'error'];
     }
-    if (($row['processed_at'] ?? null) !== null) {
+
+    $result = $row['result'] ?? null;
+    $processedAt = $row['processed_at'] ?? null;
+    if ($processedAt !== null && ($result === 'applied' || $result === 'ignored')) {
         return ['state' => 'done'];
     }
 
@@ -948,20 +952,37 @@ function webco_claim_stripe_event(PDO $db, string $eventId, string $eventType): 
     if (!$claimed instanceof DateTimeImmutable) {
         return ['state' => 'busy'];
     }
+
+    // Rejected events are reclaimable immediately so a Resend after a fix can apply.
+    // Unfinished claims stay busy for two minutes to avoid overlapping workers.
+    $rejected = $processedAt !== null && $result === 'rejected';
     $age = time() - $claimed->getTimestamp();
-    if ($age < 120) {
+    if (!$rejected && $age < 120) {
         return ['state' => 'busy'];
     }
 
     $taken = gmdate('Y-m-d H:i:s');
     try {
-        $reclaim = $db->prepare(
-            'UPDATE stripe_events
-             SET claimed_at = :claimed_at, event_type = :event_type
-             WHERE stripe_event_id = :id
-               AND processed_at IS NULL
-               AND claimed_at = :previous_claim'
-        );
+        if ($rejected) {
+            $reclaim = $db->prepare(
+                'UPDATE stripe_events
+                 SET claimed_at = :claimed_at,
+                     event_type = :event_type,
+                     processed_at = NULL,
+                     result = NULL
+                 WHERE stripe_event_id = :id
+                   AND result = \'rejected\'
+                   AND claimed_at = :previous_claim'
+            );
+        } else {
+            $reclaim = $db->prepare(
+                'UPDATE stripe_events
+                 SET claimed_at = :claimed_at, event_type = :event_type
+                 WHERE stripe_event_id = :id
+                   AND processed_at IS NULL
+                   AND claimed_at = :previous_claim'
+            );
+        }
         $reclaim->execute([
             'claimed_at' => $taken,
             'event_type' => $eventType,

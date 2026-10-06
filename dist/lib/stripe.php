@@ -118,6 +118,71 @@ function webco_stripe_checkout_session_fields(array $order, string $publicId): ?
 }
 
 /**
+ * One-time website fee for payment apply.
+ * Uses amount_subtotal when present so a Stripe promotion code can reduce
+ * amount_total without failing the catalog package price check. When the
+ * configured website Price ID is present on the line, that match is enough
+ * and the catalog package price is returned for storage.
+ *
+ * @param array<mixed> $lineItems
+ */
+function webco_checkout_website_fee_pence(
+    array $lineItems,
+    int $packagePricePence,
+    ?string $expectedWebsitePriceId = null
+): ?int {
+    if ($packagePricePence < 1) {
+        return null;
+    }
+    if (($lineItems['has_more'] ?? false) === true) {
+        return null;
+    }
+    $rows = $lineItems['data'] ?? null;
+    if (!is_array($rows)) {
+        return null;
+    }
+
+    $oneTime = 0;
+    $matched = false;
+    foreach ($rows as $item) {
+        if (!is_array($item)) {
+            return null;
+        }
+        $price = $item['price'] ?? null;
+        if (!is_array($price)) {
+            return null;
+        }
+        $type = $price['type'] ?? '';
+        if ($type === 'recurring') {
+            continue;
+        }
+        if ($type !== 'one_time') {
+            return null;
+        }
+        $currency = $item['currency'] ?? $price['currency'] ?? '';
+        if ($currency !== 'gbp') {
+            return null;
+        }
+        $oneTime++;
+        $priceId = $price['id'] ?? null;
+        $subtotal = webco_stripe_amount($item['amount_subtotal'] ?? null);
+        $total = webco_stripe_amount($item['amount_total'] ?? null);
+        if (
+            (is_string($expectedWebsitePriceId) && $expectedWebsitePriceId !== '' && $priceId === $expectedWebsitePriceId)
+            || $subtotal === $packagePricePence
+            || ($subtotal === null && $total === $packagePricePence)
+        ) {
+            $matched = true;
+        }
+    }
+    if ($oneTime !== 1 || !$matched) {
+        return null;
+    }
+
+    return $packagePricePence;
+}
+
+/**
  * One-time website fee actually collected on the Checkout Session.
  * Recurring Managed Care and hosting amounts are ignored.
  *

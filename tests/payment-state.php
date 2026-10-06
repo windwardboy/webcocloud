@@ -81,10 +81,25 @@ check(webco_collected_website_pence(line_items(100, 9900)) === 100, 'a wrong one
 
 $discounted = line_items(59500, 9900);
 $discounted['data'][0]['amount_subtotal'] = 59500;
-$discounted['data'][0]['amount_total'] = 50000;
+$discounted['data'][0]['amount_total'] = 595;
 check(
     webco_collected_website_pence($discounted) === 59500,
     'a promotion-code discount still matches the catalog website fee via amount_subtotal'
+);
+$discounted['data'][0]['price']['id'] = 'price_' . str_repeat('w', 16);
+unset($discounted['data'][0]['amount_subtotal']);
+$discounted['data'][0]['amount_total'] = 595;
+check(
+    webco_checkout_website_fee_pence($discounted, 59500, 'price_' . str_repeat('w', 16)) === 59500,
+    'a live discounted checkout matches when only amount_total is reduced but the website Price ID is correct'
+);
+check(
+    webco_checkout_website_fee_pence($discounted, 59500, 'price_' . str_repeat('x', 16)) === null,
+    'a discounted checkout with the wrong website Price ID is rejected'
+);
+check(
+    webco_checkout_website_fee_pence($discounted, 59500, null) === null,
+    'a discounted checkout without subtotal or Price ID match is rejected'
 );
 
 $publicId = 'wc_' . str_repeat('a', 20);
@@ -323,6 +338,43 @@ $rejectRow = $db->query(
     'SELECT status FROM orders WHERE public_id = ' . $db->quote($rejectPaidId)
 )->fetch();
 check(($rejectRow['status'] ?? '') === 'paid', 'the recovered order stays paid exactly once');
+
+$discountEventId = 'evt_' . str_repeat('7', 16);
+$discountOrderId = 'wc_' . str_repeat('7', 20);
+$discountSession = 'cs_live_' . str_repeat('7', 16);
+$insert->execute(['public_id' => $discountOrderId, 'session_id' => $discountSession]);
+$db->prepare(
+    'UPDATE orders
+     SET status = \'checkout_created\', package_price_pence = 59500, package_code = \'essential\', care_choice = \'standard\'
+     WHERE public_id = :id'
+)->execute(['id' => $discountOrderId]);
+$discountClaim = webco_claim_stripe_event($db, $discountEventId, 'checkout.session.completed');
+check(($discountClaim['state'] ?? '') === 'claimed', 'a discounted live event can be claimed');
+$discountItems = line_items(595, 9900);
+$discountItems['data'][0]['price']['id'] = 'price_' . str_repeat('w', 16);
+$discountItems['data'][0]['amount_total'] = 595;
+unset($discountItems['data'][0]['amount_subtotal']);
+$fee = webco_checkout_website_fee_pence($discountItems, 59500, 'price_' . str_repeat('w', 16));
+check($fee === 59500, 'recovered live discounted line items resolve to the catalog website fee');
+$discountPayment = $payment;
+$discountPayment['public_id'] = $discountOrderId;
+$discountPayment['session_id'] = $discountSession;
+$discountPayment['stripe_livemode'] = 1;
+$discountPayment['website_amount_pence'] = (int) $fee;
+check(webco_record_checkout_payment($db, $discountPayment) === 'paid', 'the recovered discounted live order can be marked paid');
+check(
+    webco_finish_stripe_event($db, $discountEventId, (string) $discountClaim['claimed_at'], 'applied'),
+    'the recovered discounted live event finishes as applied'
+);
+$discountAlready = webco_claim_stripe_event($other, $discountEventId, 'checkout.session.completed');
+check(($discountAlready['state'] ?? '') === 'done', 'resending an applied discounted event stays idempotent');
+$discountPaid = $db->query(
+    'SELECT status, stripe_livemode FROM orders WHERE public_id = ' . $db->quote($discountOrderId)
+)->fetch();
+check(
+    ($discountPaid['status'] ?? '') === 'paid' && (int) ($discountPaid['stripe_livemode'] ?? -1) === 1,
+    'the discounted live order remains paid after a later claim'
+);
 
 $staleId = 'evt_' . str_repeat('e', 16);
 $stale = webco_claim_stripe_event($db, $staleId, 'checkout.session.completed');

@@ -79,7 +79,7 @@ function webco_handle_stripe_webhook(): void
 
     $claim = webco_claim_stripe_event($db, $eventId, $eventType);
     if ($claim['state'] === 'done') {
-        webco_webhook_respond(200, ['received' => true]);
+        webco_webhook_respond(200, ['received' => true, 'result' => 'already']);
     }
     if ($claim['state'] !== 'claimed' || !isset($claim['claimed_at'])) {
         webco_webhook_respond(500, ['status' => 'error']);
@@ -92,14 +92,10 @@ function webco_handle_stripe_webhook(): void
         webco_webhook_respond(500, ['status' => 'error']);
     }
 
+    $result = $outcome === 'reject' ? 'rejected' : $outcome;
     // applied / ignored / reject are terminal for this delivery. Acknowledge with 200 so
-    // Stripe does not retry a finished reject into a no-op "done" success.
-    $finished = webco_finish_stripe_event(
-        $db,
-        $eventId,
-        $claim['claimed_at'],
-        $outcome === 'reject' ? 'rejected' : $outcome
-    );
+    // Stripe does not retry a finished reject into a no-op "already" success.
+    $finished = webco_finish_stripe_event($db, $eventId, $claim['claimed_at'], $result);
     if (!$finished) {
         webco_webhook_respond(500, ['status' => 'error']);
     }
@@ -107,7 +103,7 @@ function webco_handle_stripe_webhook(): void
         webco_checkout_log('stripe webhook rejected ' . $eventType);
     }
 
-    webco_webhook_respond(200, ['received' => true]);
+    webco_webhook_respond(200, ['received' => true, 'result' => $result]);
 }
 
 /**
@@ -193,11 +189,15 @@ function webco_apply_checkout_completed(PDO $db, array $event): string
         return 'retry';
     }
 
-    $collected = webco_collected_website_pence($lineItems);
-    if ($collected === null) {
-        return 'retry';
-    }
-    if ($collected !== $order['package_price_pence']) {
+    $prices = webco_stripe_line_prices($order['package_code'], $order['care_choice']);
+    $expectedWebsitePriceId = is_array($prices) ? $prices[0] : null;
+    $websiteFee = webco_checkout_website_fee_pence(
+        $lineItems,
+        $order['package_price_pence'],
+        $expectedWebsitePriceId
+    );
+    if ($websiteFee === null) {
+        webco_checkout_log('checkout completed rejected: website fee mismatch');
         return 'reject';
     }
 
@@ -213,7 +213,7 @@ function webco_apply_checkout_completed(PDO $db, array $event): string
         'subscription_id' => $subscriptionId,
         'payment_intent_id' => $payment['payment_intent_id'],
         'stripe_livemode' => $payment['stripe_livemode'],
-        'website_amount_pence' => $collected,
+        'website_amount_pence' => $websiteFee,
         'care_status' => $local['care_status'],
         'care_trial_ends_at' => $local['care_trial_ends_at'],
         'hosting_status' => $local['hosting_status'],

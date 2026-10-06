@@ -971,9 +971,13 @@ function webco_claim_stripe_event(PDO $db, string $eventId, string $eventType): 
                      processed_at = NULL,
                      result = NULL
                  WHERE stripe_event_id = :id
-                   AND result = \'rejected\'
-                   AND claimed_at = :previous_claim'
+                   AND result = \'rejected\''
             );
+            $reclaim->execute([
+                'claimed_at' => $taken,
+                'event_type' => $eventType,
+                'id' => $eventId,
+            ]);
         } else {
             $reclaim = $db->prepare(
                 'UPDATE stripe_events
@@ -982,13 +986,13 @@ function webco_claim_stripe_event(PDO $db, string $eventId, string $eventType): 
                    AND processed_at IS NULL
                    AND claimed_at = :previous_claim'
             );
+            $reclaim->execute([
+                'claimed_at' => $taken,
+                'event_type' => $eventType,
+                'id' => $eventId,
+                'previous_claim' => $claimedAt,
+            ]);
         }
-        $reclaim->execute([
-            'claimed_at' => $taken,
-            'event_type' => $eventType,
-            'id' => $eventId,
-            'previous_claim' => $claimedAt,
-        ]);
     } catch (PDOException) {
         return ['state' => 'error'];
     }

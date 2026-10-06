@@ -47,7 +47,8 @@ function webco_cleanup_known_project_ids(): array
 }
 
 /**
- * Domains used only for Webco testing / smoke runs.
+ * Explicit manual TEST domain allowlist. Domains are never inferred from
+ * “looks fake”; only names listed here (plus other positive rules) qualify.
  *
  * @return list<string>
  */
@@ -59,7 +60,42 @@ function webco_cleanup_known_test_domains(): array
         'i-really-hate-terminals.co.uk',
         'pandahugs.uk',
         'concretejunkie.co.uk',
+        'fotojuice.com',
+        'bumblebee.co.uk',
+        'bubbly.com',
+        'sillylittledomaintest.com',
+        'herewegoagainwoo.com',
+        'woopywoopywam.com',
+        'wookoowaa.com',
+        'wookiewookiewaa.com',
+        'heeeeehaaa.com',
+        'hfhfhfhfhfh.co.uk',
+        'how-much-more-huh.co.uk',
     ];
+}
+
+/**
+ * 20i package IDs that must keep hosting/domain even if the Webco DB row is
+ * later removed. Explicit only — never inferred.
+ *
+ * @return list<string>
+ */
+function webco_cleanup_hosting_keep_package_ids(): array
+{
+    return [
+        '3943463', // project 10 / pandahugs.uk — keep 20i package and domain
+    ];
+}
+
+/**
+ * 20i package IDs explicitly confirmed safe to delete hosting for later.
+ * Empty until each package is approved one by one.
+ *
+ * @return list<string>
+ */
+function webco_cleanup_hosting_delete_safe_package_ids(): array
+{
+    return [];
 }
 
 /**
@@ -100,7 +136,7 @@ function webco_cleanup_order_reasons(
     }
     $domain = strtolower(trim($domainName));
     if (in_array($domain, webco_cleanup_known_test_domains(), true)) {
-        $reasons[] = 'known_test_domain';
+        $reasons[] = 'manual_test_domain_allowlist';
     }
     if ($livemode === 0 || $livemode === '0') {
         $reasons[] = 'stripe_test_mode';
@@ -117,13 +153,94 @@ function webco_cleanup_order_reasons(
  *
  * @param list<string> $reasons
  */
+function webco_cleanup_package_id(mixed $value): ?string
+{
+    if (is_int($value)) {
+        $value = (string) $value;
+    }
+    if (!is_string($value)) {
+        return null;
+    }
+    $value = trim($value);
+    if (!preg_match('/^[1-9][0-9]{0,11}$/', $value)) {
+        return null;
+    }
+
+    return $value;
+}
+
+/**
+ * @return 'safe_candidate_for_deleting_hosting'|'hosting_should_remain'|'needs_manual_decision'
+ */
+function webco_cleanup_hosting_decision_for_package(string $packageId): string
+{
+    $packageId = trim($packageId);
+    if ($packageId === '') {
+        return 'needs_manual_decision';
+    }
+    if (in_array($packageId, webco_cleanup_hosting_keep_package_ids(), true)) {
+        return 'hosting_should_remain';
+    }
+    if (in_array($packageId, webco_cleanup_hosting_delete_safe_package_ids(), true)) {
+        return 'safe_candidate_for_deleting_hosting';
+    }
+
+    return 'needs_manual_decision';
+}
+
+/**
+ * Group distinct 20i package IDs found on cleanup candidates.
+ *
+ * @param list<array<string, mixed>> $candidates
+ * @return array{
+ *   safe_candidate_for_deleting_hosting: list<array<string, mixed>>,
+ *   hosting_should_remain: list<array<string, mixed>>,
+ *   needs_manual_decision: list<array<string, mixed>>
+ * }
+ */
+function webco_cleanup_hosting_package_report(array $candidates): array
+{
+    $groups = [
+        'safe_candidate_for_deleting_hosting' => [],
+        'hosting_should_remain' => [],
+        'needs_manual_decision' => [],
+    ];
+    $seen = [];
+
+    foreach ($candidates as $bundle) {
+        if (!is_array($bundle)) {
+            continue;
+        }
+        $project = is_array($bundle['project'] ?? null) ? $bundle['project'] : null;
+        $order = is_array($bundle['order'] ?? null) ? $bundle['order'] : null;
+        $packageId = webco_cleanup_package_id($project['twentyi_package_id'] ?? null);
+        if ($packageId === null) {
+            continue;
+        }
+        if (isset($seen[$packageId])) {
+            continue;
+        }
+        $seen[$packageId] = true;
+        $decision = webco_cleanup_hosting_decision_for_package($packageId);
+        $groups[$decision][] = [
+            'package_id' => $packageId,
+            'project_id' => (int) ($project['id'] ?? 0),
+            'order_public_id' => (string) ($order['public_id'] ?? ''),
+            'domain' => (string) ($order['domain_name'] ?? ''),
+            'decision' => $decision,
+        ];
+    }
+
+    return $groups;
+}
+
 function webco_cleanup_stripe_class(mixed $livemode, array $reasons): string
 {
     $isLive = $livemode === 1 || $livemode === '1';
     $isTest = $livemode === 0 || $livemode === '0';
     $allowlisted = in_array('known_test_order_public_id', $reasons, true)
         || in_array('known_test_project_id', $reasons, true)
-        || in_array('known_test_domain', $reasons, true);
+        || in_array('manual_test_domain_allowlist', $reasons, true);
 
     if ($isLive && $allowlisted) {
         return 'stripe_live_smoke_test';
@@ -176,7 +293,17 @@ function webco_cleanup_classify_bundle(array $order, ?array $project, array $dep
     $stripeClass = webco_cleanup_stripe_class($order['stripe_livemode'] ?? null, $reasons);
     $notes = [];
     if (is_string($packageId) && trim($packageId) !== '') {
-        $notes[] = 'has_twentyi_package_id:' . trim($packageId) . ' (20i package itself is out of scope for DB cleanup)';
+        $packageId = trim($packageId);
+        $hostingDecision = webco_cleanup_hosting_decision_for_package($packageId);
+        $notes[] = 'has_twentyi_package_id:' . $packageId;
+        $notes[] = 'hosting_decision:' . $hostingDecision;
+        if ($hostingDecision === 'hosting_should_remain') {
+            $notes[] = '20i package/domain must remain even if this Webco order/project is later deleted';
+        } elseif ($hostingDecision === 'safe_candidate_for_deleting_hosting') {
+            $notes[] = '20i hosting deletion is explicitly allowlisted for a later step (not performed by this audit)';
+        } else {
+            $notes[] = '20i hosting needs a manual keep/delete decision before any hosting cleanup';
+        }
     }
     if ($stripeClass === 'stripe_live_smoke_test') {
         $notes[] = 'live Stripe smoke-test order; Stripe customer/subscription objects are out of scope';
@@ -223,11 +350,19 @@ function webco_cleanup_classify_bundle(array $order, ?array $project, array $dep
  *   candidates: list<array<string, mixed>>,
  *   kept: list<array<string, mixed>>,
  *   stripe_events: array{count: int, note: string},
+ *   hosting_packages: array<string, list<array<string, mixed>>>,
+ *   manual_test_domains: list<string>,
  *   summary: array<string, int>
  * }
  */
 function webco_cleanup_audit(PDO $db): array
 {
+    $emptyHosting = [
+        'safe_candidate_for_deleting_hosting' => [],
+        'hosting_should_remain' => [],
+        'needs_manual_decision' => [],
+    ];
+
     $relationship = [
         'orders 1—1 projects (projects.order_id / projects.order_public_id)',
         'projects 1—1 project_briefs (project_briefs.project_id)',
@@ -257,6 +392,8 @@ function webco_cleanup_audit(PDO $db): array
             'candidates' => [],
             'kept' => [],
             'stripe_events' => ['count' => 0, 'note' => ''],
+            'hosting_packages' => $emptyHosting,
+            'manual_test_domains' => webco_cleanup_known_test_domains(),
             'summary' => [],
         ];
     }
@@ -300,6 +437,8 @@ function webco_cleanup_audit(PDO $db): array
             'candidates' => [],
             'kept' => [],
             'stripe_events' => ['count' => 0, 'note' => ''],
+            'hosting_packages' => $emptyHosting,
+            'manual_test_domains' => webco_cleanup_known_test_domains(),
             'summary' => [],
         ];
     }
@@ -354,6 +493,7 @@ function webco_cleanup_audit(PDO $db): array
             $stripeTest++;
         }
     }
+    $hostingPackages = webco_cleanup_hosting_package_report($candidates);
 
     return [
         'ok' => true,
@@ -367,6 +507,8 @@ function webco_cleanup_audit(PDO $db): array
             'count' => $eventCount,
             'note' => 'No FK to orders; cannot positively attribute events to test checkouts without Stripe. Keep all stripe_events rows.',
         ],
+        'hosting_packages' => $hostingPackages,
+        'manual_test_domains' => webco_cleanup_known_test_domains(),
         'summary' => [
             'orders_scanned' => count($orders),
             'candidates' => count($candidates),
@@ -374,6 +516,9 @@ function webco_cleanup_audit(PDO $db): array
             'candidate_stripe_test_mode' => $stripeTest,
             'candidate_stripe_live_smoke_test' => $liveSmoke,
             'stripe_events_kept' => $eventCount,
+            'hosting_keep' => count($hostingPackages['hosting_should_remain']),
+            'hosting_delete_safe' => count($hostingPackages['safe_candidate_for_deleting_hosting']),
+            'hosting_manual' => count($hostingPackages['needs_manual_decision']),
         ],
     ];
 }
@@ -446,6 +591,13 @@ function webco_cleanup_audit_text(array $audit): string
         $lines[] = 'tables_missing: ' . implode(', ', $audit['tables_missing'] ?? []);
     }
 
+    $lines[] = 'manual_test_domain_allowlist:';
+    foreach ($audit['manual_test_domains'] ?? [] as $domain) {
+        if (is_string($domain) && $domain !== '') {
+            $lines[] = '  - ' . $domain;
+        }
+    }
+
     $lines[] = 'relationships:';
     foreach ($audit['relationship'] ?? [] as $item) {
         if (is_string($item)) {
@@ -464,6 +616,15 @@ function webco_cleanup_audit_text(array $audit): string
     $lines[] = '  count: ' . (string) ($events['count'] ?? 0);
     $lines[] = '  decision: keep_all';
     $lines[] = '  note: ' . (string) ($events['note'] ?? '');
+
+    $hosting = is_array($audit['hosting_packages'] ?? null) ? $audit['hosting_packages'] : [];
+    $lines[] = 'twentyi_packages_on_candidates:';
+    $lines[] = '  safe_candidate_for_deleting_hosting:';
+    $lines = array_merge($lines, webco_cleanup_hosting_group_lines($hosting['safe_candidate_for_deleting_hosting'] ?? []));
+    $lines[] = '  hosting_should_remain:';
+    $lines = array_merge($lines, webco_cleanup_hosting_group_lines($hosting['hosting_should_remain'] ?? []));
+    $lines[] = '  needs_manual_decision:';
+    $lines = array_merge($lines, webco_cleanup_hosting_group_lines($hosting['needs_manual_decision'] ?? []));
 
     $lines[] = 'candidates_for_future_cleanup:';
     $candidates = $audit['candidates'] ?? [];
@@ -524,6 +685,32 @@ function webco_cleanup_audit_text(array $audit): string
     $lines[] = 'apply: not available in this preview; pass --apply later only after review (currently refused)';
 
     return implode("\n", $lines) . "\n";
+}
+
+/**
+ * @param mixed $rows
+ * @return list<string>
+ */
+function webco_cleanup_hosting_group_lines(mixed $rows): array
+{
+    if (!is_array($rows) || $rows === []) {
+        return ['    (none)'];
+    }
+    $lines = [];
+    foreach ($rows as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $lines[] = '    - package_id: ' . (string) ($row['package_id'] ?? '');
+        $lines[] = '      project_id: ' . (string) ($row['project_id'] ?? '');
+        $lines[] = '      order: ' . (string) ($row['order_public_id'] ?? '');
+        $lines[] = '      domain: ' . (string) ($row['domain'] ?? '');
+    }
+    if ($lines === []) {
+        return ['    (none)'];
+    }
+
+    return $lines;
 }
 
 function webco_cleanup_scalar(mixed $value): string

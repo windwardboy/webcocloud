@@ -28,7 +28,27 @@ $knownDomains = webco_cleanup_known_test_domains();
 check(in_array('wc_27155bed5bfe1eea3391', $knownOrders, true), 'live smoke order wc_27155bed is allowlisted');
 check(in_array('wc_803ee94b9c7316b806d3', $knownOrders, true), 'live smoke order wc_803ee94b is allowlisted');
 check(in_array(10, $knownProjects, true) && in_array(11, $knownProjects, true), 'projects 10 and 11 are allowlisted');
-check(in_array('pandahugs.uk', $knownDomains, true), 'pandahugs.uk is a known test domain');
+check(in_array('pandahugs.uk', $knownDomains, true), 'pandahugs.uk is on the manual test domain allowlist');
+check(in_array('fotojuice.com', $knownDomains, true), 'fotojuice.com is on the manual test domain allowlist');
+check(in_array('how-much-more-huh.co.uk', $knownDomains, true), 'how-much-more-huh.co.uk is on the manual test domain allowlist');
+check(
+    !in_array('totally-made-up-not-listed.test', $knownDomains, true),
+    'domains are not inferred; only explicit allowlist entries count'
+);
+
+$manualDomain = webco_cleanup_order_reasons(
+    'wc_' . str_repeat('f', 20),
+    null,
+    'bumblebee.co.uk',
+    'Bee',
+    'bee@bumblebee.co.uk',
+    1,
+    null
+);
+check(
+    $manualDomain === ['manual_test_domain_allowlist'],
+    'an allowlisted historical test domain becomes a candidate without other signals'
+);
 
 $liveReasons = webco_cleanup_order_reasons(
     'wc_27155bed5bfe1eea3391',
@@ -43,6 +63,19 @@ check(in_array('known_test_order_public_id', $liveReasons, true), 'allowlisted l
 check(
     webco_cleanup_stripe_class(1, $liveReasons) === 'stripe_live_smoke_test',
     'allowlisted livemode=1 orders are classed as live smoke tests'
+);
+
+check(
+    webco_cleanup_hosting_decision_for_package('3943463') === 'hosting_should_remain',
+    'pandahugs package 3943463 must keep hosting'
+);
+check(
+    webco_cleanup_hosting_decision_for_package('3943689') === 'needs_manual_decision',
+    'an unlisted package needs a manual hosting decision'
+);
+check(
+    webco_cleanup_hosting_delete_safe_package_ids() === [],
+    'no 20i package is marked safe to delete hosting yet'
 );
 
 $testReasons = webco_cleanup_order_reasons(
@@ -104,7 +137,33 @@ check(($liveBundle['decision'] ?? '') === 'candidate', 'project 12 live smoke te
 check(($liveBundle['stripe_class'] ?? '') === 'stripe_live_smoke_test', 'project 12 is labelled live smoke test');
 check(
     str_contains(implode(' ', $liveBundle['notes'] ?? []), '3943689'),
-    'a stored 20i package id is noted as out of scope for DB cleanup'
+    'a stored 20i package id is noted on the candidate'
+);
+check(
+    str_contains(implode(' ', $liveBundle['notes'] ?? []), 'hosting_decision:needs_manual_decision'),
+    'project 12 hosting is marked needs_manual_decision'
+);
+
+$keepHostingBundle = webco_cleanup_classify_bundle(
+    [
+        'id' => 10,
+        'public_id' => 'wc_59aaa75a2a3a4133c749',
+        'domain_name' => 'pandahugs.uk',
+        'business_name' => 'Panda',
+        'email' => 'p@pandahugs.uk',
+        'stripe_livemode' => 1,
+        'status' => 'paid',
+    ],
+    [
+        'id' => 10,
+        'twentyi_package_id' => '3943463',
+        'provisioning_status' => 'provisioned',
+    ],
+    ['briefs' => 0, 'assets' => 0, 'requests' => 0]
+);
+check(
+    str_contains(implode(' ', $keepHostingBundle['notes'] ?? []), 'hosting_decision:hosting_should_remain'),
+    'project 10 hosting is marked hosting_should_remain'
 );
 
 $keepBundle = webco_cleanup_classify_bundle(
@@ -220,8 +279,13 @@ check(($audit['summary']['kept'] ?? 0) === 1, 'the unidentified live customer is
 check(($audit['summary']['candidate_stripe_live_smoke_test'] ?? 0) === 2, 'two live smoke-test candidates are counted');
 check(($audit['summary']['candidate_stripe_test_mode'] ?? 0) === 1, 'one stripe test-mode candidate is counted');
 check(($audit['stripe_events']['count'] ?? 0) === 2, 'stripe_events are counted');
+check(($audit['summary']['hosting_keep'] ?? 0) === 1, 'one candidate package is marked hosting_should_remain');
+check(($audit['summary']['hosting_manual'] ?? 0) === 0, 'sqlite fixture has no other packaged candidates needing a hosting decision');
 $text = webco_cleanup_audit_text($audit);
 check(str_contains($text, 'decision: keep_all'), 'stripe_events stay keep_all in the report');
+check(str_contains($text, 'manual_test_domain_allowlist:'), 'the preview prints the manual domain allowlist');
+check(str_contains($text, 'hosting_should_remain:'), 'the preview groups 20i packages that must remain');
+check(str_contains($text, '3943463'), 'package 3943463 appears under hosting decisions');
 check(str_contains($text, 'wc_27155bed5bfe1eea3391'), 'the live smoke order appears in the preview text');
 check(str_contains($text, 'real-client.co.uk'), 'kept live customers remain visible in the report');
 check(str_contains($text, 'destructive: no'), 'the report states the run is non-destructive');

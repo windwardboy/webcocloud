@@ -18,7 +18,7 @@ declare(strict_types=1);
 
 ini_set('display_errors', '0');
 
-const WEBCO_SECRETS_FILE = '/home/sites/39b/8/836e0b54be/webco-secrets.php';
+require_once __DIR__ . '/lib/db.php';
 
 /** @var list<string> */
 const WEBCO_POPULAR_UK_TLDS = ['co.uk', 'uk', 'com', 'org.uk', 'net', 'org'];
@@ -180,13 +180,9 @@ function split_domain(string $domain): ?array
 
 function load_api_key(): ?string
 {
-    if (!is_file(WEBCO_SECRETS_FILE)) {
+    if (!webco_load_secrets()) {
         return null;
     }
-
-    ob_start();
-    require WEBCO_SECRETS_FILE;
-    ob_end_clean();
 
     $key = '';
     if (defined('WEBCO_20I_API_KEY')) {

@@ -15,7 +15,29 @@ if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'db.php') {
     exit;
 }
 
-const WEBCO_SECRETS_FILE = '/home/sites/39b/8/836e0b54be/webco-secrets.php';
+if (!defined('WEBCO_SECRETS_FILE')) {
+    define('WEBCO_SECRETS_FILE', '/home/sites/39b/8/836e0b54be/webco-secrets.php');
+}
+
+/**
+ * Load the private secrets file once per PHP process.
+ * Secrets may define() constants; a second plain require would warn.
+ */
+function webco_load_secrets(): bool
+{
+    if (!defined('WEBCO_SECRETS_FILE') || !is_string(WEBCO_SECRETS_FILE) || WEBCO_SECRETS_FILE === '') {
+        return false;
+    }
+    if (!is_file(WEBCO_SECRETS_FILE)) {
+        return false;
+    }
+
+    ob_start();
+    require_once WEBCO_SECRETS_FILE;
+    ob_end_clean();
+
+    return true;
+}
 
 function webco_db(): ?PDO
 {
@@ -71,13 +93,9 @@ function webco_db(): ?PDO
  */
 function webco_db_config(): ?array
 {
-    if (!is_file(WEBCO_SECRETS_FILE)) {
+    if (!webco_load_secrets()) {
         return null;
     }
-
-    ob_start();
-    require WEBCO_SECRETS_FILE;
-    ob_end_clean();
 
     $host = webco_loaded_secret('WEBCO_DB_HOST', $WEBCO_DB_HOST ?? null);
     $name = webco_loaded_secret('WEBCO_DB_NAME', $WEBCO_DB_NAME ?? null);

@@ -18,9 +18,7 @@ if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'twentyi.php') {
     exit;
 }
 
-if (!defined('WEBCO_SECRETS_FILE')) {
-    define('WEBCO_SECRETS_FILE', '/home/sites/39b/8/836e0b54be/webco-secrets.php');
-}
+require_once __DIR__ . '/db.php';
 
 const WEBCO_TWENTYI_PACKAGE_LIST = '/package';
 const WEBCO_TWENTYI_PACKAGE_TYPES = '/reseller/*/packageTypes';
@@ -32,13 +30,9 @@ const WEBCO_TWENTYI_PLATFORM_DOMAIN = 'webcocloud.net';
 
 function webco_twentyi_api_key(): ?string
 {
-    if (!is_file(WEBCO_SECRETS_FILE)) {
+    if (!webco_load_secrets()) {
         return null;
     }
-
-    ob_start();
-    require WEBCO_SECRETS_FILE;
-    ob_end_clean();
 
     $key = '';
     if (defined('WEBCO_20I_API_KEY')) {

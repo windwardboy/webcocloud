@@ -565,12 +565,9 @@ function webco_stripe_constant(string $name): ?string
         return null;
     }
     if (!defined($name)) {
-        if (!is_file(WEBCO_SECRETS_FILE)) {
+        if (!webco_load_secrets()) {
             return null;
         }
-        ob_start();
-        require_once WEBCO_SECRETS_FILE;
-        ob_end_clean();
     }
 
     return webco_loaded_secret($name, null);

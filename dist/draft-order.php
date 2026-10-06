@@ -168,9 +168,11 @@ function webco_open_checkout_session(PDO $db, array $order, string $publicId, ?s
 
     $created = webco_create_checkout_session($order, $publicId, $idempotencyKey);
     if ($created === null) {
+        webco_checkout_log('open checkout failed for order ' . $publicId);
         return ['type' => 'error', 'orderId' => $publicId];
     }
     if (!webco_bind_checkout_session($db, $publicId, $created['id'], $previousSessionId)) {
+        webco_checkout_log('bind checkout session failed for order ' . $publicId);
         return ['type' => 'error', 'orderId' => $publicId];
     }
 

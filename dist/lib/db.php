@@ -568,10 +568,10 @@ function webco_bind_checkout_session(PDO $db, string $publicId, string $sessionI
     if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
         return false;
     }
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId) || strlen($sessionId) > 255) {
+    if (!preg_match('/^cs_(test|live)_[A-Za-z0-9]{8,240}$/', $sessionId) || strlen($sessionId) > 255) {
         return false;
     }
-    if ($previousSessionId !== null && !preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $previousSessionId)) {
+    if ($previousSessionId !== null && !preg_match('/^cs_(test|live)_[A-Za-z0-9]{8,240}$/', $previousSessionId)) {
         return false;
     }
 
@@ -676,7 +676,7 @@ function webco_record_checkout_payment(PDO $db, array $payment): string
     if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
         return 'error';
     }
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId) || strlen($sessionId) > 255) {
+    if (!preg_match('/^cs_(test|live)_[A-Za-z0-9]{8,240}$/', $sessionId) || strlen($sessionId) > 255) {
         return 'error';
     }
     if (!webco_stripe_customer_id_valid($payment['customer_id'])) {
@@ -829,7 +829,7 @@ function webco_cancel_open_checkout(PDO $db, string $publicId, string $sessionId
     if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
         return 'error';
     }
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+    if (!preg_match('/^cs_(test|live)_[A-Za-z0-9]{8,240}$/', $sessionId)) {
         return 'error';
     }
 

@@ -181,7 +181,7 @@ const standardHosting =
         return (
           url.protocol === "https:" &&
           url.hostname === "checkout.stripe.com" &&
-          url.pathname.includes("/cs_test_")
+          (url.pathname.includes("/cs_test_") || url.pathname.includes("/cs_live_"))
         );
       } catch {
         return false;

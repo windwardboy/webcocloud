@@ -107,7 +107,8 @@ function webco_handle_stripe_webhook(): void
  */
 function webco_apply_stripe_event(PDO $db, array $event): string
 {
-    if (($event['livemode'] ?? null) !== false) {
+    $livemode = $event['livemode'] ?? null;
+    if ($livemode !== false && $livemode !== true) {
         return 'ignored';
     }
 
@@ -339,7 +340,8 @@ function webco_checkout_reference_from_event(array $event, string $expectedType)
     if (!is_string($type) || $type !== $expectedType) {
         return null;
     }
-    if (($event['livemode'] ?? null) !== false) {
+    $eventLive = $event['livemode'] ?? null;
+    if ($eventLive !== false && $eventLive !== true) {
         return null;
     }
 
@@ -347,8 +349,12 @@ function webco_checkout_reference_from_event(array $event, string $expectedType)
     if (!is_array($session) || ($session['object'] ?? '') !== 'checkout.session') {
         return false;
     }
-    if (($session['livemode'] ?? null) !== false) {
+    $sessionLive = $session['livemode'] ?? null;
+    if ($sessionLive !== false && $sessionLive !== true) {
         return null;
+    }
+    if ($sessionLive !== $eventLive) {
+        return false;
     }
 
     $reference = $session['client_reference_id'] ?? null;
@@ -361,7 +367,8 @@ function webco_checkout_reference_from_event(array $event, string $expectedType)
         return false;
     }
 
-    $sessionId = webco_stripe_reference_id($session['id'] ?? null, 'cs_test_');
+    $prefix = $sessionLive === true ? 'cs_live_' : 'cs_test_';
+    $sessionId = webco_stripe_reference_id($session['id'] ?? null, $prefix);
     if ($sessionId === null) {
         return false;
     }

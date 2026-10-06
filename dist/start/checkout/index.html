@@ -198,7 +198,7 @@ const carePrices = {"essential":"£39/month","professional":"£59/month"};
         return (
           url.protocol === "https:" &&
           url.hostname === "checkout.stripe.com" &&
-          url.pathname.includes("/cs_test_")
+          (url.pathname.includes("/cs_test_") || url.pathname.includes("/cs_live_"))
         );
       } catch {
         return false;

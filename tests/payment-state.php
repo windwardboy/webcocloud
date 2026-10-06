@@ -112,7 +112,19 @@ check(webco_checkout_payment_from_event($unpaid) === null, 'unpaid checkout does
 
 $live = $paidEvent;
 $live['livemode'] = true;
-check(webco_checkout_payment_from_event($live) === null, 'live mode is still ignored');
+$live['data']['object']['livemode'] = true;
+$live['data']['object']['id'] = 'cs_live_' . str_repeat('b', 16);
+$liveParsed = webco_checkout_payment_from_event($live);
+check(
+    is_array($liveParsed)
+        && ($liveParsed['session_id'] ?? '') === 'cs_live_' . str_repeat('b', 16)
+        && ($liveParsed['stripe_livemode'] ?? null) === 1,
+    'paid live checkout session is accepted'
+);
+
+$liveMismatch = $paidEvent;
+$liveMismatch['livemode'] = true;
+check(webco_checkout_payment_from_event($liveMismatch) === false, 'live event with test session livemode is rejected');
 
 check(webco_order_status_payload([
     'status' => 'checkout_created',

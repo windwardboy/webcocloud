@@ -46,7 +46,12 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
 
     $prices = webco_stripe_line_prices($packageCode, $careChoice);
     $secret = webco_stripe_secret();
-    if ($prices === null || $secret === null) {
+    if ($prices === null) {
+        webco_checkout_log('checkout create blocked: price configuration unavailable');
+        return null;
+    }
+    if ($secret === null) {
+        webco_checkout_log('checkout create blocked: secret key unavailable or not sk_test_/sk_live_');
         return null;
     }
 
@@ -82,6 +87,9 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
 
     $created = webco_stripe_post_session($secret, $body, $idempotencyKey);
     $secret = '';
+    if ($created === null) {
+        webco_checkout_log('checkout create blocked: stripe session response rejected');
+    }
 
     return $created;
 }
@@ -279,7 +287,7 @@ function webco_stripe_amount(mixed $amount): ?int
  */
 function webco_stripe_fetch_session(string $sessionId): ?array
 {
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+    if (!webco_stripe_checkout_session_id_valid($sessionId)) {
         return null;
     }
 
@@ -298,7 +306,7 @@ function webco_stripe_fetch_session(string $sessionId): ?array
 
 function webco_stripe_expire_session(string $sessionId): bool
 {
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+    if (!webco_stripe_checkout_session_id_valid($sessionId)) {
         return false;
     }
 
@@ -327,7 +335,7 @@ function webco_stripe_expire_session(string $sessionId): bool
  */
 function webco_stripe_fetch_line_items(string $sessionId): ?array
 {
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+    if (!webco_stripe_checkout_session_id_valid($sessionId)) {
         return null;
     }
 
@@ -346,8 +354,11 @@ function webco_stripe_fetch_line_items(string $sessionId): ?array
     if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
         return null;
     }
-    if (($response['body']['livemode'] ?? false) !== false && array_key_exists('livemode', $response['body'])) {
-        return null;
+    if (array_key_exists('livemode', $response['body'])) {
+        $livemode = $response['body']['livemode'];
+        if ($livemode !== false && $livemode !== true) {
+            return null;
+        }
     }
 
     return $response['body'];
@@ -371,7 +382,8 @@ function webco_stripe_fetch_subscription(string $subscriptionId): ?array
     if ($response === null || $response['status'] !== 200 || !is_array($response['body'])) {
         return null;
     }
-    if (($response['body']['livemode'] ?? null) !== false) {
+    $livemode = $response['body']['livemode'] ?? null;
+    if ($livemode !== false && $livemode !== true) {
         return null;
     }
 
@@ -401,7 +413,7 @@ function webco_stripe_fetch_subscription(string $subscriptionId): ?array
  */
 function webco_stripe_get_session_subscription(string $sessionId): ?array
 {
-    if (!preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $sessionId)) {
+    if (!webco_stripe_checkout_session_id_valid($sessionId)) {
         return null;
     }
 
@@ -449,12 +461,19 @@ function webco_stripe_get_subscription_fields(string $subscriptionId): ?array
  */
 function webco_stripe_session_record(array $session): ?array
 {
-    if (($session['livemode'] ?? null) !== false) {
+    $livemode = $session['livemode'] ?? null;
+    if ($livemode !== false && $livemode !== true) {
         return null;
     }
     $id = $session['id'] ?? null;
     $status = $session['status'] ?? '';
-    if (!is_string($id) || !preg_match('/^cs_test_[A-Za-z0-9]{8,240}$/', $id)) {
+    if (!is_string($id) || !webco_stripe_checkout_session_id_valid($id)) {
+        return null;
+    }
+    if ($livemode === true && !str_starts_with($id, 'cs_live_')) {
+        return null;
+    }
+    if ($livemode === false && !str_starts_with($id, 'cs_test_')) {
         return null;
     }
     if ($status !== 'open' && $status !== 'complete' && $status !== 'expired') {
@@ -465,7 +484,7 @@ function webco_stripe_session_record(array $session): ?array
     if (!is_string($url)) {
         $url = '';
     }
-    if ($status === 'open' && !webco_is_test_checkout_url($url)) {
+    if ($status === 'open' && !webco_is_stripe_checkout_url($url)) {
         return null;
     }
 
@@ -532,11 +551,65 @@ function webco_stripe_calendar_year_timestamp(int $now): int
 function webco_stripe_secret(): ?string
 {
     $secret = webco_stripe_constant('WEBCO_STRIPE_SECRET_KEY');
-    if ($secret === null || !preg_match('/^sk_test_[A-Za-z0-9]{16,200}$/', $secret)) {
+    if ($secret === null || !preg_match('/^sk_(test|live)_[A-Za-z0-9]{16,200}$/', $secret)) {
         return null;
     }
 
     return $secret;
+}
+
+function webco_stripe_checkout_session_id_valid(string $sessionId): bool
+{
+    return preg_match('/^cs_(test|live)_[A-Za-z0-9]{8,240}$/', $sessionId) === 1
+        && strlen($sessionId) <= 255;
+}
+
+/**
+ * True for open Checkout URLs in either Stripe test or live mode.
+ */
+function webco_is_stripe_checkout_url(string $url): bool
+{
+    if (strlen($url) > 2048) {
+        return false;
+    }
+
+    $parts = parse_url($url);
+    if (!is_array($parts)) {
+        return false;
+    }
+
+    $scheme = $parts['scheme'] ?? '';
+    $host = $parts['host'] ?? '';
+    $path = $parts['path'] ?? '';
+    if ($scheme !== 'https' || $host !== 'checkout.stripe.com') {
+        return false;
+    }
+
+    return str_contains($path, '/cs_test_') || str_contains($path, '/cs_live_');
+}
+
+/**
+ * @deprecated Use webco_is_stripe_checkout_url(); kept for older callers.
+ */
+function webco_is_test_checkout_url(string $url): bool
+{
+    return webco_is_stripe_checkout_url($url);
+}
+
+/**
+ * Internal checkout diagnostics. Never log secrets, Price IDs, or Stripe bodies.
+ */
+function webco_checkout_log(string $marker): void
+{
+    $marker = trim($marker);
+    if ($marker === '' || strlen($marker) > 200) {
+        return;
+    }
+    if (preg_match('/sk_(?:test|live)_|whsec_|price_|Bearer\s/i', $marker) === 1) {
+        return;
+    }
+
+    error_log('webco checkout: ' . $marker);
 }
 
 function webco_stripe_webhook_secret(): ?string
@@ -675,25 +748,4 @@ function webco_stripe_api(string $secret, string $method, string $path, ?string 
         'status' => $status,
         'body' => is_array($payload) ? $payload : null,
     ];
-}
-
-function webco_is_test_checkout_url(string $url): bool
-{
-    if (strlen($url) > 2048) {
-        return false;
-    }
-
-    $parts = parse_url($url);
-    if (!is_array($parts)) {
-        return false;
-    }
-
-    $scheme = $parts['scheme'] ?? '';
-    $host = $parts['host'] ?? '';
-    $path = $parts['path'] ?? '';
-    if ($scheme !== 'https' || $host !== 'checkout.stripe.com') {
-        return false;
-    }
-
-    return str_contains($path, '/cs_test_');
 }

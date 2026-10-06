@@ -142,6 +142,42 @@ check(
     'the checkout funnel accepts live and test Stripe Checkout URLs'
 );
 
+$publicId = 'wc_' . str_repeat('a', 20);
+$order = [
+    'package_code' => 'essential',
+    'care_choice' => 'standard',
+    'email' => 'alex@example.com',
+];
+$fields = webco_stripe_checkout_session_fields($order, $publicId);
+check(is_array($fields), 'checkout session fields can be built for Essential + hosting');
+check(($fields['allow_promotion_codes'] ?? null) === 'true', 'checkout sessions allow Stripe promotion codes');
+check(
+    ($fields['line_items[0][price]'] ?? '') === 'price_' . str_repeat('a', 16)
+        && ($fields['line_items[1][price]'] ?? '') === 'price_' . str_repeat('b', 16),
+    'one-off website and recurring hosting prices stay on the session'
+);
+check(
+    !array_key_exists('discounts[0][coupon]', $fields ?? [])
+        && !array_key_exists('discounts[0][promotion_code]', $fields ?? []),
+    'no coupon or promotion code is applied automatically'
+);
+$body = webco_stripe_form(is_array($fields) ? $fields : []);
+check(
+    str_contains($body, 'allow_promotion_codes=true'),
+    'the encoded Checkout Session body sends allow_promotion_codes=true'
+);
+check(
+    !str_contains($body, 'discounts'),
+    'the encoded Checkout Session body does not send a discounts list'
+);
+
+$managed = webco_stripe_checkout_session_fields([
+    'package_code' => 'essential',
+    'care_choice' => 'managed',
+    'email' => 'alex@example.com',
+], $publicId);
+check($managed === null, 'Managed Care fields stay null until the Managed Care price is configured');
+
 @unlink($secretsPath);
 
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";

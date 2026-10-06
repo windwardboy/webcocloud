@@ -34,6 +34,42 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
         return null;
     }
 
+    $fields = webco_stripe_checkout_session_fields($order, $publicId);
+    $secret = webco_stripe_secret();
+    if ($fields === null) {
+        webco_checkout_log('checkout create blocked: price configuration unavailable');
+        return null;
+    }
+    if ($secret === null) {
+        webco_checkout_log('checkout create blocked: secret key unavailable or not sk_test_/sk_live_');
+        return null;
+    }
+
+    $body = webco_stripe_form($fields);
+
+    $created = webco_stripe_post_session($secret, $body, $idempotencyKey);
+    $secret = '';
+    if ($created === null) {
+        webco_checkout_log('checkout create blocked: stripe session response rejected');
+    }
+
+    return $created;
+}
+
+/**
+ * Form fields posted to Stripe Checkout Sessions.
+ * allow_promotion_codes lets the customer enter a Stripe promotion code;
+ * no coupon is applied automatically.
+ *
+ * @param array{package_code?: mixed, care_choice?: mixed, email?: mixed} $order
+ * @return array<string, string>|null
+ */
+function webco_stripe_checkout_session_fields(array $order, string $publicId): ?array
+{
+    if (!preg_match('/^wc_[a-f0-9]{20}$/', $publicId)) {
+        return null;
+    }
+
     $packageCode = $order['package_code'] ?? null;
     $careChoice = $order['care_choice'] ?? null;
     $email = $order['email'] ?? null;
@@ -45,13 +81,7 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
     }
 
     $prices = webco_stripe_line_prices($packageCode, $careChoice);
-    $secret = webco_stripe_secret();
     if ($prices === null) {
-        webco_checkout_log('checkout create blocked: price configuration unavailable');
-        return null;
-    }
-    if ($secret === null) {
-        webco_checkout_log('checkout create blocked: secret key unavailable or not sk_test_/sk_live_');
         return null;
     }
 
@@ -68,6 +98,7 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
         'customer_email' => $email,
         'success_url' => $successUrl,
         'cancel_url' => $cancelUrl,
+        'allow_promotion_codes' => 'true',
         'metadata[public_id]' => $publicId,
         'subscription_data[metadata][public_id]' => $publicId,
         'line_items[0][price]' => $prices[0],
@@ -83,15 +114,7 @@ function webco_create_checkout_session(array $order, string $publicId, ?string $
         return null;
     }
 
-    $body = webco_stripe_form($fields);
-
-    $created = webco_stripe_post_session($secret, $body, $idempotencyKey);
-    $secret = '';
-    if ($created === null) {
-        webco_checkout_log('checkout create blocked: stripe session response rejected');
-    }
-
-    return $created;
+    return $fields;
 }
 
 /**

@@ -9,6 +9,9 @@
  * Does not call webco_ensure_paid_project() or webco_ensure_project_tables(),
  * so it does not create project rows, asset folders, briefs, or send mail.
  * No Stripe and no 20i calls.
+ *
+ * Verification treats paid Stripe test-mode projects still in waiting_payment
+ * as allowed. Only paid live (stripe_livemode = 1) waiting_payment rows fail.
  */
 
 declare(strict_types=1);
@@ -18,159 +21,8 @@ if (PHP_SAPI !== 'cli') {
     exit;
 }
 
-if ($argc > 1) {
-    fwrite(STDERR, "schema migration only; no arguments are accepted\n");
-    exit(1);
-}
-
 require dirname(__DIR__) . '/public/lib/db.php';
 require dirname(__DIR__) . '/public/lib/projects.php';
-
-$db = webco_db();
-if (!$db instanceof PDO) {
-    fwrite(STDERR, "database unavailable\n");
-    exit(1);
-}
-
-$orderColumns = [
-    'stripe_checkout_session_id',
-    'stripe_customer_id',
-    'stripe_subscription_id',
-    'paid_at',
-    'payment_intent_id',
-    'care_status',
-    'care_trial_ends_at',
-    'hosting_status',
-    'hosting_included_until',
-    'stripe_livemode',
-];
-$projectColumns = [
-    'provisioning_status',
-    'provisioned_at',
-    'provisioning_error',
-    'twentyi_package_id',
-    'provisioning_attempted_at',
-];
-$eventColumns = [
-    'stripe_event_id',
-    'event_type',
-    'claimed_at',
-    'processed_at',
-    'result',
-];
-$constraints = [
-    'orders' => [
-        'orders_status_check',
-        'orders_care_status_check',
-        'orders_hosting_status_check',
-        'orders_stripe_livemode_check',
-    ],
-    'projects' => [
-        'projects_provisioning_status_check',
-    ],
-];
-
-$before = webco_schema_snapshot($db, $orderColumns, $projectColumns, $eventColumns, $constraints);
-$paidWaitingBefore = webco_schema_paid_waiting_count($db, $before['projects_columns']);
-
-$ordersEnsured = webco_ensure_orders_table($db);
-$projectsEnsured = webco_ensure_project_provisioning_columns($db);
-
-$after = webco_schema_snapshot($db, $orderColumns, $projectColumns, $eventColumns, $constraints);
-$failed = !$ordersEnsured || !$projectsEnsured;
-
-webco_schema_say('orders ensure: ' . ($ordersEnsured ? 'ok' : 'failed'));
-webco_schema_say('projects ensure: ' . ($projectsEnsured ? 'ok' : 'failed'));
-
-foreach ($orderColumns as $column) {
-    webco_schema_say(
-        'orders.' . $column . ': ' . webco_schema_presence($before['orders_columns'], $after['orders_columns'], $column)
-    );
-}
-webco_schema_say(
-    'orders index orders_stripe_checkout_session_id: ' . webco_schema_flag(
-        $before['orders_session_index'],
-        $after['orders_session_index']
-    )
-);
-foreach ($projectColumns as $column) {
-    webco_schema_say(
-        'projects.' . $column . ': ' . webco_schema_presence($before['projects_columns'], $after['projects_columns'], $column)
-    );
-}
-webco_schema_say(
-    'stripe_events: ' . webco_schema_flag($before['events_table'], $after['events_table'])
-);
-foreach ($eventColumns as $column) {
-    webco_schema_say(
-        'stripe_events.' . $column . ': ' . webco_schema_presence($before['events_columns'], $after['events_columns'], $column)
-    );
-}
-webco_schema_say(
-    'stripe_events primary key: ' . webco_schema_flag($before['events_primary'], $after['events_primary'])
-);
-foreach ($constraints as $names) {
-    foreach ($names as $name) {
-        webco_schema_say(
-            $name . ': ' . webco_schema_flag($before['constraints'][$name], $after['constraints'][$name])
-        );
-    }
-}
-
-if ($paidWaitingBefore === null) {
-    webco_schema_say('paid_waiting_payment_before: column_absent');
-} else {
-    webco_schema_say('paid_waiting_payment_before: ' . $paidWaitingBefore);
-}
-
-$paidWaitingAfter = webco_schema_paid_waiting_count($db, $after['projects_columns']);
-$paidReadyAfter = webco_schema_count(
-    $db,
-    'SELECT COUNT(*) AS n
-     FROM projects p
-     INNER JOIN orders o ON o.id = p.order_id
-     WHERE o.status = \'paid\'
-       AND p.provisioning_status = \'ready\''
-);
-$otherWaitingAfter = webco_schema_count(
-    $db,
-    'SELECT COUNT(*) AS n
-     FROM projects p
-     INNER JOIN orders o ON o.id = p.order_id
-     WHERE o.status <> \'paid\'
-       AND p.provisioning_status = \'waiting_payment\''
-);
-
-webco_schema_say('paid_waiting_payment_after: ' . webco_schema_count_label($paidWaitingAfter));
-webco_schema_say('paid_ready_after: ' . webco_schema_count_label($paidReadyAfter));
-webco_schema_say('unpaid_waiting_payment_after: ' . webco_schema_count_label($otherWaitingAfter));
-
-foreach ($orderColumns as $column) {
-    $failed = !webco_schema_verify_column($after['orders_columns'], 'orders.' . $column, $column) || $failed;
-}
-$failed = !webco_schema_verify_flag($after['orders_session_index'], 'orders index orders_stripe_checkout_session_id') || $failed;
-foreach ($projectColumns as $column) {
-    $failed = !webco_schema_verify_column($after['projects_columns'], 'projects.' . $column, $column) || $failed;
-}
-$failed = !webco_schema_verify_flag($after['events_table'], 'stripe_events') || $failed;
-foreach ($eventColumns as $column) {
-    $failed = !webco_schema_verify_column($after['events_columns'], 'stripe_events.' . $column, $column) || $failed;
-}
-$failed = !webco_schema_verify_flag($after['events_primary'], 'stripe_events primary key') || $failed;
-foreach ($constraints as $names) {
-    foreach ($names as $name) {
-        $failed = !webco_schema_verify_flag($after['constraints'][$name], $name) || $failed;
-    }
-}
-if ($paidWaitingAfter !== 0) {
-    webco_schema_say('verify paid_waiting_payment: missing');
-    $failed = true;
-} else {
-    webco_schema_say('verify paid_waiting_payment: ok');
-}
-
-webco_schema_say('summary: ' . ($failed ? 'failure' : 'success'));
-exit($failed ? 1 : 0);
 
 /**
  * @param list<string> $orderColumns
@@ -302,6 +154,9 @@ function webco_schema_constraint(PDO $db, string $table, string $name): ?bool
 }
 
 /**
+ * Paid live orders still waiting for provisioning. Test-mode (0) and unknown
+ * livemode (NULL) are excluded so Stripe test fixtures do not fail migration.
+ *
  * @param array<string, true>|null $columns
  */
 function webco_schema_paid_waiting_count(PDO $db, ?array $columns): ?int
@@ -316,6 +171,7 @@ function webco_schema_paid_waiting_count(PDO $db, ?array $columns): ?int
          FROM projects p
          INNER JOIN orders o ON o.id = p.order_id
          WHERE o.status = \'paid\'
+           AND o.stripe_livemode = 1
            AND p.provisioning_status = \'waiting_payment\''
     );
 }
@@ -401,4 +257,180 @@ function webco_schema_count_label(?int $count): string
 function webco_schema_say(string $line): void
 {
     fwrite(STDOUT, $line . "\n");
+}
+
+/**
+ * Project columns the migration reports and verifies.
+ *
+ * @return list<string>
+ */
+function webco_schema_project_columns(): array
+{
+    return [
+        'provisioning_status',
+        'provisioned_at',
+        'provisioning_error',
+        'twentyi_package_id',
+        'provisioning_attempted_at',
+        'domain_registered_at',
+    ];
+}
+
+/**
+ * @param list<string> $argv
+ */
+function webco_schema_run(array $argv): int
+{
+    if (count($argv) > 1) {
+        fwrite(STDERR, "schema migration only; no arguments are accepted\n");
+
+        return 1;
+    }
+
+    $db = webco_db();
+    if (!$db instanceof PDO) {
+        fwrite(STDERR, "database unavailable\n");
+
+        return 1;
+    }
+
+    $orderColumns = [
+        'stripe_checkout_session_id',
+        'stripe_customer_id',
+        'stripe_subscription_id',
+        'paid_at',
+        'payment_intent_id',
+        'care_status',
+        'care_trial_ends_at',
+        'hosting_status',
+        'hosting_included_until',
+        'stripe_livemode',
+    ];
+    $projectColumns = webco_schema_project_columns();
+    $eventColumns = [
+        'stripe_event_id',
+        'event_type',
+        'claimed_at',
+        'processed_at',
+        'result',
+    ];
+    $constraints = [
+        'orders' => [
+            'orders_status_check',
+            'orders_care_status_check',
+            'orders_hosting_status_check',
+            'orders_stripe_livemode_check',
+        ],
+        'projects' => [
+            'projects_provisioning_status_check',
+        ],
+    ];
+
+    $before = webco_schema_snapshot($db, $orderColumns, $projectColumns, $eventColumns, $constraints);
+    $paidWaitingBefore = webco_schema_paid_waiting_count($db, $before['projects_columns']);
+
+    $ordersEnsured = webco_ensure_orders_table($db);
+    $projectsEnsured = webco_ensure_project_provisioning_columns($db);
+
+    $after = webco_schema_snapshot($db, $orderColumns, $projectColumns, $eventColumns, $constraints);
+    $failed = !$ordersEnsured || !$projectsEnsured;
+
+    webco_schema_say('orders ensure: ' . ($ordersEnsured ? 'ok' : 'failed'));
+    webco_schema_say('projects ensure: ' . ($projectsEnsured ? 'ok' : 'failed'));
+
+    foreach ($orderColumns as $column) {
+        webco_schema_say(
+            'orders.' . $column . ': ' . webco_schema_presence($before['orders_columns'], $after['orders_columns'], $column)
+        );
+    }
+    webco_schema_say(
+        'orders index orders_stripe_checkout_session_id: ' . webco_schema_flag(
+            $before['orders_session_index'],
+            $after['orders_session_index']
+        )
+    );
+    foreach ($projectColumns as $column) {
+        webco_schema_say(
+            'projects.' . $column . ': ' . webco_schema_presence($before['projects_columns'], $after['projects_columns'], $column)
+        );
+    }
+    webco_schema_say(
+        'stripe_events: ' . webco_schema_flag($before['events_table'], $after['events_table'])
+    );
+    foreach ($eventColumns as $column) {
+        webco_schema_say(
+            'stripe_events.' . $column . ': ' . webco_schema_presence($before['events_columns'], $after['events_columns'], $column)
+        );
+    }
+    webco_schema_say(
+        'stripe_events primary key: ' . webco_schema_flag($before['events_primary'], $after['events_primary'])
+    );
+    foreach ($constraints as $names) {
+        foreach ($names as $name) {
+            webco_schema_say(
+                $name . ': ' . webco_schema_flag($before['constraints'][$name], $after['constraints'][$name])
+            );
+        }
+    }
+
+    if ($paidWaitingBefore === null) {
+        webco_schema_say('paid_waiting_payment_before: column_absent');
+    } else {
+        webco_schema_say('paid_waiting_payment_before: ' . $paidWaitingBefore);
+    }
+
+    $paidWaitingAfter = webco_schema_paid_waiting_count($db, $after['projects_columns']);
+    $paidReadyAfter = webco_schema_count(
+        $db,
+        'SELECT COUNT(*) AS n
+         FROM projects p
+         INNER JOIN orders o ON o.id = p.order_id
+         WHERE o.status = \'paid\'
+           AND p.provisioning_status = \'ready\''
+    );
+    $otherWaitingAfter = webco_schema_count(
+        $db,
+        'SELECT COUNT(*) AS n
+         FROM projects p
+         INNER JOIN orders o ON o.id = p.order_id
+         WHERE o.status <> \'paid\'
+           AND p.provisioning_status = \'waiting_payment\''
+    );
+
+    webco_schema_say('paid_waiting_payment_after: ' . webco_schema_count_label($paidWaitingAfter));
+    webco_schema_say('paid_ready_after: ' . webco_schema_count_label($paidReadyAfter));
+    webco_schema_say('unpaid_waiting_payment_after: ' . webco_schema_count_label($otherWaitingAfter));
+
+    foreach ($orderColumns as $column) {
+        $failed = !webco_schema_verify_column($after['orders_columns'], 'orders.' . $column, $column) || $failed;
+    }
+    $failed = !webco_schema_verify_flag($after['orders_session_index'], 'orders index orders_stripe_checkout_session_id') || $failed;
+    foreach ($projectColumns as $column) {
+        $failed = !webco_schema_verify_column($after['projects_columns'], 'projects.' . $column, $column) || $failed;
+    }
+    $failed = !webco_schema_verify_flag($after['events_table'], 'stripe_events') || $failed;
+    foreach ($eventColumns as $column) {
+        $failed = !webco_schema_verify_column($after['events_columns'], 'stripe_events.' . $column, $column) || $failed;
+    }
+    $failed = !webco_schema_verify_flag($after['events_primary'], 'stripe_events primary key') || $failed;
+    foreach ($constraints as $names) {
+        foreach ($names as $name) {
+            $failed = !webco_schema_verify_flag($after['constraints'][$name], $name) || $failed;
+        }
+    }
+    if ($paidWaitingAfter !== 0) {
+        webco_schema_say('verify paid_waiting_payment: missing');
+        $failed = true;
+    } else {
+        webco_schema_say('verify paid_waiting_payment: ok');
+    }
+
+    webco_schema_say('summary: ' . ($failed ? 'failure' : 'success'));
+
+    return $failed ? 1 : 0;
+}
+
+$script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+if (str_ends_with($script, '/bin/provision-schema.php')) {
+    exit(webco_schema_run($argv));
 }

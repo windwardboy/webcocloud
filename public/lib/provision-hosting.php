@@ -104,9 +104,15 @@ function webco_provision_hosting_test_override(bool $allowTestOrder, ?int $proje
         return false;
     }
 
-    $script = str_replace('\\', '/', (string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+    // Resolve relative invocations such as `php bin/provision-hosting.php`.
+    $script = realpath((string) ($_SERVER['SCRIPT_FILENAME'] ?? ''));
+    if (!is_string($script) || $script === '') {
+        return false;
+    }
 
-    return str_ends_with($script, '/bin/provision-hosting.php');
+    $normalized = str_replace('\\', '/', $script);
+
+    return str_ends_with($normalized, '/bin/provision-hosting.php');
 }
 
 function webco_provision_hosting_livemode_sql(bool $allowTestOrder, ?int $projectId): string

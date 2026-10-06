@@ -625,6 +625,77 @@ check(str_contains($allowedText, "test_order_override: active\n"), 'preview says
 check(project_row($db, $testModeId)['provisioning_status'] === 'ready', 'previewing a test project does not claim it');
 check(!in_array($otherTestId, $allowed, true), 'the override does not include a second test project');
 
+$previousCwd = getcwd();
+check($previousCwd !== false, 'current working directory is available for relative CLI checks');
+$newUkTestId = insert_case($db, [
+    'domain_name' => 'i-really-hate-terminals.co.uk',
+    'domain_path' => 'new',
+    'package_code' => 'professional',
+    'package_name' => 'Webco Professional',
+    'stripe_livemode' => 0,
+]);
+$unsupportedTestId = insert_case($db, [
+    'domain_name' => 'paid-new.example.com',
+    'domain_path' => 'new',
+    'stripe_livemode' => 0,
+]);
+if ($previousCwd !== false) {
+    chdir(dirname(__DIR__));
+    $_SERVER['SCRIPT_FILENAME'] = 'bin/provision-hosting.php';
+    check(
+        webco_provision_hosting_test_override(true, $newUkTestId) === true,
+        'a relative bin/provision-hosting.php invocation enables the test override'
+    );
+    $relativeCandidates = webco_provision_hosting_candidate_ids($db, $newUkTestId, true);
+    check($relativeCandidates === [$newUkTestId], 'relative CLI can select a paid ready new .co.uk test project');
+    $relativePreview = webco_provision_hosting_preview($db, $newUkTestId, true);
+    check(
+        ($relativePreview[0]['action'] ?? '') === 'create'
+            && ($relativePreview[0]['domain_name'] ?? '') === 'i-really-hate-terminals.co.uk',
+        'relative CLI previews an eligible new .co.uk test project as create'
+    );
+    $bulkRelative = webco_provision_hosting_candidate_ids($db, null, true);
+    check(
+        is_array($bulkRelative) && !in_array($newUkTestId, $bulkRelative, true),
+        'relative CLI still cannot bulk-select test orders'
+    );
+    $liveOnly = webco_provision_hosting_candidate_ids($db, $newUkTestId, false);
+    check($liveOnly === [], 'without --allow-test-order a test project stays ineligible');
+    chdir($previousCwd);
+}
+$_SERVER['SCRIPT_FILENAME'] = dirname(__DIR__) . '/bin/provision-hosting.php';
+
+[$unsupportedCreated, $unsupportedCreate] = fake_create([
+    'ok' => true,
+    'package_id' => '1',
+    'failure' => '',
+    'status' => 200,
+]);
+$unsupported = webco_provision_hosting_project(
+    $db,
+    $unsupportedTestId,
+    ['ok' => true, 'domains' => []],
+    $unsupportedCreate,
+    quiet_log(),
+    null,
+    null,
+    true,
+    static function (): array {
+        return ['ok' => true, 'failure' => '', 'status' => 200];
+    },
+    static function (): string {
+        return 'available';
+    },
+    static function (): array {
+        return ['ok' => true, 'domains' => []];
+    }
+);
+check($unsupportedCreated->calls === [] && $unsupported['outcome'] === 'failed', 'a test-mode new .com domain is still refused');
+check(
+    (project_row($db, $unsupportedTestId)['provisioning_error'] ?? '') === 'Only .uk and .co.uk domains are included with hosting',
+    'a test-mode new .com domain explains the included TLD rule'
+);
+
 [$testCollisionCreated, $testCollisionCreate] = fake_create([
     'ok' => true,
     'package_id' => '1',

@@ -281,6 +281,37 @@ $db->prepare('UPDATE stripe_events SET claimed_at = :claimed_at WHERE stripe_eve
 $reclaimed = webco_claim_stripe_event($other, $staleId, 'checkout.session.completed');
 check(($stale['state'] ?? '') === 'claimed' && ($reclaimed['state'] ?? '') === 'claimed', 'a stale unfinished claim can be recovered');
 
+$projectsSource = (string) file_get_contents(dirname(__DIR__) . '/public/lib/projects.php');
+check($projectsSource !== '', 'projects library source can be read');
+check(
+    preg_match(
+        '/function webco_ensure_paid_project\(PDO \$db, string \$publicId\): string\s*\{(?P<body>.*)\nfunction webco_lock_paid_order/s',
+        $projectsSource,
+        $ensureMatch
+    ) === 1,
+    'ensure_paid_project body can be read'
+);
+$ensureBody = (string) ($ensureMatch['body'] ?? '');
+check(
+    str_contains($ensureBody, 'webco_mark_project_ready($db, $projectId)'),
+    'paid project creation marks the project ready for provisioning'
+);
+check(
+    (bool) preg_match(
+        '/if\s*\(\s*!webco_mark_project_ready\(\$db,\s*\$projectId\)\s*\)\s*\{\s*return\s+\'error\'\s*;/s',
+        $ensureBody
+    ),
+    'failure to mark ready causes the paid project path to retry'
+);
+check(
+    !str_contains($ensureBody, 'stripe_livemode'),
+    'paid project readiness is not gated on stripe_livemode'
+);
+check(
+    str_contains($ensureBody, "\\'waiting_payment\\'"),
+    'new project rows still insert as waiting_payment before promotion'
+);
+
 $db->exec(
     'INSERT INTO projects (order_id, brief_token_hash, provisioning_status)
      VALUES (1, \'' . hash('sha256', 'token') . '\', \'waiting_payment\')'
@@ -311,6 +342,51 @@ check(webco_claim_internal_notification($db, 2), 'one handler claims the interna
 check(!webco_claim_internal_notification($other, 2), 'a concurrent handler cannot claim the same internal email');
 webco_release_internal_notification($db, 2);
 check(webco_claim_internal_notification($db, 2), 'a failed internal send can be retried');
+
+$testReadyId = 'wc_' . str_repeat('d', 20);
+$liveReadyId = 'wc_' . str_repeat('e', 20);
+$db->prepare(
+    'INSERT INTO orders (
+        public_id, status, package_code, package_price_pence, care_choice, stripe_livemode
+     ) VALUES (:public_id, \'paid\', \'essential\', 59500, \'standard\', :livemode)'
+)->execute(['public_id' => $testReadyId, 'livemode' => 0]);
+$testOrderId = (int) $db->lastInsertId();
+$db->prepare(
+    'INSERT INTO orders (
+        public_id, status, package_code, package_price_pence, care_choice, stripe_livemode
+     ) VALUES (:public_id, \'paid\', \'essential\', 59500, \'standard\', :livemode)'
+)->execute(['public_id' => $liveReadyId, 'livemode' => 1]);
+$liveOrderId = (int) $db->lastInsertId();
+$db->prepare(
+    'INSERT INTO projects (order_id, brief_token_hash, provisioning_status)
+     VALUES (:order_id, :hash, \'waiting_payment\')'
+)->execute(['order_id' => $testOrderId, 'hash' => hash('sha256', 'test-ready')]);
+$testProjectId = (int) $db->lastInsertId();
+$db->prepare(
+    'INSERT INTO projects (order_id, brief_token_hash, provisioning_status)
+     VALUES (:order_id, :hash, \'waiting_payment\')'
+)->execute(['order_id' => $liveOrderId, 'hash' => hash('sha256', 'live-ready')]);
+$liveProjectId = (int) $db->lastInsertId();
+check(
+    webco_mark_project_ready($db, $testProjectId),
+    'a paid Stripe test-mode project can become ready for allow-test-order runs'
+);
+check(
+    webco_mark_project_ready($db, $liveProjectId),
+    'a paid live project can become ready for normal provisioning'
+);
+$testStatus = $db->query(
+    'SELECT provisioning_status FROM projects WHERE id = ' . $testProjectId
+)->fetch();
+$liveStatus = $db->query(
+    'SELECT provisioning_status FROM projects WHERE id = ' . $liveProjectId
+)->fetch();
+check(($testStatus['provisioning_status'] ?? '') === 'ready', 'paid test-mode provisioning_status is ready');
+check(($liveStatus['provisioning_status'] ?? '') === 'ready', 'paid live provisioning_status is ready');
+check(
+    webco_mark_project_ready($db, $testProjectId) && webco_mark_project_ready($db, $liveProjectId),
+    'repeating readiness for paid test and live projects stays idempotent'
+);
 
 $draftId = 'wc_' . str_repeat('c', 20);
 $db->prepare(

@@ -720,10 +720,11 @@ function webco_mark_project_ready(PDO $db, int $projectId): bool
 }
 
 /**
- * Creates the project for a paid order once, then sends any missing notices.
- * The project stays off the automatic hosting worker. A manual clone records
- * the 20i package id later. Returns ok when the project row and asset
- * folders exist. Mail failure stays ok.
+ * Creates the project for a paid order once, marks it ready for the hosting
+ * worker, then sends any missing notices. Insert still uses waiting_payment
+ * so unpaid drafts cannot be claimed; readiness is promoted only here after
+ * payment. Live workers still require stripe_livemode = 1; test orders become
+ * ready for explicit --allow-test-order runs. Mail failure stays ok.
  *
  * @return 'ok'|'error'
  */
@@ -795,6 +796,10 @@ function webco_ensure_paid_project(PDO $db, string $publicId): string
     }
 
     if ($projectId < 1 || !webco_provision_project_dirs($publicId)) {
+        return 'error';
+    }
+
+    if (!webco_mark_project_ready($db, $projectId)) {
         return 'error';
     }
 

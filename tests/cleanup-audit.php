@@ -70,12 +70,16 @@ check(
     'pandahugs package 3943463 must keep hosting'
 );
 check(
-    webco_cleanup_hosting_decision_for_package('3943689') === 'needs_manual_decision',
-    'an unlisted package needs a manual hosting decision'
+    webco_cleanup_hosting_decision_for_package('3943689') === 'safe_candidate_for_deleting_hosting',
+    'concretejunkie package 3943689 is approved for hosting-only delete'
 );
 check(
-    webco_cleanup_hosting_delete_safe_package_ids() === [],
-    'no 20i package is marked safe to delete hosting yet'
+    webco_cleanup_hosting_decision_for_package('3940479') === 'safe_candidate_for_deleting_hosting',
+    'sexyunderneath package 3940479 is approved for hosting-only delete'
+);
+check(
+    !in_array('3943463', webco_cleanup_hosting_delete_safe_package_ids(), true),
+    'pandahugs package 3943463 is never on the hosting-delete allowlist'
 );
 
 $testReasons = webco_cleanup_order_reasons(
@@ -140,8 +144,8 @@ check(
     'a stored 20i package id is noted on the candidate'
 );
 check(
-    str_contains(implode(' ', $liveBundle['notes'] ?? []), 'hosting_decision:needs_manual_decision'),
-    'project 12 hosting is marked needs_manual_decision'
+    str_contains(implode(' ', $liveBundle['notes'] ?? []), 'hosting_decision:safe_candidate_for_deleting_hosting'),
+    'project 12 hosting is marked safe_candidate_for_deleting_hosting'
 );
 
 $keepHostingBundle = webco_cleanup_classify_bundle(
@@ -191,17 +195,21 @@ check(
 
 $cli = webco_cleanup_cli_options(['bin/cleanup-test-data.php']);
 check(($cli['ok'] ?? false) === true && ($cli['apply'] ?? true) === false, 'default CLI mode is preview');
-$apply = webco_cleanup_cli_options(['bin/cleanup-test-data.php', '--apply']);
-check(($apply['ok'] ?? false) === true && ($apply['apply'] ?? false) === true, '--apply is parsed for a future destructive mode');
+$applyOnly = webco_cleanup_cli_options(['bin/cleanup-test-data.php', '--apply']);
+check(($applyOnly['ok'] ?? true) === false, '--apply without --confirm-candidates is refused');
+$apply = webco_cleanup_cli_options(['bin/cleanup-test-data.php', '--apply', '--confirm-candidates=28']);
+check(
+    ($apply['ok'] ?? false) === true
+        && ($apply['apply'] ?? false) === true
+        && ($apply['confirm_candidates'] ?? null) === 28,
+    '--apply with --confirm-candidates is accepted'
+);
 $bad = webco_cleanup_cli_options(['bin/cleanup-test-data.php', '--delete-all']);
 check(($bad['ok'] ?? true) === false, 'unknown cleanup flags are refused');
 
 $bin = (string) file_get_contents(dirname(__DIR__) . '/bin/cleanup-test-data.php');
-check(str_contains($bin, 'deletion is not implemented yet'), 'the CLI refuses --apply until deletion is implemented');
-check(
-    !str_contains($bin, 'DELETE FROM') && !str_contains($bin, '->exec(\'DELETE'),
-    'the cleanup CLI source does not issue DELETE statements'
-);
+check(str_contains($bin, 'webco_cleanup_apply'), 'the CLI wires the guarded apply path');
+check(str_contains($bin, 'Never calls Stripe or 20i'), 'the DB cleanup CLI documents no Stripe/20i calls');
 
 $path = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'webco-cleanup-audit-' . getmypid() . '.sqlite';
 if (is_file($path)) {
@@ -290,7 +298,109 @@ check(str_contains($text, 'wc_27155bed5bfe1eea3391'), 'the live smoke order appe
 check(str_contains($text, 'real-client.co.uk'), 'kept live customers remain visible in the report');
 check(str_contains($text, 'destructive: no'), 'the report states the run is non-destructive');
 
+$root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'webco-cleanup-files-' . getmypid();
+foreach (['wc_59aaa75a2a3a4133c749', 'wc_27155bed5bfe1eea3391', 'wc_aaaa0000000000000001', 'wc_' . str_repeat('e', 20)] as $folder) {
+    foreach (['logos', 'photos', 'documents'] as $kind) {
+        mkdir($root . DIRECTORY_SEPARATOR . $folder . DIRECTORY_SEPARATOR . $kind, 0700, true);
+    }
+}
+file_put_contents($root . DIRECTORY_SEPARATOR . 'wc_' . str_repeat('e', 20) . DIRECTORY_SEPARATOR . 'logos' . DIRECTORY_SEPARATOR . 'keep.png', 'keep');
+
+$wrongCount = webco_cleanup_apply($db, 99, $root);
+check(($wrongCount['ok'] ?? true) === false, 'apply refuses when confirm count does not match');
+check($db->query('SELECT COUNT(*) FROM orders')->fetchColumn() == 4, 'a refused apply leaves all orders in place');
+
+$applied = webco_cleanup_apply($db, 3, $root);
+check(($applied['ok'] ?? false) === true, 'apply succeeds for the confirmed candidate count');
+check(count($applied['deleted_orders'] ?? []) === 3, 'apply deletes exactly the candidate orders');
+check(($applied['kept_stripe_events'] ?? 0) === 2, 'apply keeps every stripe_events row');
+check($db->query('SELECT COUNT(*) FROM orders')->fetchColumn() == 1, 'only the unidentified live order remains');
+check($db->query('SELECT COUNT(*) FROM projects')->fetchColumn() == 1, 'only the real-client project remains');
+check($db->query('SELECT COUNT(*) FROM stripe_events')->fetchColumn() == 2, 'stripe_events rows remain after apply');
+check(
+    is_file($root . DIRECTORY_SEPARATOR . 'wc_' . str_repeat('e', 20) . DIRECTORY_SEPARATOR . 'logos' . DIRECTORY_SEPARATOR . 'keep.png'),
+    'non-candidate upload files remain'
+);
+check(!is_dir($root . DIRECTORY_SEPARATOR . 'wc_27155bed5bfe1eea3391'), 'candidate upload folders are removed');
+
+require dirname(__DIR__) . '/public/lib/cleanup-hosting.php';
+$hostPreview = webco_cleanup_hosting_run(
+    false,
+    static function (): array {
+        return [
+            'ok' => true,
+            'rows' => [
+                ['id' => '3940479', 'name' => 'sexyunderneath.com', 'names' => ['sexyunderneath.com']],
+                ['id' => '3940545', 'name' => 'jetfunnels.com', 'names' => ['jetfunnels.com']],
+                ['id' => '3943689', 'name' => 'concretejunkie.co.uk', 'names' => ['concretejunkie.co.uk']],
+                ['id' => '3943463', 'name' => 'pandahugs.uk', 'names' => ['pandahugs.uk']],
+            ],
+        ];
+    },
+    static function (string $id): array {
+        return ['ok' => false, 'package_id' => $id, 'failure' => 'should_not_run', 'status' => 0];
+    }
+);
+check(($hostPreview['ok'] ?? false) === true, 'hosting preview is ok for the three approved packages');
+check(($hostPreview['deleted'] ?? ['x']) === [], 'hosting preview does not delete');
+$calls = [];
+$hostApply = webco_cleanup_hosting_run(
+    true,
+    static function (): array {
+        return [
+            'ok' => true,
+            'rows' => [
+                ['id' => '3940479', 'name' => 'sexyunderneath.com', 'names' => ['sexyunderneath.com']],
+                ['id' => '3940545', 'name' => 'jetfunnels.com', 'names' => ['jetfunnels.com']],
+                ['id' => '3943689', 'name' => 'concretejunkie.co.uk', 'names' => ['concretejunkie.co.uk']],
+                ['id' => '3943463', 'name' => 'pandahugs.uk', 'names' => ['pandahugs.uk']],
+            ],
+        ];
+    },
+    static function (string $id) use (&$calls): array {
+        $calls[] = $id;
+        return ['ok' => true, 'package_id' => $id, 'failure' => '', 'status' => 200];
+    }
+);
+check(($hostApply['ok'] ?? false) === true, 'hosting apply succeeds for the three approved packages');
+check($calls === ['3940479', '3940545', '3943689'], 'hosting apply deletes only the three approved package ids');
+check(!in_array('3943463', $calls, true), 'hosting apply never deletes pandahugs package 3943463');
+$mismatch = webco_cleanup_hosting_run(
+    true,
+    static function (): array {
+        return [
+            'ok' => true,
+            'rows' => [
+                ['id' => '3940479', 'name' => 'wrong.example', 'names' => ['wrong.example']],
+            ],
+        ];
+    },
+    static function (string $id): array {
+        return ['ok' => true, 'package_id' => $id, 'failure' => '', 'status' => 200];
+    }
+);
+check(($mismatch['ok'] ?? true) === false, 'hosting apply refuses a domain mismatch');
+check(
+    webco_twentyi_delete_web_payload('3943463') !== null
+        && (webco_twentyi_delete_web_payload('3940479')['delete-id'][0] ?? '') === '3940479',
+    'deleteWeb payload carries a single package id'
+);
+$hostBin = (string) file_get_contents(dirname(__DIR__) . '/bin/cleanup-hosting-packages.php');
+check(str_contains($hostBin, 'Never touches package 3943463'), 'hosting CLI documents pandahugs keep');
+check(str_contains($hostBin, 'deleteWeb') || str_contains($hostBin, 'DELETE_WEB') || str_contains($hostBin, 'webco_twentyi_delete_hosting_package'), 'hosting CLI uses deleteWeb hosting deletion');
+check(!str_contains($hostBin, 'addDomain'), 'hosting CLI does not register or alter domains');
+
 @unlink($path);
+if (is_dir($root)) {
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($root, FilesystemIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::CHILD_FIRST
+    );
+    foreach ($iterator as $item) {
+        $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+    }
+    @rmdir($root);
+}
 
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);

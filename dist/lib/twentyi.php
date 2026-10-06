@@ -23,6 +23,7 @@ require_once __DIR__ . '/db.php';
 const WEBCO_TWENTYI_PACKAGE_LIST = '/package';
 const WEBCO_TWENTYI_PACKAGE_TYPES = '/reseller/*/packageTypes';
 const WEBCO_TWENTYI_ADD_WEB = '/reseller/*/addWeb';
+const WEBCO_TWENTYI_DELETE_WEB = '/reseller/*/deleteWeb';
 const WEBCO_TWENTYI_ADD_DOMAIN = '/reseller/*/addDomain';
 const WEBCO_TWENTYI_DOMAIN_LIST = '/domain';
 const WEBCO_TWENTYI_DOMAIN_SEARCH_PREFIX = '/domain-search/';
@@ -621,7 +622,11 @@ function webco_twentyi_domain(string $value): ?string
 
 function webco_twentyi_write_url(string $path): ?string
 {
-    if ($path !== WEBCO_TWENTYI_ADD_WEB && $path !== WEBCO_TWENTYI_ADD_DOMAIN) {
+    if (
+        $path !== WEBCO_TWENTYI_ADD_WEB
+        && $path !== WEBCO_TWENTYI_DELETE_WEB
+        && $path !== WEBCO_TWENTYI_ADD_DOMAIN
+    ) {
         return null;
     }
 
@@ -774,6 +779,62 @@ function webco_twentyi_create_hosting_package(callable $post, string $domainName
         'package_id' => $packageId,
         'failure' => '',
         'status' => $result['status'],
+    ];
+}
+
+/**
+ * Payload for POST reseller deleteWeb. Deletes a hosting package only.
+ * Domain registration endpoints are never used here.
+ *
+ * @return array<string, list<string>>|null
+ */
+function webco_twentyi_delete_web_payload(string $packageId): ?array
+{
+    $id = webco_twentyi_id($packageId);
+    if ($id === null) {
+        return null;
+    }
+
+    return ['delete-id' => [$id]];
+}
+
+/**
+ * Delete one hosting package. Does not call domain cancel/delete/transfer.
+ *
+ * @param callable(string, string): array{ok: bool, status: int, body: string} $post
+ * @return array{ok: bool, package_id: string, failure: string, status: int}
+ */
+function webco_twentyi_delete_hosting_package(callable $post, string $packageId): array
+{
+    $invalid = ['ok' => false, 'package_id' => '', 'failure' => 'invalid', 'status' => 0];
+    $payload = webco_twentyi_delete_web_payload($packageId);
+    if ($payload === null) {
+        return $invalid;
+    }
+    $id = $payload['delete-id'][0];
+    $body = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    if (!is_string($body) || $body === '') {
+        return $invalid;
+    }
+
+    $result = $post(WEBCO_TWENTYI_DELETE_WEB, $body);
+    if (!is_array($result)) {
+        return ['ok' => false, 'package_id' => $id, 'failure' => 'transport', 'status' => 0];
+    }
+    if (($result['ok'] ?? false) !== true) {
+        return [
+            'ok' => false,
+            'package_id' => $id,
+            'failure' => 'rejected',
+            'status' => (int) ($result['status'] ?? 0),
+        ];
+    }
+
+    return [
+        'ok' => true,
+        'package_id' => $id,
+        'failure' => '',
+        'status' => (int) ($result['status'] ?? 0),
     ];
 }
 

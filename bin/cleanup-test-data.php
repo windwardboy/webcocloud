@@ -1,16 +1,19 @@
 <?php
 /**
- * Preview-only audit of Webco Cloud test/demo customer data.
+ * Audit and guarded cleanup of Webco Cloud test/demo customer data.
  *
- * Default (safe):
+ * Preview (default, safe):
  *   php bin/cleanup-test-data.php
  *
- * Lists candidate orders/projects and dependent rows that would be removed
- * together in a future cleanup. Does not DELETE or UPDATE. Does not call
- * Stripe or 20i. Does not remove upload files.
+ * Apply (destructive DB + private uploads for positively identified candidates):
+ *   php bin/cleanup-test-data.php --apply --confirm-candidates=28
  *
- * --apply is recognised so a future destructive mode can require it explicitly,
- * but deletion is not implemented yet and --apply is refused.
+ * Re-runs the same positive identification rules before deleting.
+ * Deletes only candidate rows, in dependency order, then removes
+ * webco-projects/{order_public_id}/ for those orders.
+ *
+ * Never calls Stripe or 20i. Never deletes stripe_events.
+ * 20i hosting cleanup is a separate command.
  *
  * This file is not a web page.
  */
@@ -32,17 +35,18 @@ if (!$options['ok']) {
     exit(1);
 }
 
-if ($options['apply']) {
-    fwrite(STDERR, "deletion is not implemented yet; re-run without --apply for a preview audit\n");
-    exit(1);
-}
-
 $db = webco_db();
 if (!$db instanceof PDO) {
     fwrite(STDERR, "database unavailable\n");
     exit(1);
 }
 
-$audit = webco_cleanup_audit($db);
-fwrite(STDOUT, webco_cleanup_audit_text($audit));
-exit(($audit['ok'] ?? false) === true ? 0 : 1);
+if (!$options['apply']) {
+    $audit = webco_cleanup_audit($db);
+    fwrite(STDOUT, webco_cleanup_audit_text($audit));
+    exit(($audit['ok'] ?? false) === true ? 0 : 1);
+}
+
+$result = webco_cleanup_apply($db, (int) $options['confirm_candidates']);
+fwrite(STDOUT, webco_cleanup_apply_text($result));
+exit(($result['ok'] ?? false) === true ? 0 : 1);

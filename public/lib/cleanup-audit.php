@@ -60,6 +60,8 @@ function webco_cleanup_known_test_domains(): array
         'i-really-hate-terminals.co.uk',
         'pandahugs.uk',
         'concretejunkie.co.uk',
+        'sexyunderneath.com',
+        'jetfunnels.com',
         'fotojuice.com',
         'bumblebee.co.uk',
         'bubbly.com',
@@ -88,14 +90,33 @@ function webco_cleanup_hosting_keep_package_ids(): array
 }
 
 /**
- * 20i package IDs explicitly confirmed safe to delete hosting for later.
- * Empty until each package is approved one by one.
+ * 20i package IDs explicitly confirmed safe to delete hosting only.
+ * Domains must remain registered. Panda Hugs (3943463) is never listed here.
  *
  * @return list<string>
  */
 function webco_cleanup_hosting_delete_safe_package_ids(): array
 {
-    return [];
+    return [
+        '3940479', // sexyunderneath.com — delete hosting only
+        '3940545', // jetfunnels.com — delete hosting only
+        '3943689', // concretejunkie.co.uk — delete hosting only
+    ];
+}
+
+/**
+ * Expected primary domain for each hosting-delete package. Used only by the
+ * separate 20i hosting cleanup command as a safety check.
+ *
+ * @return array<string, string>
+ */
+function webco_cleanup_hosting_delete_expected_domains(): array
+{
+    return [
+        '3940479' => 'sexyunderneath.com',
+        '3940545' => 'jetfunnels.com',
+        '3943689' => 'concretejunkie.co.uk',
+    ];
 }
 
 /**
@@ -682,7 +703,181 @@ function webco_cleanup_audit_text(array $audit): string
         }
     }
 
-    $lines[] = 'apply: not available in this preview; pass --apply later only after review (currently refused)';
+    $lines[] = 'apply: pass --apply --confirm-candidates=N where N matches summary.candidates';
+    $lines[] = 'apply_note: Stripe, stripe_events, 20i domains, and package 3943463 hosting are never touched here';
+
+    return implode("\n", $lines) . "\n";
+}
+
+/**
+ * Destructive DB + private-upload cleanup for positively identified candidates.
+ * Re-runs the audit rules. Never touches stripe_events, Stripe, or 20i.
+ *
+ * @return array{
+ *   ok: bool,
+ *   error: ?string,
+ *   deleted_orders: list<string>,
+ *   deleted_projects: list<int>,
+ *   deleted_storage: list<string>,
+ *   kept_stripe_events: int,
+ *   refused: list<string>
+ * }
+ */
+function webco_cleanup_apply(PDO $db, int $confirmCandidates, ?string $storageRoot = null): array
+{
+    $empty = [
+        'ok' => false,
+        'error' => null,
+        'deleted_orders' => [],
+        'deleted_projects' => [],
+        'deleted_storage' => [],
+        'kept_stripe_events' => 0,
+        'refused' => [],
+    ];
+    if ($confirmCandidates < 1) {
+        $empty['error'] = '--confirm-candidates must be a positive count from the preview summary';
+
+        return $empty;
+    }
+
+    $audit = webco_cleanup_audit($db);
+    if (($audit['ok'] ?? false) !== true) {
+        $empty['error'] = is_string($audit['error'] ?? null) ? $audit['error'] : 'cleanup audit failed';
+
+        return $empty;
+    }
+
+    $candidates = is_array($audit['candidates'] ?? null) ? $audit['candidates'] : [];
+    $count = count($candidates);
+    if ($count !== $confirmCandidates) {
+        $empty['error'] = 'candidate count is ' . $count . ' but --confirm-candidates=' . $confirmCandidates
+            . '; re-run preview and confirm the exact count';
+        $empty['kept_stripe_events'] = (int) (($audit['stripe_events']['count'] ?? 0));
+
+        return $empty;
+    }
+
+    $deletedOrders = [];
+    $deletedProjects = [];
+    $deletedStorage = [];
+    $refused = [];
+
+    foreach ($candidates as $bundle) {
+        if (!is_array($bundle) || ($bundle['decision'] ?? '') !== 'candidate') {
+            $refused[] = 'non_candidate_row';
+            continue;
+        }
+        $order = is_array($bundle['order'] ?? null) ? $bundle['order'] : null;
+        if ($order === null) {
+            $refused[] = 'candidate_missing_order';
+            continue;
+        }
+        $publicId = (string) ($order['public_id'] ?? '');
+        $orderId = (int) ($order['id'] ?? 0);
+        $project = is_array($bundle['project'] ?? null) ? $bundle['project'] : null;
+        $projectId = $project !== null ? (int) ($project['id'] ?? 0) : 0;
+        $packageId = $project !== null ? ($project['twentyi_package_id'] ?? null) : null;
+
+        $reasons = webco_cleanup_order_reasons(
+            $publicId,
+            $projectId > 0 ? $projectId : null,
+            (string) ($order['domain_name'] ?? ''),
+            (string) ($order['business_name'] ?? ''),
+            (string) ($order['email'] ?? ''),
+            $order['stripe_livemode'] ?? null,
+            $packageId
+        );
+        if ($reasons === [] || preg_match('/^wc_[a-f0-9]{20}$/', $publicId) !== 1 || $orderId < 1) {
+            $refused[] = $publicId !== '' ? $publicId : 'invalid_order';
+            continue;
+        }
+
+        try {
+            $db->beginTransaction();
+            if ($projectId > 0) {
+                foreach (['project_assets', 'project_requests', 'project_briefs'] as $table) {
+                    $delete = $db->prepare('DELETE FROM ' . $table . ' WHERE project_id = :id');
+                    $delete->execute(['id' => $projectId]);
+                }
+                $deleteProject = $db->prepare('DELETE FROM projects WHERE id = :id AND order_id = :order_id');
+                $deleteProject->execute(['id' => $projectId, 'order_id' => $orderId]);
+                if ($deleteProject->rowCount() !== 1) {
+                    $db->rollBack();
+                    $refused[] = $publicId . ':project_delete_failed';
+                    continue;
+                }
+            }
+            $deleteOrder = $db->prepare('DELETE FROM orders WHERE id = :id AND public_id = :public_id');
+            $deleteOrder->execute(['id' => $orderId, 'public_id' => $publicId]);
+            if ($deleteOrder->rowCount() !== 1) {
+                $db->rollBack();
+                $refused[] = $publicId . ':order_delete_failed';
+                continue;
+            }
+            $db->commit();
+        } catch (PDOException) {
+            if ($db->inTransaction()) {
+                $db->rollBack();
+            }
+            $refused[] = $publicId . ':database_error';
+            continue;
+        }
+
+        $deletedOrders[] = $publicId;
+        if ($projectId > 0) {
+            $deletedProjects[] = $projectId;
+        }
+        if (webco_remove_project_storage($publicId, $storageRoot)) {
+            $deletedStorage[] = $publicId;
+        } else {
+            $refused[] = $publicId . ':storage_remove_failed_after_db_delete';
+        }
+    }
+
+    $eventsLeft = webco_cleanup_count_all($db, 'stripe_events');
+
+    return [
+        'ok' => $refused === [],
+        'error' => $refused === [] ? null : 'one or more candidates could not be fully removed',
+        'deleted_orders' => $deletedOrders,
+        'deleted_projects' => $deletedProjects,
+        'deleted_storage' => $deletedStorage,
+        'kept_stripe_events' => $eventsLeft,
+        'refused' => $refused,
+    ];
+}
+
+/**
+ * @param array<string, mixed> $result
+ */
+function webco_cleanup_apply_text(array $result): string
+{
+    $lines = [
+        'mode: cleanup-test-data apply',
+        'ok: ' . ((($result['ok'] ?? false) === true) ? 'yes' : 'no'),
+        'stripe_api: not called',
+        'twentyi_api: not called',
+        'stripe_events_kept: ' . (string) ($result['kept_stripe_events'] ?? 0),
+        'deleted_orders: ' . (string) count($result['deleted_orders'] ?? []),
+        'deleted_projects: ' . (string) count($result['deleted_projects'] ?? []),
+        'deleted_storage: ' . (string) count($result['deleted_storage'] ?? []),
+    ];
+    if (is_string($result['error'] ?? null) && $result['error'] !== '') {
+        $lines[] = 'error: ' . $result['error'];
+    }
+    foreach ($result['deleted_orders'] ?? [] as $publicId) {
+        if (is_string($publicId)) {
+            $lines[] = '  order_deleted: ' . $publicId;
+        }
+    }
+    foreach ($result['deleted_projects'] ?? [] as $projectId) {
+        $lines[] = '  project_deleted: ' . (string) $projectId;
+    }
+    foreach ($result['refused'] ?? [] as $item) {
+        if (is_string($item)) {
+            $lines[] = '  refused: ' . $item;
+        }
+    }
 
     return implode("\n", $lines) . "\n";
 }
@@ -732,29 +927,59 @@ function webco_cleanup_scalar(mixed $value): string
 
 /**
  * @param list<string> $argv
- * @return array{ok: bool, error: string, apply: bool}
+ * @return array{ok: bool, error: string, apply: bool, confirm_candidates: ?int}
  */
 function webco_cleanup_cli_options(array $argv): array
 {
     $apply = false;
+    $confirm = null;
+    $empty = ['ok' => false, 'error' => '', 'apply' => false, 'confirm_candidates' => null];
     foreach (array_slice($argv, 1) as $arg) {
         if (!is_string($arg)) {
-            return ['ok' => false, 'error' => 'preview is the default; only --apply is recognised', 'apply' => false];
+            $empty['error'] = 'preview is the default; use --apply --confirm-candidates=N to delete';
+
+            return $empty;
         }
         if ($arg === '--apply') {
             if ($apply) {
-                return ['ok' => false, 'error' => '--apply may be given once', 'apply' => false];
+                $empty['error'] = '--apply may be given once';
+
+                return $empty;
             }
             $apply = true;
             continue;
         }
+        if (str_starts_with($arg, '--confirm-candidates=')) {
+            if ($confirm !== null) {
+                $empty['error'] = '--confirm-candidates may be given once';
 
-        return [
-            'ok' => false,
-            'error' => 'preview is the default; only --apply is recognised (deletion is not implemented yet)',
-            'apply' => false,
-        ];
+                return $empty;
+            }
+            $raw = substr($arg, strlen('--confirm-candidates='));
+            if (!preg_match('/^[1-9][0-9]{0,5}$/', $raw)) {
+                $empty['error'] = '--confirm-candidates must be a positive integer from the preview summary';
+
+                return $empty;
+            }
+            $confirm = (int) $raw;
+            continue;
+        }
+
+        $empty['error'] = 'unrecognised argument; preview is default, or --apply --confirm-candidates=N';
+
+        return $empty;
     }
 
-    return ['ok' => true, 'error' => '', 'apply' => $apply];
+    if ($apply && $confirm === null) {
+        $empty['error'] = '--apply requires --confirm-candidates=N matching the preview candidate count';
+
+        return $empty;
+    }
+    if (!$apply && $confirm !== null) {
+        $empty['error'] = '--confirm-candidates is only valid with --apply';
+
+        return $empty;
+    }
+
+    return ['ok' => true, 'error' => '', 'apply' => $apply, 'confirm_candidates' => $confirm];
 }

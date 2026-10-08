@@ -1336,16 +1336,19 @@ main.lp {
 .lp-monogram {
   display: grid;
   place-items: center;
-  width: 8.5rem;
+  width: 10rem;
   aspect-ratio: 1;
   border: 8px solid #1b7f73;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.04);
-  color: #fff;
-  font-family: var(--serif);
-  font-size: 3.6rem;
-  font-weight: 450;
-  letter-spacing: -0.04em;
+  overflow: hidden;
+}
+
+.lp-monogram img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 62% 50%;
 }
 
 .lp-people h2 {
@@ -1397,7 +1400,6 @@ main.lp {
 
   .lp-monogram {
     width: 13rem;
-    font-size: 5.5rem;
     border-width: 11px;
   }
 }

@@ -4,7 +4,9 @@
  * The route is a LearnHGV advertising destination, so it must not move.
  * Prices, inclusions and links come from src/config/site.ts so they cannot drift from checkout.
  */
+import { Image } from "astro:assets";
 import LandingLayout from "../../layouts/LandingLayout.astro";
+import loPhoto from "../../assets/lo-viljoen.jpg";
 import DemoFrame from "../../components/DemoFrame.astro";
 import LandingIcon from "../../components/LandingIcon.astro";
 import { commercial, site, webcoMedia, websiteOffers } from "../../config/site";
@@ -637,8 +639,17 @@ const demoAlt = {
   <!-- 6. People -->
   <section class="lp-people" aria-labelledby="people-heading">
     <div class="wrap lp-people-grid">
-      <div class="lp-monogram" aria-hidden="true">
-        <span>Lo</span>
+      <div class="lp-monogram">
+        <Image
+          src={loPhoto}
+          alt="Lo Viljoen, photographed by the sea with a Santa Cruz longboard"
+          widths={[208, 320, 416]}
+          sizes="(min-width: 56rem) 13rem, 10rem"
+          quality={80}
+          format="webp"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
       <div class="lp-people-copy">
         <p class="lp-eyebrow lp-eyebrow-light">The person behind Webco Media</p>

@@ -967,6 +967,51 @@ main.lp {
   font-weight: 600;
 }
 
+.lp-after-or {
+  margin-inline: 0.35rem;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+}
+
+.lp-payplan {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  max-width: 52rem;
+  margin: 2.25rem auto 0;
+  padding: 1.35rem 1.5rem;
+  border: 1px solid #d8c9a8;
+  border-left: 5px solid var(--brass);
+  border-radius: var(--lp-radius);
+  background: #faf5e8;
+  color: #3d3320;
+}
+
+.lp-payplan .lp-icon {
+  flex: none;
+  margin-top: 0.2rem;
+  color: #8a6a2e;
+}
+
+.lp-payplan h3 {
+  margin: 0 0 0.3rem;
+  font-size: 1.2rem;
+  color: #2a2110;
+}
+
+.lp-payplan p {
+  margin: 0;
+}
+
+.lp-payplan a {
+  display: inline-block;
+  padding-block: 0.3rem;
+  color: #5c4416;
+  font-weight: 650;
+}
+
 .lp-plans-help {
   margin-top: 1.5rem;
   text-align: center;

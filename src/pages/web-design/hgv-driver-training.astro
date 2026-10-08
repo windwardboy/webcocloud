@@ -69,11 +69,11 @@ const steps = [
   },
   {
     title: "We build and customise your website",
-    text: "Webco Media starts from the demo for your package and customises it with your branding, wording, courses and locations. A person does this work; it is not an automatic website generator.",
+    text: "Webco Media starts from the demo for your package and customises it with your branding, wording, courses and locations. A person does this work; it is not an automatic website generator. Once we have all your details, your website is built within 14 days at most.",
   },
   {
     title: "Review and launch",
-    text: "You see your website before it goes live. Your client area shows which stage it has reached, and Webco Media is on the phone if you would rather talk it through.",
+    text: "You see your website before it goes live and we keep refining the design until you are happy with it. Your client area shows which stage it has reached, and Webco Media is on the phone if you would rather talk it through.",
   },
 ];
 
@@ -91,8 +91,8 @@ const faqGroups = [
       {
         q: "Is the quoted price the full website price, or are there additional charges?",
         a: [
-          `The price you see is the website fee, charged once at checkout: ${essential.price} for Essential or ${professional.price} for Professional. It covers the design and build of your website and, for the first year, hosting, SSL, domain setup and business email.`,
-          `Ongoing costs come later and are shown before you pay: standard hosting is ${commercial.hostingRenewal.price} after the first 12 months, or you can add Managed Care instead (see below). Domain renewals are charged when they fall due. A new domain ending .uk or .co.uk is included; other endings may cost extra.`,
+          `The price you see is the website fee, charged once at checkout: ${essential.price} for Essential or ${professional.price} for Professional. Both prices include VAT. They cover the design and build of your website and, for the first year, hosting, SSL, domain setup and business email.`,
+          `Ongoing costs come later and are shown before you pay: standard hosting is ${commercial.hostingRenewal.price} after the first 12 months, or you can add Managed Care instead (see below). A .uk or .co.uk domain and your business email are included in the hosting or Managed Care fee, so there is no separate domain or email renewal to pay. Other domain endings may cost extra.`,
           "Online booking, ecommerce and custom software are not part of either package. If you need them, we quote separately.",
         ],
       },
@@ -100,7 +100,7 @@ const faqGroups = [
         q: "Do I have to pay everything upfront?",
         a: [
           `The website fee is one card payment at checkout. Hosting is not charged at checkout: standard hosting is first billed one year later, and Managed Care, if you choose it, has its first payment 30 days after checkout.`,
-          "We do not offer instalments on the website fee through this page. If spreading the cost matters to you, call or email and ask before you order.",
+          `<strong>Payment plans are available.</strong> Instalments are arranged personally rather than through the checkout, so call <a href="${webcoMedia.phoneHref}">${webcoMedia.phone}</a> or email <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a> before you order and we will set one up with you.`,
         ],
       },
       {
@@ -126,28 +126,28 @@ const faqGroups = [
         q: "How much can the design be customised?",
         a: [
           "Your logo and brand colours (if you have them), your wording, images, courses, locations and contact details are all tailored to you. If you have no logo or colours yet, we follow the look of the demo you chose.",
-          "The overall page layout and structure follow the demo for your package, which is what keeps the price straightforward. If you want something noticeably different, ask before you order and we will tell you honestly whether it fits the package or would need a separate quote.",
+          "The design can change a long way from the demo if you want it to. Because how far depends on what you have in mind, we talk it through first, and we will tell you honestly what is realistic for the package before you commit.",
         ],
       },
       {
         q: "How long will it take to build?",
         a: [
-          "It depends mostly on how quickly you can send us your content: the brief, logo, photos, and details of your courses and locations. We do not promise a fixed number of days here, because a rushed website helps nobody.",
-          "Your client area shows which stage your website has reached. If you have a deadline, tell us before you order and we will say whether it is realistic.",
+          "Once we have all the details we need, your website is built within 14 days at most. The clock starts when your brief, logo, photos, and details of your courses and locations are with us, so the quicker you send them, the sooner you launch.",
+          "Your client area shows which stage your website has reached. If you have a deadline, tell us before you order.",
         ],
       },
       {
         q: "What if I want changes to the first version?",
         a: [
           "You review your website before it goes live and can tell us what needs changing. We work through it with you.",
-          "We have not set a fixed number of revision rounds. Changes that go beyond the package, such as extra sections or a different layout, would be quoted separately.",
+          "There is no fixed number of revision rounds: we keep refining the design until you are happy with it.",
         ],
       },
       {
         q: "Can I update courses, prices and locations later?",
         a: [
           "Yes, but you do not edit the website yourself. You ask Webco Media to make the change.",
-          "With Managed Care, routine changes such as service, pricing and location updates are covered by an allowance of about 30 minutes a month. Unused time does not roll over, and larger changes are quoted separately. Without Managed Care, ask and we will quote for the change.",
+          "With Managed Care, routine changes such as service and pricing updates are covered, and so is adding new course or location pages. Without Managed Care, ask and we will quote for the change.",
         ],
       },
       {
@@ -164,7 +164,7 @@ const faqGroups = [
       {
         q: "What happens after the first year?",
         a: [
-          `The first 12 months of hosting are included. After that, standard hosting is ${commercial.hostingRenewal.price}, billed yearly, unless you have Managed Care, which includes hosting. Domain renewals are charged when they fall due.`,
+          `The first 12 months of hosting are included. After that, standard hosting is ${commercial.hostingRenewal.price}, billed yearly, unless you have Managed Care, which includes hosting. Your .uk or .co.uk domain and business email are included in the hosting or Managed Care fee, so there is nothing extra to pay for them.`,
           "We will let you know before renewals so nothing lapses by surprise. Please keep your contact details up to date.",
         ],
       },
@@ -172,15 +172,15 @@ const faqGroups = [
         q: "What is included in Managed Care?",
         a: [
           `Managed Care is optional. It is ${commercial.managedCare.essential} with Essential and ${commercial.managedCare.professional} with Professional.`,
-          `${commercial.managedCare.summary} ${commercial.managedCare.allowance}`,
+          `${commercial.managedCare.summary} Adding new course or location pages is covered.`,
           "You can cancel Managed Care by giving us notice. Hosting then continues on the standard renewal basis unless you cancel hosting as well.",
         ],
       },
       {
         q: "Do I own my website and domain name?",
         a: [
-          "Your logo, wording and photos stay yours; when you send us material you confirm you have the right to use it. Your domain is registered using the details you give us at checkout.",
-          `We have not published full ownership and transfer terms for the finished website files on this page. If that matters to you, email <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a> before you order and we will answer in writing.`,
+          "Yes. You own your website and your domain name, and your logo, wording and photos stay yours. When you send us material you confirm you have the right to use it.",
+          `If you ever want to move to another provider, transferring your website and domain is possible. Get in touch at <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a> or on <a href="${webcoMedia.phoneHref}">${webcoMedia.phone}</a> and we will help.`,
         ],
       },
       {
@@ -188,13 +188,14 @@ const faqGroups = [
         a: [
           "Both packages are built with search in mind, and the Professional Website adds a page for each course and each location, so a local search has somewhere sensible to land.",
           "But nobody can honestly promise a position on Google. Where you appear depends on your area, your competitors, your content and time. We do not guarantee rankings, traffic or enquiries.",
+          "If you would like technical SEO, analytics or Google Search Console set up, we can do that on request. It needs a little help from you, such as access to your Google accounts, so we work through it together.",
         ],
       },
       {
         q: "What happens if I want to leave Webco Cloud?",
         a: [
-          "Hosting renews yearly, so you can choose not to renew. Managed Care can be cancelled by notice. Refunds are not automatic once work has started, but if something has gone wrong on our side, contact us and we will look at a fair remedy (see the terms of service).",
-          `Moving your domain or website files to another provider is something we deal with case by case. Ask us before you order if you want to know what that would involve, at <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a>.`,
+          `Just get in touch on <a href="${webcoMedia.phoneHref}">${webcoMedia.phone}</a> or at <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a>. Managed Care can be cancelled by notice, and your website and domain can be transferred to you or another provider.`,
+          "To be clear about money: work already done and domain registrations are not refundable. If something is not right, we would much rather work with you to fix it first, so please tell us early.",
         ],
       },
     ],
@@ -440,7 +441,7 @@ const demoAlt = {
         <LandingIcon name="shield" size={22} />
         <p>
           <strong>Your website is customised, not copied.</strong>
-          Webco Media starts from the demo for your package, then adds your own name, logo and brand colours (if you have them), wording, courses, locations, photos and contact details. The overall layout follows the demo, which is how the price stays clear. Wondering how far the design can change? <a href="#faq">Read the answer below</a> or ask us first.
+          Webco Media starts from the demo for your package, then adds your own name, logo and brand colours (if you have them), wording, courses, locations, photos and contact details. The design can move a long way from the demo if you want it to; we simply talk it through first so you know what to expect. <a href="#faq">Read the answer below</a> or ask us first.
         </p>
       </div>
     </div>
@@ -461,7 +462,7 @@ const demoAlt = {
         <article class="lp-plan" id="essential" aria-labelledby="plan-essential">
           <p class="lp-plan-for">Independent instructors and smaller providers</p>
           <h3 id="plan-essential">{essential.name}</h3>
-          <p class="lp-plan-price"><span class="lp-plan-amount">{essential.price}</span><span class="lp-plan-per"> one-off website fee</span></p>
+          <p class="lp-plan-price"><span class="lp-plan-amount">{essential.price}</span><span class="lp-plan-per"> one-off website fee, VAT included</span></p>
           <p class="lp-plan-desc">
             A professional online presence with clear course information and an easy way for learners to make an enquiry, built around one main training location.
           </p>
@@ -483,7 +484,7 @@ const demoAlt = {
         <article class="lp-plan" id="professional" aria-labelledby="plan-professional">
           <p class="lp-plan-for">Providers with several courses or locations</p>
           <h3 id="plan-professional">{professional.name}</h3>
-          <p class="lp-plan-price"><span class="lp-plan-amount">{professional.price}</span><span class="lp-plan-per"> one-off website fee</span></p>
+          <p class="lp-plan-price"><span class="lp-plan-amount">{professional.price}</span><span class="lp-plan-per"> one-off website fee, VAT included</span></p>
           <p class="lp-plan-desc">
             More detailed course pages, a page for each location and a stronger structure for local search visibility.
           </p>
@@ -503,6 +504,17 @@ const demoAlt = {
           </a>
         </article>
       </div>
+
+      <aside class="lp-payplan" aria-labelledby="payplan-heading">
+        <LandingIcon name="chat" size={26} />
+        <div>
+          <h3 id="payplan-heading">Prefer to spread the cost? Payment plans are available.</h3>
+          <p>
+            Instalments are arranged personally rather than at checkout, so please get in touch before you order:
+            call <a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a> or <a href="#enquiry">send us a question</a>.
+          </p>
+        </div>
+      </aside>
 
       <p class="lp-plans-help">
         Not sure which suits you? <a href="#enquiry">Ask us</a>, or call <a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a>.
@@ -579,7 +591,8 @@ const demoAlt = {
             <h4>{commercial.managedCare.name} <span class="lp-optional">optional</span></h4>
             <p class="lp-after-price">
               {commercial.managedCare.essential} <span class="lp-after-sub">Essential</span>
-              · {commercial.managedCare.professional} <span class="lp-after-sub">Professional</span>
+              <span class="lp-after-or">or</span>
+              {commercial.managedCare.professional} <span class="lp-after-sub">Professional</span>
             </p>
             <p>
               Hosting, maintenance, routine content updates and support. First payment 30 days after checkout, then monthly.
@@ -778,7 +791,7 @@ const demoAlt = {
               Send my question
             </button>
             <p class="lp-form-privacy">
-              We use these details only to reply to your enquiry. Read our{" "}
+              We use these details only to reply to your enquiry and delete them after 30 days. Read our{" "}
               <a href="/privacy/" target="_blank" rel="noopener">privacy policy<span class="visually-hidden"> (opens in a new tab)</span></a>.
             </p>
           </form>

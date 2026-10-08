@@ -29,6 +29,7 @@ const WEBCO_ENQUIRY_IP_DAY_LIMIT = 8;
 const WEBCO_ENQUIRY_GLOBAL_HOUR_LIMIT = 40;
 const WEBCO_ENQUIRY_DUPLICATE_WINDOW = 86400;
 const WEBCO_ENQUIRY_MAX_LINKS = 2;
+const WEBCO_ENQUIRY_RETENTION_DAYS = 30;
 
 /**
  * @return list<string>
@@ -407,6 +408,25 @@ function webco_list_enquiries(PDO $db, int $limit = 300): array
     }
 
     return array_values($statement->fetchAll());
+}
+
+/**
+ * Enquiries are kept for WEBCO_ENQUIRY_RETENTION_DAYS and then deleted. There is no cron on this
+ * hosting, so this runs whenever an enquiry arrives or the admin enquiries list is opened.
+ * Returns the number of rows removed (0 on any failure).
+ */
+function webco_purge_old_enquiries(PDO $db, ?int $now = null): int
+{
+    $cutoff = gmdate('Y-m-d H:i:s', ($now ?? time()) - WEBCO_ENQUIRY_RETENTION_DAYS * 86400);
+
+    try {
+        $statement = $db->prepare('DELETE FROM enquiries WHERE created_at < :cutoff');
+        $statement->execute(['cutoff' => $cutoff]);
+
+        return $statement->rowCount();
+    } catch (PDOException) {
+        return 0;
+    }
 }
 
 function webco_count_new_enquiries(PDO $db): int

@@ -141,6 +141,7 @@ function webco_process_enquiry(array $input, string $ip, int $now, ?PDO $db): ar
     }
 
     webco_enquiry_notify($db, $stored['id'], $stored['public_id'], $data);
+    webco_purge_old_enquiries($db, $now);
 
     return ['http' => 201, 'status' => 'ok', 'message' => $thanks];
 }

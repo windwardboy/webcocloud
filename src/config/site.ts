@@ -44,11 +44,10 @@ export const webcoMedia = {
   location: "Weston-super-Mare, Somerset, UK",
   founder: "Lo Viljoen",
   /**
-   * Opens the Webco Media Google Business Profile in Google Maps, where the reviews live.
-   * TODO(owner): replace with the exact "Share → reviews" link from the Business Profile
-   * once to hand. No review text, star rating or review count is stored on this site.
+   * The Webco Media Google Business Profile, where the reviews live.
+   * No review text, star rating or review count is stored on this site.
    */
-  googleReviewsUrl: "https://www.google.com/maps/search/?api=1&query=Webco%20Media%20Weston-super-Mare",
+  googleReviewsUrl: "https://g.page/r/CTU8cEPwoGZdEAE",
 } as const;
 
 export const nav = [

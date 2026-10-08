@@ -349,6 +349,7 @@ function webco_admin_enquiries(PDO $db, string $csrf, string $notice): void
     if (!is_string($filter) || !isset(webco_admin_enquiry_filters()[$filter])) {
         $filter = 'new';
     }
+    webco_purge_old_enquiries($db);
 
     webco_admin_page_open(false);
     echo '<header class="bar"><div><p class="eyebrow">Webco Cloud · Admin</p><h1>Enquiries</h1></div>';
@@ -371,7 +372,7 @@ function webco_admin_enquiries(PDO $db, string $csrf, string $notice): void
         exit;
     }
 
-    echo '<p class="meta">Questions sent from the HGV landing page. They are not orders, and no account or checkout is created for them.</p>';
+    echo '<p class="meta">Questions sent from the HGV landing page. They are not orders, and no account or checkout is created for them. Enquiries are deleted automatically after ' . WEBCO_ENQUIRY_RETENTION_DAYS . ' days, so reply or note anything you need to keep before then.</p>';
 
     echo '<nav class="views" aria-label="Enquiry status">';
     foreach (webco_admin_enquiry_filters() as $key => $label) {

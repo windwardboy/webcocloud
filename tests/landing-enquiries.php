@@ -214,7 +214,6 @@ check(!webco_enquiry_set_status($db, $id, 'deleted'), 'an unknown status is refu
 check(webco_enquiry_set_status($db, $id, 'closed'), 'an enquiry can be closed');
 check(webco_enquiry_set_status($db, $id, 'new'), 'a closed enquiry can be reopened');
 check(webco_enquiry_set_status($db, $id, 'replied'), 'status moves can be repeated');
-
 $list = webco_list_enquiries($db);
 check(count($list) === 1 && $list[0]['public_id'] === $stored['public_id'], 'the list returns stored enquiries');
 
@@ -229,6 +228,13 @@ check(str_contains($html, 'mailto:pat@example.com'), 'the admin card links to re
 check(str_contains($html, 'tel:07700900123'), 'the admin card links the telephone number');
 check(str_contains($html, 'name="to_status" value="closed"'), 'the admin card offers the next status');
 check(str_contains($html, 'Email alert not sent'), 'the admin card flags a missing email alert');
+
+// Retention: enquiries older than 30 days are removed, newer ones are kept.
+$retentionStart = strtotime((string) $db->query('SELECT MIN(created_at) FROM enquiries')->fetchColumn() . ' UTC');
+$retentionTotal = (int) $db->query('SELECT COUNT(*) FROM enquiries')->fetchColumn();
+check(webco_purge_old_enquiries($db, $retentionStart + 29 * 86400) === 0, 'enquiries under 30 days old are kept');
+check(webco_purge_old_enquiries($db, $retentionStart + 31 * 86400) === $retentionTotal && $retentionTotal > 0, 'enquiries over 30 days old are deleted');
+check((int) $db->query('SELECT COUNT(*) FROM enquiries')->fetchColumn() === 0, 'nothing is left after the purge');
 
 @unlink($path);
 

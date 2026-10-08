@@ -30,6 +30,27 @@ export const site = {
     "2 Laurel House, 1 Station Road, Worle, Weston-Super-Mare, United Kingdom, BS22 6AR",
 };
 
+/**
+ * Webco Media is the web design business that builds the websites sold on Webco Cloud.
+ * Used by the HGV landing page. Webco Cloud's own support contact stays in `site`.
+ */
+export const webcoMedia = {
+  name: "Webco Media",
+  tagline: "Web Design · Apps · Ecommerce",
+  phone: "01934 228 015",
+  phoneHref: "tel:+441934228015",
+  email: "hello@webcomedia.net",
+  url: "https://webcomedia.net",
+  location: "Weston-super-Mare, Somerset, UK",
+  founder: "Lo Viljoen",
+  /**
+   * Opens the Webco Media Google Business Profile in Google Maps, where the reviews live.
+   * TODO(owner): replace with the exact "Share → reviews" link from the Business Profile
+   * once to hand. No review text, star rating or review count is stored on this site.
+   */
+  googleReviewsUrl: "https://www.google.com/maps/search/?api=1&query=Webco%20Media%20Weston-super-Mare",
+} as const;
+
 export const nav = [
   { href: "/", label: "Home" },
   { href: "/web-design/", label: "Web design" },

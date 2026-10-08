@@ -1,0 +1,45 @@
+---
+import { Image } from "astro:assets";
+
+interface Props {
+  src: ImageMetadata;
+  alt: string;
+  kind?: "desktop" | "phone";
+  /** Real address of the demo site, shown in the browser bar. */
+  host?: string;
+  widths: number[];
+  sizes: string;
+  /** Load straight away. Use for the hero only. */
+  eager?: boolean;
+  priority?: boolean;
+  class?: string;
+}
+
+const { src, alt, kind = "desktop", host, widths, sizes, eager = false, priority = false, class: className } = Astro.props;
+---
+
+<figure class:list={["lp-frame", `lp-frame-${kind}`, className]}>
+  {
+    kind === "desktop" && (
+      <div class="lp-frame-bar" aria-hidden="true">
+        <span class="lp-dots">
+          <i />
+          <i />
+          <i />
+        </span>
+        {host && <span class="lp-url">{host}</span>}
+      </div>
+    )
+  }
+  <Image
+    src={src}
+    alt={alt}
+    widths={widths}
+    sizes={sizes}
+    format="webp"
+    quality={80}
+    loading={eager ? "eager" : "lazy"}
+    fetchpriority={priority ? "high" : "auto"}
+    decoding={eager ? "sync" : "async"}
+  />
+</figure>

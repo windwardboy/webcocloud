@@ -1,195 +1,964 @@
 ---
-import BaseLayout from "../../layouts/BaseLayout.astro";
-import PageHero from "../../components/PageHero.astro";
-import CtaBand from "../../components/CtaBand.astro";
-import { websiteCategories, websiteOffers } from "../../config/site";
+/**
+ * Dedicated landing page for HGV and transport training providers.
+ * The route is a LearnHGV advertising destination, so it must not move.
+ * Prices, inclusions and links come from src/config/site.ts so they cannot drift from checkout.
+ */
+import LandingLayout from "../../layouts/LandingLayout.astro";
+import DemoFrame from "../../components/DemoFrame.astro";
+import LandingIcon from "../../components/LandingIcon.astro";
+import { commercial, site, webcoMedia, websiteOffers } from "../../config/site";
+import essentialDesktop from "../../assets/demos/essential-desktop.png";
+import essentialMobile from "../../assets/demos/essential-mobile.png";
+import professionalDesktop from "../../assets/demos/professional-desktop.png";
+import professionalMobile from "../../assets/demos/professional-mobile.png";
 
-const category = websiteCategories[0];
+const [essential, professional] = websiteOffers;
 
+const title = "Websites for HGV & transport training providers";
 const description =
-  "Essential and Professional websites for HGV and transport training providers — built by Webco Media, looked after on Webco Cloud.";
+  "Professionally built websites for HGV and transport training providers, from £595. Designed and built by Webco Media in Weston-super-Mare, with hosting, SSL, domain setup and business email included for the first year.";
 
-const offers = {
-  essential: websiteOffers[0],
-  professional: websiteOffers[1],
-};
-
-const questions = [
+const pageUrl = `${site.url}/web-design/hgv-driver-training/`;
+const jsonLd = [
   {
-    question: "Who is this for?",
-    answer:
-      "HGV and transport training providers who need a clear enquiry website — whether you are an independent instructor with one base, or a provider with several courses and locations.",
-  },
-  {
-    question: "What if I already have a website?",
-    answer:
-      "Either package can replace the site you have now. Webco Media builds the new one. Webco Cloud then looks after hosting, the domain and email.",
-  },
-  {
-    question: "Can I upgrade later?",
-    answer:
-      "Yes. Start with Essential when you have one location and a straightforward training offer. When you need separate course and location pages, we move you onto the Professional Website and quote that work.",
-  },
-  {
-    question: "What if I already have a domain?",
-    answer:
-      "We connect the domain you already own to the website and to your business email. A new domain can be registered during setup when you need one.",
-  },
-  {
-    question: "What if I add more courses or locations?",
-    answer:
-      "Essential covers one main location and your core course information. Several courses or locations, each with its own page, are what the Professional Website is for.",
-  },
-  {
-    question: "Is booking, a shop, or custom software included?",
-    answer:
-      "Both packages are enquiry websites. Online booking, ecommerce and bespoke systems are quoted separately.",
+    "@context": "https://schema.org",
+    "@type": "Service",
+    name: "Websites for HGV and transport training providers",
+    url: pageUrl,
+    serviceType: "Web design",
+    areaServed: "GB",
+    provider: {
+      "@type": "Organization",
+      name: webcoMedia.name,
+      url: webcoMedia.url,
+      telephone: "+441934228015",
+      email: webcoMedia.email,
+      address: { "@type": "PostalAddress", addressLocality: "Weston-super-Mare", addressRegion: "Somerset", addressCountry: "GB" },
+    },
+    hasOfferCatalog: {
+      "@type": "OfferCatalog",
+      name: "Website packages",
+      itemListElement: [
+        { "@type": "Offer", name: essential.name, price: "595", priceCurrency: "GBP", url: `${pageUrl}#packages` },
+        { "@type": "Offer", name: professional.name, price: "995", priceCurrency: "GBP", url: `${pageUrl}#packages` },
+      ],
+    },
   },
 ];
+
+const comparison = [
+  { label: "Enquiry and contact path", essential: true, professional: true },
+  { label: "Core course and service information", essential: true, professional: true },
+  { label: "First year of hosting, SSL, domain setup and business email", essential: true, professional: true },
+  { label: "One main training location", essential: true, professional: false, professionalNote: "Several locations" },
+  { label: "A page for each course", essential: false, professional: true },
+  { label: "A page for each training location", essential: false, professional: true },
+  { label: "Stronger local search structure", essential: false, professional: true },
+  { label: "A fuller path from a course through to enquiry", essential: false, professional: true },
+];
+
+const steps = [
+  {
+    title: "Choose your package",
+    text: "Pick Essential or Professional, choose a new .uk or .co.uk domain or tell us the one you already own, add your details and pay securely by card at checkout.",
+  },
+  {
+    title: "Tell us about your business",
+    text: "After payment you get a private link to an online brief. Add your courses, locations, contact details, logo and photos. Your progress saves, so you can come back to it.",
+  },
+  {
+    title: "We build and customise your website",
+    text: "Webco Media starts from the demo for your package and customises it with your branding, wording, courses and locations. A person does this work; it is not an automatic website generator.",
+  },
+  {
+    title: "Review and launch",
+    text: "You see your website before it goes live. Your client area shows which stage it has reached, and Webco Media is on the phone if you would rather talk it through.",
+  },
+];
+
+const faqGroups = [
+  {
+    heading: "Before you order",
+    items: [
+      {
+        q: "Can I speak to someone before ordering?",
+        a: [
+          `Yes, and plenty of people do. Call Webco Media on <a href="${webcoMedia.phoneHref}">${webcoMedia.phone}</a>, email <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a>, or use the enquiry form further down this page.`,
+          "You do not need to create an account or pay anything to ask a question, and nobody will chase you for a decision.",
+        ],
+      },
+      {
+        q: "Is the quoted price the full website price, or are there additional charges?",
+        a: [
+          `The price you see is the website fee, charged once at checkout: ${essential.price} for Essential or ${professional.price} for Professional. It covers the design and build of your website and, for the first year, hosting, SSL, domain setup and business email.`,
+          `Ongoing costs come later and are shown before you pay: standard hosting is ${commercial.hostingRenewal.price} after the first 12 months, or you can add Managed Care instead (see below). Domain renewals are charged when they fall due. A new domain ending .uk or .co.uk is included; other endings may cost extra.`,
+          "Online booking, ecommerce and custom software are not part of either package. If you need them, we quote separately.",
+        ],
+      },
+      {
+        q: "Do I have to pay everything upfront?",
+        a: [
+          `The website fee is one card payment at checkout. Hosting is not charged at checkout: standard hosting is first billed one year later, and Managed Care, if you choose it, has its first payment 30 days after checkout.`,
+          "We do not offer instalments on the website fee through this page. If spreading the cost matters to you, call or email and ask before you order.",
+        ],
+      },
+      {
+        q: "Can I use a domain name I already own?",
+        a: [
+          "Yes. At checkout, choose that you already have a domain and enter it. We connect it to your website and to your business email.",
+          "If you need a new one, you can search for a .uk or .co.uk name during checkout. Either package can also replace the website you have now.",
+        ],
+      },
+    ],
+  },
+  {
+    heading: "Your website",
+    items: [
+      {
+        q: "Will my website look exactly like the demo?",
+        a: [
+          "No. The demos are starting points that show the layout, structure and style your website begins from. Your finished website carries your own name, branding, wording, course details, locations and photos, so it reads as your business rather than a copy of an example.",
+          "Both demos use fictional training businesses with sample content, which is why you will see made-up places and phone numbers on them.",
+        ],
+      },
+      {
+        q: "How much can the design be customised?",
+        a: [
+          "Your logo and brand colours (if you have them), your wording, images, courses, locations and contact details are all tailored to you. If you have no logo or colours yet, we follow the look of the demo you chose.",
+          "The overall page layout and structure follow the demo for your package, which is what keeps the price straightforward. If you want something noticeably different, ask before you order and we will tell you honestly whether it fits the package or would need a separate quote.",
+        ],
+      },
+      {
+        q: "How long will it take to build?",
+        a: [
+          "It depends mostly on how quickly you can send us your content: the brief, logo, photos, and details of your courses and locations. We do not promise a fixed number of days here, because a rushed website helps nobody.",
+          "Your client area shows which stage your website has reached. If you have a deadline, tell us before you order and we will say whether it is realistic.",
+        ],
+      },
+      {
+        q: "What if I want changes to the first version?",
+        a: [
+          "You review your website before it goes live and can tell us what needs changing. We work through it with you.",
+          "We have not set a fixed number of revision rounds. Changes that go beyond the package, such as extra sections or a different layout, would be quoted separately.",
+        ],
+      },
+      {
+        q: "Can I update courses, prices and locations later?",
+        a: [
+          "Yes, but you do not edit the website yourself. You ask Webco Media to make the change.",
+          "With Managed Care, routine changes such as service, pricing and location updates are covered by an allowance of about 30 minutes a month. Unused time does not roll over, and larger changes are quoted separately. Without Managed Care, ask and we will quote for the change.",
+        ],
+      },
+      {
+        q: "What if I start with Essential and need more later?",
+        a: [
+          "That is a normal route. Essential suits one main location and straightforward course information. When you need separate pages for several courses or locations, we move you onto the Professional Website and quote that work.",
+        ],
+      },
+    ],
+  },
+  {
+    heading: "After the first year, and leaving",
+    items: [
+      {
+        q: "What happens after the first year?",
+        a: [
+          `The first 12 months of hosting are included. After that, standard hosting is ${commercial.hostingRenewal.price}, billed yearly, unless you have Managed Care, which includes hosting. Domain renewals are charged when they fall due.`,
+          "We will let you know before renewals so nothing lapses by surprise. Please keep your contact details up to date.",
+        ],
+      },
+      {
+        q: "What is included in Managed Care?",
+        a: [
+          `Managed Care is optional. It is ${commercial.managedCare.essential} with Essential and ${commercial.managedCare.professional} with Professional.`,
+          `${commercial.managedCare.summary} ${commercial.managedCare.allowance}`,
+          "You can cancel Managed Care by giving us notice. Hosting then continues on the standard renewal basis unless you cancel hosting as well.",
+        ],
+      },
+      {
+        q: "Do I own my website and domain name?",
+        a: [
+          "Your logo, wording and photos stay yours; when you send us material you confirm you have the right to use it. Your domain is registered using the details you give us at checkout.",
+          `We have not published full ownership and transfer terms for the finished website files on this page. If that matters to you, email <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a> before you order and we will answer in writing.`,
+        ],
+      },
+      {
+        q: "Will my website appear on Google?",
+        a: [
+          "Both packages are built with search in mind, and the Professional Website adds a page for each course and each location, so a local search has somewhere sensible to land.",
+          "But nobody can honestly promise a position on Google. Where you appear depends on your area, your competitors, your content and time. We do not guarantee rankings, traffic or enquiries.",
+        ],
+      },
+      {
+        q: "What happens if I want to leave Webco Cloud?",
+        a: [
+          "Hosting renews yearly, so you can choose not to renew. Managed Care can be cancelled by notice. Refunds are not automatic once work has started, but if something has gone wrong on our side, contact us and we will look at a fair remedy (see the terms of service).",
+          `Moving your domain or website files to another provider is something we deal with case by case. Ask us before you order if you want to know what that would involve, at <a href="mailto:${webcoMedia.email}">${webcoMedia.email}</a>.`,
+        ],
+      },
+    ],
+  },
+];
+
+const demoAlt = {
+  essentialDesktop: "Screenshot of the Webco Essential demo website's home page on a desktop screen: a practical lorry training headline with an Enquire now button.",
+  essentialMobile: "Screenshot of the Webco Essential demo website on a phone.",
+  professionalDesktop: "Screenshot of the Webco Professional demo website's home page on a desktop screen: HGV training across three locations with course and location links.",
+  professionalMobile: "Screenshot of the Webco Professional demo website on a phone.",
+};
 ---
 
-<BaseLayout title={`${category.name} websites`} description={description}>
-  <PageHero eyebrow={category.audience} title="Websites for HGV driver training providers">
-    <p>
-      Essential for one main training base. Professional when courses or locations need their own pages. Built by Webco Media, then looked after on Webco Cloud.
-    </p>
-    <div class="actions">
-      <a class="button" href="#essential">Essential Website</a>
-      <a class="button button-quiet" href="#professional">Professional Website</a>
-    </div>
-  </PageHero>
-
-  <section class="section" aria-labelledby="offers-heading">
-    <div class="wrap">
-      <div class="section-head">
-        <h2 id="offers-heading">Choose a package</h2>
-        <p class="section-intro">
-          Two live demos show how Essential and Professional work for HGV and transport training. Your finished site is customised for your business.
+<LandingLayout
+  title={title}
+  description={description}
+  ogImage={`${site.url}/images/website-professional.jpg`}
+  jsonLd={jsonLd}
+>
+  <!-- 1. Hero -->
+  <section class="lp-hero" aria-labelledby="top-heading" id="top">
+    <div class="wrap lp-hero-grid">
+      <div class="lp-hero-copy">
+        <p class="lp-kicker">Built by Webco Media · Weston-super-Mare</p>
+        <h1 id="top-heading">Professional websites for HGV &amp; transport training providers</h1>
+        <p class="lp-lede">
+          A website designed around your training courses, locations and enquiries. Clear pricing up front, and a real person to talk to before, during and after the build.
+        </p>
+        <p class="lp-from">
+          <span class="lp-from-label">Websites from</span>
+          <span class="lp-from-price">£595</span>
+          <span class="lp-from-note">First year of hosting, SSL, domain setup and business email included</span>
+        </p>
+        <div class="lp-actions">
+          <a class="lp-btn lp-btn-primary" href="#packages">
+            Choose your website
+            <LandingIcon name="arrow" size={18} />
+          </a>
+          <a class="lp-btn lp-btn-ghost" href="#enquiry">
+            <LandingIcon name="chat" size={18} />
+            Ask a question first
+          </a>
+        </div>
+        <p class="lp-hero-phone">
+          Prefer to talk? Call <a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a>
         </p>
       </div>
-      <div class="cards cards-2">
-        {
-          websiteOffers.map((offer) => (
-            <article class="card offer-card" id={offer.id}>
-              <figure class="website-preview">
-                <img
-                  src={offer.previewImage}
-                  alt={`Preview of the ${offer.name} starting design for HGV driver training`}
-                  width="1280"
-                  height="800"
-                  onerror="this.closest('figure').hidden = true"
-                />
-              </figure>
-              <p class="eyebrow">
-                {offer.id === "essential"
-                  ? "Independent instructors and smaller providers"
-                  : "Providers with several courses or locations"}
-              </p>
-              <h3>{offer.name}</h3>
-              <p class="price">{offer.price}</p>
-              <p>
-                {offer.id === "essential"
-                  ? "A simple, professional site that brings enquiries for one main training location."
-                  : "Room for each course and each training location to have its own page."}
-              </p>
-              <ul class="offer-points">
-                {
-                  (offer.id === "essential"
-                    ? [
-                        "One main training location",
-                        "Core course and service information",
-                        "Enquiry and contact path",
-                        "First year of hosting, SSL, domain setup and business email",
-                      ]
-                    : [
-                        "A page for each course",
-                        "A page for each training location",
-                        "Stronger local search structure",
-                        "A fuller path from a course through to enquiry",
-                        "First year of hosting, SSL, domain setup and business email",
-                      ]
-                  ).map((point) => (
-                    <li>{point}</li>
-                  ))
-                }
-              </ul>
-              <p class="offer-note">
-                This demo is a starting design for HGV driver training. Your finished website is customised for your business, not delivered as an unchanged template.
-              </p>
-              <div class="actions">
-                <a class="button button-quiet" href={offer.demoUrl} target="_blank" rel="noopener noreferrer">
-                  View live demo
-                </a>
-                <a class="button" href={`/start/?package=${offer.startPackage}`}>Choose this website</a>
-              </div>
-            </article>
-          ))
-        }
+
+      <div class="lp-stage" role="group" aria-label="The Professional and Essential demo websites on desktop and mobile">
+        <div class="lp-stage-pro">
+          <span class="lp-chip">Professional demo</span>
+          <DemoFrame
+            src={professionalDesktop}
+            alt={demoAlt.professionalDesktop}
+            host="webco-professional.co.uk"
+            widths={[480, 760, 1100]}
+            sizes="(min-width: 64rem) 34rem, 80vw"
+            eager
+            priority
+          />
+        </div>
+        <div class="lp-stage-ess">
+          <span class="lp-chip lp-chip-alt">Essential demo</span>
+          <DemoFrame
+            src={essentialDesktop}
+            alt={demoAlt.essentialDesktop}
+            host="webco-essential.co.uk"
+            widths={[480, 760, 1100]}
+            sizes="(min-width: 64rem) 30rem, 72vw"
+            eager
+          />
+        </div>
+        <DemoFrame
+          class="lp-stage-phone"
+          kind="phone"
+          src={essentialMobile}
+          alt={demoAlt.essentialMobile}
+          widths={[160, 280, 400]}
+          sizes="(min-width: 64rem) 8.5rem, 24vw"
+          eager
+        />
       </div>
     </div>
   </section>
 
-  <section class="section" id="demos" aria-labelledby="demos-heading">
+  <!-- 2. Trust -->
+  <section class="lp-trust" id="about" aria-labelledby="trust-heading">
     <div class="wrap">
-      <div class="section-head">
-        <p class="eyebrow">Live demos</p>
-        <h2 id="demos-heading">See the starting designs</h2>
-        <p class="section-intro">
-          Open either demo to walk through the layout. Essential keeps courses on the core pages. Professional gives courses and locations pages of their own.
+      <div class="lp-trust-grid">
+        <div class="lp-trust-copy">
+          <p class="lp-eyebrow">Who you are dealing with</p>
+          <h2 id="trust-heading">A real UK web design business, not an anonymous platform</h2>
+          <p>
+            Webco Cloud is part of the Webco business, and the website service is provided by Webco Media, a web design business in Weston-super-Mare. Webco Media designs and builds your website. Webco Cloud looks after the checkout, hosting, domain and email behind it.
+          </p>
+          <p>You are welcome to phone, email or look at Webco Media's own website before you spend anything.</p>
+        </div>
+
+        <article class="lp-contact-card" aria-label="Webco Media contact details">
+          <header>
+            <p class="lp-contact-name">{webcoMedia.name}</p>
+            <p class="lp-contact-tag">{webcoMedia.tagline}</p>
+          </header>
+          <ul class="lp-contact-list">
+            <li>
+              <LandingIcon name="phone" />
+              <span class="lp-contact-text">
+                <span class="lp-contact-label">Telephone</span>
+                <a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a>
+              </span>
+            </li>
+            <li>
+              <LandingIcon name="mail" />
+              <span class="lp-contact-text">
+                <span class="lp-contact-label">Email</span>
+                <a href={`mailto:${webcoMedia.email}`}>{webcoMedia.email}</a>
+              </span>
+            </li>
+            <li>
+              <LandingIcon name="globe" />
+              <span class="lp-contact-text">
+                <span class="lp-contact-label">Website</span>
+                <a href={webcoMedia.url} rel="noopener noreferrer" target="_blank">webcomedia.net</a>
+              </span>
+            </li>
+            <li>
+              <LandingIcon name="pin" />
+              <span class="lp-contact-text">
+                <span class="lp-contact-label">Based in</span>
+                <span>{webcoMedia.location}</span>
+              </span>
+            </li>
+          </ul>
+        </article>
+      </div>
+
+      <aside class="lp-reviews" aria-labelledby="reviews-heading">
+        <div class="lp-reviews-mark" aria-hidden="true">
+          <LandingIcon name="chat" size={26} />
+        </div>
+        <div class="lp-reviews-copy">
+          <h3 id="reviews-heading">What Webco Media's customers say on Google</h3>
+          <p>
+            Webco Media has customer reviews on its Google Business Profile. They are about Webco Media's web design work in general, not a separate set of reviews for Webco Cloud, and you can read them in full on Google rather than taking our word for it.
+          </p>
+        </div>
+        <a class="lp-btn lp-btn-outline" href={webcoMedia.googleReviewsUrl} target="_blank" rel="noopener noreferrer">
+          Read the Google reviews
+          <LandingIcon name="external" size={16} />
+          <span class="visually-hidden">(opens Google in a new tab)</span>
+        </a>
+      </aside>
+    </div>
+  </section>
+
+  <!-- 3. Showcase -->
+  <section class="lp-section lp-showcase" id="examples" aria-labelledby="examples-heading">
+    <div class="wrap">
+      <header class="lp-head">
+        <p class="lp-eyebrow">See the real thing</p>
+        <h2 id="examples-heading">Two working websites to explore</h2>
+        <p>
+          These are live demonstration websites for fictional training businesses. Open them, click around and try them on your phone. They show where your website starts, not what every customer receives.
+        </p>
+      </header>
+
+      <div class="lp-demo">
+        <div class="lp-demo-visual">
+          <DemoFrame
+            src={essentialDesktop}
+            alt={demoAlt.essentialDesktop}
+            host="webco-essential.co.uk"
+            widths={[480, 760, 1100]}
+            sizes="(min-width: 64rem) 36rem, 92vw"
+          />
+          <DemoFrame
+            class="lp-demo-phone"
+            kind="phone"
+            src={essentialMobile}
+            alt={demoAlt.essentialMobile}
+            widths={[160, 280, 400]}
+            sizes="(min-width: 64rem) 9rem, 26vw"
+          />
+        </div>
+        <div class="lp-demo-copy">
+          <p class="lp-tag">{essential.price} · Essential Website</p>
+          <h3>One main training location, done properly</h3>
+          <p>
+            A clear, professional website for an independent instructor or smaller provider: what you teach, where, and an easy way for learners to call or send an enquiry.
+          </p>
+          <ul class="lp-ticks">
+            <li><LandingIcon name="check" size={18} />Core course and service information</li>
+            <li><LandingIcon name="check" size={18} />Enquiry and contact path</li>
+            <li><LandingIcon name="check" size={18} />Works on phones, tablets and desktops</li>
+          </ul>
+          <a class="lp-link" href={essential.demoUrl} target="_blank" rel="noopener noreferrer">
+            Explore the Essential demo
+            <LandingIcon name="external" size={16} />
+            <span class="visually-hidden">(opens in a new tab)</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="lp-demo lp-demo-flip">
+        <div class="lp-demo-visual">
+          <DemoFrame
+            src={professionalDesktop}
+            alt={demoAlt.professionalDesktop}
+            host="webco-professional.co.uk"
+            widths={[480, 760, 1100]}
+            sizes="(min-width: 64rem) 36rem, 92vw"
+          />
+          <DemoFrame
+            class="lp-demo-phone"
+            kind="phone"
+            src={professionalMobile}
+            alt={demoAlt.professionalMobile}
+            widths={[160, 280, 400]}
+            sizes="(min-width: 64rem) 9rem, 26vw"
+          />
+        </div>
+        <div class="lp-demo-copy">
+          <p class="lp-tag">{professional.price} · Professional Website</p>
+          <h3>A page for every course and every location</h3>
+          <p>
+            For providers with several courses or training bases. Each course and each location gets its own page, so a local search can land in the right place and carry on to an enquiry.
+          </p>
+          <ul class="lp-ticks">
+            <li><LandingIcon name="check" size={18} />A page for each course</li>
+            <li><LandingIcon name="check" size={18} />A page for each training location</li>
+            <li><LandingIcon name="check" size={18} />Stronger local search structure</li>
+          </ul>
+          <a class="lp-link" href={professional.demoUrl} target="_blank" rel="noopener noreferrer">
+            Explore the Professional demo
+            <LandingIcon name="external" size={16} />
+            <span class="visually-hidden">(opens in a new tab)</span>
+          </a>
+        </div>
+      </div>
+
+      <div class="lp-note">
+        <LandingIcon name="shield" size={22} />
+        <p>
+          <strong>Your website is customised, not copied.</strong>
+          Webco Media starts from the demo for your package, then adds your own name, logo and brand colours (if you have them), wording, courses, locations, photos and contact details. The overall layout follows the demo, which is how the price stays clear. Wondering how far the design can change? <a href="#faq">Read the answer below</a> or ask us first.
         </p>
       </div>
-      <ul class="cards cards-2">
-        <li class="card">
-          <h3>{offers.essential.name}</h3>
-          <p>
-            A straightforward instructor site: the training on offer, one location, and a clear way to call or send an enquiry.
+    </div>
+  </section>
+
+  <!-- 4. Packages -->
+  <section class="lp-section lp-packages" id="packages" aria-labelledby="packages-heading">
+    <div class="wrap">
+      <header class="lp-head lp-head-center">
+        <p class="lp-eyebrow">Choose your website</p>
+        <h2 id="packages-heading">Two packages, with the price shown up front</h2>
+        <p>
+          Pick the one that fits how your training business runs today. You can move from Essential to Professional later if it grows.
+        </p>
+      </header>
+
+      <div class="lp-plans">
+        <article class="lp-plan" id="essential" aria-labelledby="plan-essential">
+          <p class="lp-plan-for">Independent instructors and smaller providers</p>
+          <h3 id="plan-essential">{essential.name}</h3>
+          <p class="lp-plan-price"><span class="lp-plan-amount">{essential.price}</span><span class="lp-plan-per"> one-off website fee</span></p>
+          <p class="lp-plan-desc">
+            A professional online presence with clear course information and an easy way for learners to make an enquiry, built around one main training location.
           </p>
-          <a class="card-action" href={offers.essential.demoUrl} target="_blank" rel="noopener noreferrer">
-            View Essential demo
+          <ul class="lp-ticks">
+            <li><LandingIcon name="check" size={18} />One main training location</li>
+            <li><LandingIcon name="check" size={18} />Core course and service information</li>
+            <li><LandingIcon name="check" size={18} />Enquiry and contact path</li>
+            <li><LandingIcon name="check" size={18} />First year of hosting, SSL, domain setup and business email</li>
+          </ul>
+          <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${essential.startPackage}`}>
+            Choose Essential
+            <span class="lp-btn-price">{essential.price}</span>
           </a>
-        </li>
-        <li class="card">
-          <h3>{offers.professional.name}</h3>
-          <p>
-            Each course and each training location has its own page, so local searches can land in the right place and continue to an enquiry.
+          <a class="lp-plan-demo" href={essential.demoUrl} target="_blank" rel="noopener noreferrer">
+            View the Essential demo<span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </article>
+
+        <article class="lp-plan" id="professional" aria-labelledby="plan-professional">
+          <p class="lp-plan-for">Providers with several courses or locations</p>
+          <h3 id="plan-professional">{professional.name}</h3>
+          <p class="lp-plan-price"><span class="lp-plan-amount">{professional.price}</span><span class="lp-plan-per"> one-off website fee</span></p>
+          <p class="lp-plan-desc">
+            More detailed course pages, a page for each location and a stronger structure for local search visibility.
           </p>
-          <a class="card-action" href={offers.professional.demoUrl} target="_blank" rel="noopener noreferrer">
-            View Professional demo
+          <ul class="lp-ticks">
+            <li><LandingIcon name="check" size={18} />A page for each course</li>
+            <li><LandingIcon name="check" size={18} />A page for each training location</li>
+            <li><LandingIcon name="check" size={18} />Stronger local search structure</li>
+            <li><LandingIcon name="check" size={18} />A fuller path from a course through to enquiry</li>
+            <li><LandingIcon name="check" size={18} />First year of hosting, SSL, domain setup and business email</li>
+          </ul>
+          <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${professional.startPackage}`}>
+            Choose Professional
+            <span class="lp-btn-price">{professional.price}</span>
           </a>
-        </li>
-      </ul>
-      <p class="follow-on">
-        Looking for web design more generally?
-        <a href="/web-design/">Read about web design</a>.
+          <a class="lp-plan-demo" href={professional.demoUrl} target="_blank" rel="noopener noreferrer">
+            View the Professional demo<span class="visually-hidden"> (opens in a new tab)</span>
+          </a>
+        </article>
+      </div>
+
+      <p class="lp-plans-help">
+        Not sure which suits you? <a href="#enquiry">Ask us</a>, or call <a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a>.
+      </p>
+
+      <div class="lp-compare">
+        <h3 id="compare-heading">Side by side</h3>
+        <div class="lp-table-wrap">
+          <table aria-labelledby="compare-heading">
+            <thead>
+              <tr>
+                <th scope="col"><span class="visually-hidden">What is included</span></th>
+                <th scope="col">Essential<span class="lp-th-price">{essential.price}</span></th>
+                <th scope="col">Professional<span class="lp-th-price">{professional.price}</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {
+                comparison.map((row) => (
+                  <tr>
+                    <th scope="row">{row.label}</th>
+                    <td>
+                      {row.essential ? (
+                        <>
+                          <span class="lp-yes"><LandingIcon name="check" size={18} /></span>
+                          <span class="visually-hidden">Included</span>
+                        </>
+                      ) : (
+                        <>
+                          <span class="lp-no"><LandingIcon name="dash" size={18} /></span>
+                          <span class="visually-hidden">Not included</span>
+                        </>
+                      )}
+                    </td>
+                    <td>
+                      {row.professional ? (
+                        <>
+                          <span class="lp-yes"><LandingIcon name="check" size={18} /></span>
+                          <span class="visually-hidden">Included</span>
+                        </>
+                      ) : (
+                        <>
+                          <span class="lp-no"><LandingIcon name="dash" size={18} /></span>
+                          <span class="visually-hidden">Not included</span>
+                        </>
+                      )}
+                      {row.professionalNote && <span class="lp-cell-note">{row.professionalNote}</span>}
+                    </td>
+                  </tr>
+                ))
+              }
+            </tbody>
+          </table>
+        </div>
+        <p class="lp-small">
+          Both packages are enquiry websites. Online booking, ecommerce and custom software are not included and are quoted separately.
+        </p>
+      </div>
+
+      <div class="lp-after">
+        <div class="lp-after-head">
+          <h3>What happens after the first year</h3>
+          <p>
+            The website fee is paid once, at checkout. Hosting is not charged at checkout. You choose how you would like to carry on, and it is shown again before you pay.
+          </p>
+        </div>
+        <div class="lp-after-grid">
+          <div class="lp-after-item">
+            <h4>{commercial.hostingRenewal.name}</h4>
+            <p class="lp-after-price">{commercial.hostingRenewal.price}</p>
+            <p>The first 12 months are included. After that, hosting is {commercial.hostingRenewal.price}, billed yearly.</p>
+          </div>
+          <div class="lp-after-item">
+            <h4>{commercial.managedCare.name} <span class="lp-optional">optional</span></h4>
+            <p class="lp-after-price">
+              {commercial.managedCare.essential} <span class="lp-after-sub">Essential</span>
+              · {commercial.managedCare.professional} <span class="lp-after-sub">Professional</span>
+            </p>
+            <p>
+              Hosting, maintenance, routine content updates and support. First payment 30 days after checkout, then monthly.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <p class="lp-independence">
+        <LandingIcon name="shield" size={20} />
+        <span>
+          Webco Media provides website services independently. Purchasing a website does not affect your LearnHGV listing, verification status or directory placement.
+        </span>
       </p>
     </div>
   </section>
 
-  <section class="section" aria-labelledby="faq-heading">
+  <!-- 5. How it works -->
+  <section class="lp-section lp-how" id="how-it-works" aria-labelledby="how-heading">
     <div class="wrap">
-      <div class="section-head">
-        <h2 id="faq-heading">Common questions</h2>
-      </div>
-      <ul class="qa">
+      <header class="lp-head">
+        <p class="lp-eyebrow">How it works</p>
+        <h2 id="how-heading">A real website build, in four plain steps</h2>
+        <p>
+          This is a website-building service, not an instant generator. You supply the facts about your business, and Webco Media turns them into your website.
+        </p>
+      </header>
+      <ol class="lp-steps">
         {
-          questions.map((item) => (
+          steps.map((step, index) => (
             <li>
-              <details name="hgv-faq">
-                <summary>{item.question}</summary>
-                <p>{item.answer}</p>
-              </details>
+              <span class="lp-step-num" aria-hidden="true">{index + 1}</span>
+              <h3><span class="visually-hidden">Step {index + 1}: </span>{step.title}</h3>
+              <p>{step.text}</p>
             </li>
           ))
         }
-      </ul>
+      </ol>
     </div>
   </section>
 
-  <CtaBand
-    title="Ready for an HGV training website?"
-    text="Choose Essential or Professional, then continue on Webco Cloud for domain, payment and setup."
-  >
-    <a class="button" href="#essential">Essential Website</a>
-    <a class="button button-quiet" href="#professional">Professional Website</a>
-  </CtaBand>
-</BaseLayout>
+  <!-- 6. People -->
+  <section class="lp-people" aria-labelledby="people-heading">
+    <div class="wrap lp-people-grid">
+      <div class="lp-monogram" aria-hidden="true">
+        <span>Lo</span>
+      </div>
+      <div class="lp-people-copy">
+        <p class="lp-eyebrow lp-eyebrow-light">The person behind Webco Media</p>
+        <h2 id="people-heading">Meet Lo Viljoen</h2>
+        <p>
+          Lo Viljoen is the person behind Webco Media. Lo designs and builds websites from Weston-super-Mare, so when you phone, email or send an enquiry, it reaches Webco Media directly.
+        </p>
+        <p>
+          Webco Cloud is the structured side of the service. It handles package selection, onboarding, checkout, hosting, domains, email and billing, so the process stays simple and nothing gets lost along the way.
+        </p>
+        <ul class="lp-people-links">
+          <li><a href={webcoMedia.phoneHref}><LandingIcon name="phone" size={18} />{webcoMedia.phone}</a></li>
+          <li><a href={`mailto:${webcoMedia.email}`}><LandingIcon name="mail" size={18} />{webcoMedia.email}</a></li>
+          <li><a href={webcoMedia.url} target="_blank" rel="noopener noreferrer"><LandingIcon name="globe" size={18} />See more of Webco Media's work<span class="visually-hidden"> (opens in a new tab)</span></a></li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- 7. FAQ -->
+  <section class="lp-section lp-faq" id="faq" aria-labelledby="faq-heading">
+    <div class="wrap lp-faq-grid">
+      <header class="lp-head lp-faq-head">
+        <p class="lp-eyebrow">Straight answers</p>
+        <h2 id="faq-heading">Questions people ask before they buy</h2>
+        <p>
+          Spending £595 or £995 deserves honest answers, including about costs after the first year. If yours is not here, <a href="#enquiry">ask us</a>.
+        </p>
+      </header>
+      <div class="lp-faq-groups">
+        {
+          faqGroups.map((group) => (
+            <div class="lp-faq-group">
+              <h3>{group.heading}</h3>
+              <div class="lp-faq-list">
+                {group.items.map((item) => (
+                  <details>
+                    <summary>
+                      <span>{item.q}</span>
+                      <span class="lp-faq-icon" aria-hidden="true" />
+                    </summary>
+                    <div class="lp-faq-answer">
+                      {item.a.map((paragraph) => (
+                        <p set:html={paragraph} />
+                      ))}
+                    </div>
+                  </details>
+                ))}
+              </div>
+            </div>
+          ))
+        }
+      </div>
+    </div>
+  </section>
+
+  <!-- 8. Final conversion: both journeys -->
+  <section class="lp-final" id="enquiry" aria-labelledby="final-heading">
+    <div class="wrap">
+      <header class="lp-final-head">
+        <p class="lp-eyebrow lp-eyebrow-light">At your own pace</p>
+        <h2 id="final-heading">Ready when you are. Questions welcome first.</h2>
+        <p>
+          Some people know what they want and some like to talk it through. Either is fine, and there is no pressure to decide today.
+        </p>
+      </header>
+
+      <div class="lp-final-grid">
+        <div class="lp-final-buy">
+          <h3>Ready to go?</h3>
+          <p>Choose your package and carry on to the secure checkout.</p>
+          <div class="lp-final-buttons">
+            <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${essential.startPackage}`}>
+              Choose Essential <span class="lp-btn-price">{essential.price}</span>
+            </a>
+            <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${professional.startPackage}`}>
+              Choose Professional <span class="lp-btn-price">{professional.price}</span>
+            </a>
+          </div>
+          <p class="lp-final-or">Or speak to Webco Media first:</p>
+          <ul class="lp-final-contact">
+            <li><a href={webcoMedia.phoneHref}><LandingIcon name="phone" size={18} />{webcoMedia.phone}</a></li>
+            <li><a href={`mailto:${webcoMedia.email}`}><LandingIcon name="mail" size={18} />{webcoMedia.email}</a></li>
+          </ul>
+        </div>
+
+        <div class="lp-form-card">
+          <h3 id="form-heading">Ask a question first</h3>
+          <p class="lp-form-intro">
+            Tell us a little about your training business and what you would like to know. You will get a personal reply from Webco Media. Nothing is bought or set up by sending this.
+          </p>
+
+          <form
+            id="enquiry-form"
+            class="lp-form"
+            method="post"
+            action="/enquiry.php"
+            aria-labelledby="form-heading"
+          >
+            <div class="lp-form-status" id="enquiry-status" role="status" aria-live="polite" tabindex="-1" hidden></div>
+
+            <div class="lp-field">
+              <label for="enq-name">Your name</label>
+              <input id="enq-name" name="name" type="text" autocomplete="name" maxlength="120" required aria-describedby="enq-name-error" />
+              <p class="lp-error" id="enq-name-error" data-error-for="name" hidden></p>
+            </div>
+
+            <div class="lp-field">
+              <label for="enq-business">Business name</label>
+              <input id="enq-business" name="business" type="text" autocomplete="organization" maxlength="120" required aria-describedby="enq-business-error" />
+              <p class="lp-error" id="enq-business-error" data-error-for="business" hidden></p>
+            </div>
+
+            <div class="lp-field-row">
+              <div class="lp-field">
+                <label for="enq-email">Email</label>
+                <input id="enq-email" name="email" type="email" autocomplete="email" inputmode="email" maxlength="160" required aria-describedby="enq-email-error" />
+                <p class="lp-error" id="enq-email-error" data-error-for="email" hidden></p>
+              </div>
+              <div class="lp-field">
+                <label for="enq-phone">Telephone <span class="lp-optional-label">(optional)</span></label>
+                <input id="enq-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" maxlength="24" aria-describedby="enq-phone-error" />
+                <p class="lp-error" id="enq-phone-error" data-error-for="phone" hidden></p>
+              </div>
+            </div>
+
+            <div class="lp-field">
+              <label for="enq-package">Package of interest</label>
+              <select id="enq-package" name="package">
+                <option value="not_sure" selected>Not sure yet</option>
+                <option value="essential">Essential Website ({essential.price})</option>
+                <option value="professional">Professional Website ({professional.price})</option>
+              </select>
+            </div>
+
+            <div class="lp-field">
+              <label for="enq-message">Your question or message</label>
+              <textarea id="enq-message" name="message" rows="5" maxlength="2000" required aria-describedby="enq-message-error"></textarea>
+              <p class="lp-error" id="enq-message-error" data-error-for="message" hidden></p>
+            </div>
+
+            <!-- Spam trap. Real visitors never see or reach this field. -->
+            <div class="lp-trap" aria-hidden="true">
+              <label for="enq-homepage-url">Leave this field empty</label>
+              <input id="enq-homepage-url" name="homepage_url" type="text" tabindex="-1" autocomplete="off" />
+            </div>
+            <input type="hidden" name="elapsed" id="enq-elapsed" value="" />
+
+            <button class="lp-btn lp-btn-primary lp-btn-block" type="submit" id="enquiry-submit">
+              Send my question
+            </button>
+            <p class="lp-form-privacy">
+              We use these details only to reply to your enquiry. Read our{" "}
+              <a href="/privacy/" target="_blank" rel="noopener">privacy policy<span class="visually-hidden"> (opens in a new tab)</span></a>.
+            </p>
+          </form>
+        </div>
+      </div>
+    </div>
+  </section>
+</LandingLayout>
+
+<script is:inline define:vars={{ phoneHref: webcoMedia.phoneHref, phone: webcoMedia.phone, email: webcoMedia.email }}>
+  (function () {
+    var contactLine =
+      '<p>Please call <a href="' + phoneHref + '">' + phone + '</a> or email <a href="mailto:' + email + '">' + email + "</a>.</p>";
+    var form = document.getElementById("enquiry-form");
+    if (!form || !window.fetch || !window.FormData) return;
+
+    var status = document.getElementById("enquiry-status");
+    var submit = document.getElementById("enquiry-submit");
+    var elapsed = document.getElementById("enq-elapsed");
+    var loadedAt = Date.now();
+    var sending = false;
+    var emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+    // Native bubbles are replaced with inline messages that are announced and easy to fix on a phone.
+    form.noValidate = true;
+
+    function fieldError(name) {
+      return form.querySelector('[data-error-for="' + name + '"]');
+    }
+
+    function setError(name, message) {
+      var holder = fieldError(name);
+      var input = form.elements[name];
+      if (!holder || !input) return;
+      holder.textContent = message;
+      holder.hidden = false;
+      input.setAttribute("aria-invalid", "true");
+    }
+
+    function clearErrors() {
+      form.querySelectorAll("[data-error-for]").forEach(function (holder) {
+        holder.hidden = true;
+        holder.textContent = "";
+      });
+      form.querySelectorAll("[aria-invalid]").forEach(function (input) {
+        input.removeAttribute("aria-invalid");
+      });
+    }
+
+    function showStatus(kind, html) {
+      status.className = "lp-form-status lp-form-status-" + kind;
+      status.innerHTML = html;
+      status.hidden = false;
+    }
+
+    function validate() {
+      var problems = {};
+      var data = new FormData(form);
+      var name = String(data.get("name") || "").trim();
+      var business = String(data.get("business") || "").trim();
+      var email = String(data.get("email") || "").trim();
+      var phone = String(data.get("phone") || "").trim();
+      var message = String(data.get("message") || "").trim();
+      if (name.length < 2) problems.name = "Please enter your name.";
+      if (business.length < 2) problems.business = "Please enter your business name.";
+      if (!emailPattern.test(email)) problems.email = "Please enter an email address we can reply to, such as name@example.co.uk.";
+      if (phone && !/^[0-9+()\-\s]{7,24}$/.test(phone)) problems.phone = "Please check the telephone number, or leave it blank.";
+      if (message.length < 10) problems.message = "Please add a short message, at least a sentence, so we know how to help.";
+      return problems;
+    }
+
+    function firstInvalid(problems) {
+      var order = ["name", "business", "email", "phone", "message"];
+      for (var i = 0; i < order.length; i++) {
+        if (problems[order[i]]) return order[i];
+      }
+      return null;
+    }
+
+    form.addEventListener("input", function (event) {
+      var target = event.target;
+      if (target && target.name && target.getAttribute("aria-invalid")) {
+        var holder = fieldError(target.name);
+        if (holder) {
+          holder.hidden = true;
+          holder.textContent = "";
+        }
+        target.removeAttribute("aria-invalid");
+      }
+    });
+
+    form.addEventListener("submit", function (event) {
+      event.preventDefault();
+      if (sending) return;
+
+      clearErrors();
+      status.hidden = true;
+
+      var problems = validate();
+      var first = firstInvalid(problems);
+      if (first) {
+        Object.keys(problems).forEach(function (name) {
+          setError(name, problems[name]);
+        });
+        form.elements[first].focus();
+        return;
+      }
+
+      elapsed.value = String(Date.now() - loadedAt);
+      sending = true;
+      submit.disabled = true;
+      submit.textContent = "Sending…";
+
+      fetch(form.action, {
+        method: "POST",
+        body: new FormData(form),
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      })
+        .then(function (response) {
+          return response
+            .json()
+            .catch(function () {
+              return {};
+            })
+            .then(function (body) {
+              return { ok: response.ok, body: body };
+            });
+        })
+        .then(function (result) {
+          if (result.ok && result.body && result.body.status === "ok") {
+            form.hidden = true;
+            var card = form.parentElement;
+            var heading = card.querySelector("h3");
+            var intro = card.querySelector(".lp-form-intro");
+            if (heading) heading.textContent = "Thank you, your message has been sent";
+            if (intro) intro.hidden = true;
+            showStatus(
+              "ok",
+              "<p><strong>We have your enquiry.</strong> Webco Media will reply to the email address you gave us. Nothing has been bought or set up.</p>" +
+                '<p>If it is urgent, call <a href="' + phoneHref + '">' + phone + "</a>.</p>"
+            );
+            status.focus();
+            return;
+          }
+
+          var body = result.body || {};
+          var errors = body.errors || {};
+          var firstField = null;
+          ["name", "business", "email", "phone", "message"].forEach(function (name) {
+            if (errors[name]) {
+              setError(name, errors[name]);
+              if (!firstField) firstField = name;
+            }
+          });
+          if (firstField) {
+            form.elements[firstField].focus();
+            return;
+          }
+          showStatus(
+            "error",
+            "<p><strong>" +
+              (body.message || "Sorry, your message could not be sent just now.") +
+              "</strong></p>" +
+              contactLine
+          );
+          status.focus();
+        })
+        .catch(function () {
+          showStatus(
+            "error",
+            "<p><strong>Sorry, we could not reach the server.</strong></p><p>Please check your connection and try again.</p>" + contactLine
+          );
+          status.focus();
+        })
+        .then(function () {
+          sending = false;
+          submit.disabled = false;
+          submit.textContent = "Send my question";
+        });
+    });
+  })();
+</script>

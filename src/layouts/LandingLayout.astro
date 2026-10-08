@@ -1,0 +1,62 @@
+---
+import LandingHeader from "../components/LandingHeader.astro";
+import LandingFooter from "../components/LandingFooter.astro";
+import { site } from "../config/site";
+import { canonicalUrl } from "../lib/links";
+import interUrl from "../fonts/inter-latin-wght-normal.woff2?url";
+import frauncesUrl from "../fonts/fraunces-latin-wght-normal.woff2?url";
+import "../styles/global.css";
+import "../styles/landing.css";
+
+interface Props {
+  title: string;
+  description: string;
+  /** Absolute URL for link previews. */
+  ogImage?: string;
+  /** Extra JSON-LD objects for this page. */
+  jsonLd?: Record<string, unknown>[];
+}
+
+const { title, description, ogImage, jsonLd = [] } = Astro.props;
+const pageTitle = `${title} — ${site.name}`;
+const canonical = canonicalUrl(Astro.url.pathname);
+const organization = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: site.name,
+  url: site.url,
+};
+---
+
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{pageTitle}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+    <link rel="icon" href="/favicon.png" type="image/png" />
+    <link rel="preload" href={interUrl} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={frauncesUrl} as="font" type="font/woff2" crossorigin />
+    <meta name="theme-color" content="#07161a" />
+    <meta property="og:title" content={pageTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={site.name} />
+    <meta property="og:locale" content="en_GB" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+    <script type="application/ld+json" set:html={JSON.stringify(organization)} />
+    {jsonLd.map((item) => <script type="application/ld+json" set:html={JSON.stringify(item)} />)}
+  </head>
+  <body class="lp-body">
+    <a class="skip" href="#content">Skip to content</a>
+    <LandingHeader />
+    <main id="content" class="lp">
+      <slot />
+    </main>
+    <LandingFooter />
+  </body>
+</html>

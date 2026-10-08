@@ -10,6 +10,7 @@ ini_set('display_errors', '0');
 require_once __DIR__ . '/lib/projects.php';
 require_once __DIR__ . '/lib/brief-wizard.php';
 require_once __DIR__ . '/lib/billing-portal.php';
+require_once __DIR__ . '/lib/enquiries.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'admin.php') {
     webco_handle_admin();
@@ -74,8 +75,27 @@ function webco_admin_post(): void
     if ($action === 'delete_test') {
         webco_admin_delete_post();
     }
+    if ($action === 'enquiry_status') {
+        webco_admin_enquiry_post();
+    }
 
     webco_admin_redirect('again');
+}
+
+function webco_admin_enquiry_post(): void
+{
+    $id = $_POST['enquiry_id'] ?? '';
+    $status = $_POST['to_status'] ?? '';
+    if (!is_string($id) || !preg_match('/^\d{1,12}$/', $id) || !is_string($status)) {
+        webco_admin_redirect('again');
+    }
+
+    $db = webco_admin_db();
+    if (!webco_ensure_enquiries_table($db) || !webco_enquiry_set_status($db, (int) $id, $status)) {
+        webco_admin_redirect('again');
+    }
+
+    webco_admin_redirect('enquiry');
 }
 
 function webco_admin_login_post(): void
@@ -229,14 +249,19 @@ function webco_admin_download_post(): void
 function webco_admin_dashboard(): void
 {
     $db = webco_admin_db();
+    $notice = webco_admin_notice($_GET['notice'] ?? null);
+    $csrf = (string) $_SESSION['csrf'];
+
+    if (($_GET['section'] ?? '') === 'enquiries') {
+        webco_admin_enquiries($db, $csrf, $notice);
+    }
+
     try {
         $projects = webco_list_projects_for_admin($db);
     } catch (PDOException) {
         webco_admin_message('Projects are unavailable just now.');
     }
 
-    $notice = webco_admin_notice($_GET['notice'] ?? null);
-    $csrf = (string) $_SESSION['csrf'];
     $view = webco_admin_requested_view();
     $projectId = webco_admin_requested_project();
 
@@ -246,6 +271,9 @@ function webco_admin_dashboard(): void
     echo '<input type="hidden" name="action" value="logout"><button class="btn btn-secondary btn-sm" type="submit">Sign out</button></form></header>';
     if ($notice !== '') {
         echo '<p class="notice" role="status">' . webco_html($notice) . '</p>';
+    }
+    if ($projectId === null) {
+        webco_admin_section_nav($db, 'projects');
     }
 
     if ($projectId !== null) {
@@ -281,6 +309,155 @@ function webco_admin_dashboard(): void
 
     echo '</main></body></html>';
     exit;
+}
+
+/**
+ * Switches between the project list and the pre-sale enquiries.
+ */
+function webco_admin_section_nav(PDO $db, string $current): void
+{
+    $new = webco_ensure_enquiries_table($db) ? webco_count_new_enquiries($db) : 0;
+    $projectsCurrent = $current === 'projects' ? ' aria-current="page"' : '';
+    $enquiriesCurrent = $current === 'enquiries' ? ' aria-current="page"' : '';
+
+    echo '<nav class="views" aria-label="Sections">';
+    echo '<a href="/admin.php"' . $projectsCurrent . '>Projects</a>';
+    echo '<a href="/admin.php?section=enquiries"' . $enquiriesCurrent . '>Enquiries <span class="tab-count">'
+        . (string) $new . ' new</span></a>';
+    echo '</nav>';
+}
+
+/**
+ * @return array<string, string>
+ */
+function webco_admin_enquiry_filters(): array
+{
+    return [
+        'new' => 'New',
+        'replied' => 'Replied',
+        'closed' => 'Closed',
+        'all' => 'All',
+    ];
+}
+
+/**
+ * Questions from people who have not bought anything. They are separate from projects and orders.
+ */
+function webco_admin_enquiries(PDO $db, string $csrf, string $notice): void
+{
+    $filter = $_GET['status'] ?? 'new';
+    if (!is_string($filter) || !isset(webco_admin_enquiry_filters()[$filter])) {
+        $filter = 'new';
+    }
+
+    webco_admin_page_open(false);
+    echo '<header class="bar"><div><p class="eyebrow">Webco Cloud · Admin</p><h1>Enquiries</h1></div>';
+    echo '<form method="post" action="/admin.php"><input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+    echo '<input type="hidden" name="action" value="logout"><button class="btn btn-secondary btn-sm" type="submit">Sign out</button></form></header>';
+    if ($notice !== '') {
+        echo '<p class="notice" role="status">' . webco_html($notice) . '</p>';
+    }
+    webco_admin_section_nav($db, 'enquiries');
+
+    if (!webco_ensure_enquiries_table($db)) {
+        echo '<p class="empty">Enquiries are unavailable just now.</p></main></body></html>';
+        exit;
+    }
+
+    try {
+        $enquiries = webco_list_enquiries($db);
+    } catch (PDOException) {
+        echo '<p class="empty">Enquiries are unavailable just now.</p></main></body></html>';
+        exit;
+    }
+
+    echo '<p class="meta">Questions sent from the HGV landing page. They are not orders, and no account or checkout is created for them.</p>';
+
+    echo '<nav class="views" aria-label="Enquiry status">';
+    foreach (webco_admin_enquiry_filters() as $key => $label) {
+        $count = 0;
+        foreach ($enquiries as $enquiry) {
+            if ($key === 'all' || (string) ($enquiry['status'] ?? '') === $key) {
+                $count++;
+            }
+        }
+        $current = $key === $filter ? ' aria-current="page"' : '';
+        echo '<a href="/admin.php?section=enquiries&amp;status=' . webco_html($key) . '"' . $current . '>'
+            . webco_html($label) . ' <span class="tab-count">' . (string) $count . '</span></a>';
+    }
+    echo '</nav>';
+
+    $shown = 0;
+    foreach ($enquiries as $enquiry) {
+        if ($filter !== 'all' && (string) ($enquiry['status'] ?? '') !== $filter) {
+            continue;
+        }
+        $shown++;
+        webco_admin_enquiry_card($enquiry, $csrf, $filter);
+    }
+    if ($shown === 0) {
+        echo '<p class="empty">Nothing in ' . webco_html(webco_admin_enquiry_filters()[$filter]) . '.</p>';
+    }
+
+    echo '</main></body></html>';
+    exit;
+}
+
+/**
+ * @param array<string, mixed> $enquiry
+ */
+function webco_admin_enquiry_card(array $enquiry, string $csrf, string $filter): void
+{
+    $id = (int) ($enquiry['id'] ?? 0);
+    $status = (string) ($enquiry['status'] ?? '');
+    $email = (string) ($enquiry['email'] ?? '');
+    $phone = trim((string) ($enquiry['phone'] ?? ''));
+    $business = (string) ($enquiry['business_name'] ?? '');
+    $received = (string) ($enquiry['created_at'] ?? '');
+    $subject = rawurlencode('Your question about a Webco website');
+
+    echo '<article class="request' . ($status === 'closed' ? ' is-done' : '') . '">';
+    echo '<div class="request-head"><h2>' . webco_html($business) . '</h2><div class="badges">';
+    echo webco_admin_badge(webco_enquiry_status_label($status), $status === 'new' ? 'flag' : ($status === 'closed' ? 'quiet' : 'ok'));
+    echo webco_admin_badge(webco_enquiry_package_label((string) ($enquiry['package_interest'] ?? '')), 'quiet');
+    if (($enquiry['notified_at'] ?? null) === null) {
+        echo webco_admin_badge('Email alert not sent', 'flag');
+    }
+    echo '</div></div>';
+    echo '<p class="ref">' . webco_html((string) ($enquiry['public_id'] ?? '')) . '</p>';
+
+    echo '<dl class="meta-grid">';
+    webco_admin_row('Name', (string) ($enquiry['contact_name'] ?? ''));
+    echo '<div><dt>Email</dt><dd><a href="mailto:' . webco_html($email) . '">' . webco_html($email) . '</a></dd></div>';
+    if ($phone !== '') {
+        echo '<div><dt>Telephone</dt><dd><a href="tel:' . webco_html(preg_replace('/[^0-9+]/', '', $phone) ?? '') . '">'
+            . webco_html($phone) . '</a></dd></div>';
+    } else {
+        webco_admin_row('Telephone', '');
+    }
+    webco_admin_row('Received (UTC)', $received);
+    echo '</dl>';
+
+    echo '<p class="summary">' . webco_html((string) ($enquiry['message'] ?? '')) . '</p>';
+
+    echo '<div class="enquiry-actions">';
+    echo '<a class="btn btn-primary btn-sm" href="mailto:' . webco_html($email) . '?subject=' . $subject . '">Reply by email</a>';
+    $moves = match ($status) {
+        'new' => [['replied', 'Mark as replied'], ['closed', 'Close']],
+        'replied' => [['closed', 'Close'], ['new', 'Mark as new']],
+        default => [['new', 'Reopen']],
+    };
+    foreach ($moves as [$to, $label]) {
+        echo '<form method="post" action="/admin.php" class="enquiry-move">';
+        echo '<input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+        echo '<input type="hidden" name="action" value="enquiry_status">';
+        echo '<input type="hidden" name="enquiry_id" value="' . webco_html((string) $id) . '">';
+        echo '<input type="hidden" name="to_status" value="' . webco_html($to) . '">';
+        echo '<input type="hidden" name="return_section" value="enquiries">';
+        echo '<input type="hidden" name="return_status" value="' . webco_html($filter) . '">';
+        echo '<button class="btn btn-secondary btn-sm" type="submit">' . webco_html($label) . '</button></form>';
+    }
+    echo '</div></article>';
 }
 
 function webco_admin_page_open(bool $narrow): void
@@ -857,6 +1034,7 @@ function webco_admin_notice(mixed $notice): string
     $messages = [
         'status' => 'Status updated.',
         'request' => 'Request status updated.',
+        'enquiry' => 'Enquiry updated.',
         'archived' => 'Project archived. Its build status is unchanged.',
         'restored' => 'Project restored.',
         'deleted' => 'Test project removed. The paid order was kept, and Stripe and 20i were not contacted.',
@@ -961,6 +1139,13 @@ function webco_admin_redirect(string $notice): void
     $project = $_POST['return_project'] ?? '';
     if (is_string($project) && preg_match('/^\d{1,12}$/', $project) === 1) {
         $params['project'] = $project;
+    }
+    if (($_POST['return_section'] ?? '') === 'enquiries') {
+        $params['section'] = 'enquiries';
+        $filter = $_POST['return_status'] ?? '';
+        if (is_string($filter) && isset(webco_admin_enquiry_filters()[$filter])) {
+            $params['status'] = $filter;
+        }
     }
     $target = '/admin.php';
     if ($params !== []) {
@@ -1368,6 +1553,10 @@ function webco_admin_styles(): string
       .request .summary { margin-top: 0.4rem; }
       .call-box { padding: 0.45rem 0.65rem; border-radius: 6px; background: var(--flag-bg); }
       .request-action { margin: 0.6rem 0 0; }
+      .request-head h2 { font: 700 1.0625rem/1.3 var(--sans); }
+      .enquiry-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem; margin-top: 0.7rem; }
+      .enquiry-move { margin: 0; }
+      .request .meta-grid { margin-top: 0.6rem; }
 
       .file-list { display: grid; gap: 0.3rem; margin: 0; padding: 0; list-style: none; }
       .file-list li { display: flex; align-items: center; justify-content: space-between; gap: 0.6rem; padding: 0.35rem 0.55rem; border: 1px solid var(--line); border-radius: 8px; background: #fff; }
@@ -1409,6 +1598,8 @@ function webco_admin_styles(): string
         .btn-sm { min-height: 2.5rem; }
         .row-actions .btn { flex: 1; }
         .request-action .btn, .status-next form .btn { width: 100%; }
+        .enquiry-actions .btn, .enquiry-move { flex: 1 1 100%; }
+        .enquiry-move .btn { width: 100%; }
         .package-form input[name="package_id"] { max-width: none; }
         .file-list li { flex-wrap: wrap; }
       }

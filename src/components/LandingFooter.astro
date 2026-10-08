@@ -1,0 +1,43 @@
+---
+import { site, webcoMedia } from "../config/site";
+
+const year = new Date().getFullYear();
+const legal = `${site.legalName} · Company number ${site.companyNumber} · Registered office: ${site.registeredOffice}`;
+---
+
+<footer class="lp-footer">
+  <div class="wrap lp-footer-inner">
+    <div class="lp-footer-brand">
+      <a class="logo" href="/web-design/hgv-driver-training/" aria-label="Webco Cloud — back to the top of this page">
+        <img src="/images/logo-webco-cloud.png" width="1024" height="426" alt="Webco Cloud" loading="lazy" decoding="async" />
+      </a>
+      <p>
+        Webco Cloud runs the checkout, hosting, domains, email and support behind websites designed and built by
+        <a href={webcoMedia.url} rel="noopener noreferrer">Webco Media</a>.
+      </p>
+    </div>
+
+    <div>
+      <p class="lp-footer-label">Contact Webco Media</p>
+      <ul class="lp-footer-list">
+        <li><a href={webcoMedia.phoneHref}>{webcoMedia.phone}</a></li>
+        <li><a href={`mailto:${webcoMedia.email}`}>{webcoMedia.email}</a></li>
+        <li>{webcoMedia.location}</li>
+      </ul>
+    </div>
+
+    <div>
+      <p class="lp-footer-label">Information</p>
+      <ul class="lp-footer-list">
+        <li><a href="/privacy/">Privacy policy</a></li>
+        <li><a href="/terms/">Terms of service</a></li>
+        <li><a href="/cookies/">Cookies</a></li>
+        <li><a href="/support/">Customer support</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap lp-footer-legal">
+    <p>{legal}</p>
+    <p>© {year} {site.legalName}. Webco Cloud is a trading name of {site.legalName}. Website design by Webco Media.</p>
+  </div>
+</footer>

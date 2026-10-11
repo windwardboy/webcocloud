@@ -175,6 +175,14 @@ check(str_contains($html, 'Estimated visits'), 'the overview names estimated vis
 check(str_contains($html, 'Est. visits'), 'the daily trend names estimated visits');
 check(str_contains($html, 'Direct mail'), 'the overview names the direct-mail source');
 check(!str_contains($html, '203.0.113'), 'the overview does not show an address');
+check(str_contains($html, 'Demo page views') && str_contains($html, 'Estimated demo visits'), 'the dashboard shows summary cards');
+check(str_contains($html, 'Essential demo') && str_contains($html, 'Professional demo'), 'the dashboard compares both demo sites');
+check(!str_contains($html, '£'), 'the dashboard shows no package prices');
+check(str_contains($html, 'Demo page views, last 7 days') && str_contains($html, '<details'), 'the week chart and collapsible 28-day table are present');
+check(!str_contains($html, '<script'), 'the dashboard uses no script');
+$empty = webco_marketing_overview_html(webco_marketing_overview([], $day, 28));
+check(str_contains($empty, 'No activity recorded yet'), 'an empty period shows a message');
+check(!str_contains($empty, '<table'), 'an empty period shows no table of zeros');
 
 $schema = (string) file_get_contents(dirname(__DIR__) . '/bin/provision-schema.php');
 check(str_contains($schema, 'webco_ensure_marketing_daily'), 'schema migration ensures the marketing table');

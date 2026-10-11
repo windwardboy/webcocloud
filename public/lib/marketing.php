@@ -604,6 +604,167 @@ function webco_marketing_bucket(string $site, string $pathKey, string $event): ?
 }
 
 /**
+ * Admin-only styles for the marketing dashboard. Scoped with the mk- prefix so no other admin page changes.
+ * No scripts: bars are sized with inline widths and heights, which the admin CSP allows.
+ */
+function webco_marketing_styles(): string
+{
+    return <<<'CSS'
+<style>
+  main { max-width: 90rem; }
+  .mk-intro { max-width: 60rem; margin-top: 0.9rem; }
+  .mk-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr)); gap: 0.75rem; margin: 0.9rem 0 0; padding: 0; list-style: none; }
+  .mk-card { min-width: 0; padding: 0.85rem 1rem; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+  .mk-card h2 { color: var(--muted); font: 700 0.75rem/1.3 var(--sans); letter-spacing: 0.05em; text-transform: uppercase; }
+  .mk-value { display: block; margin-top: 0.25rem; font: 600 2.25rem/1.1 var(--serif); color: var(--ink); }
+  .mk-card.is-zero .mk-value { color: var(--muted); }
+  .mk-note { margin: 0.3rem 0 0; color: var(--muted); font-size: 0.8125rem; line-height: 1.35; }
+  .mk-sites { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+  .mk-site { min-width: 0; padding: 0.85rem 1rem 1rem; border: 1px solid var(--line); border-top: 4px solid var(--site); border-radius: 10px; background: #fff; }
+  .mk-site-essential { --site: var(--green); --site-tint: var(--green-t); }
+  .mk-site-professional { --site: #3f5a8c; --site-tint: #e8eef7; }
+  .mk-site h3 { display: flex; align-items: center; gap: 0.5rem; font-size: 1.0625rem; }
+  .mk-swatch { display: inline-block; width: 0.75rem; height: 0.75rem; border-radius: 3px; background: var(--site); flex: none; }
+  .mk-site dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0.5rem; margin: 0.75rem 0 0; }
+  .mk-site dt { color: var(--muted); font-size: 0.75rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; }
+  .mk-site dd { margin: 0.1rem 0 0; font: 600 1.625rem/1.15 var(--serif); }
+  .mk-site dd.is-zero { color: var(--muted); }
+  .mk-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
+  .mk-grid > .panel { margin-top: 0; }
+  .mk-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.3rem 1rem; }
+  .mk-legend { display: flex; gap: 0.9rem; margin: 0; padding: 0; list-style: none; color: var(--ink-2); font-size: 0.8125rem; }
+  .mk-legend li { display: inline-flex; align-items: center; gap: 0.35rem; }
+  .mk-chart { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.4rem; margin: 0.75rem 0 0; padding: 0; list-style: none; }
+  .mk-day { min-width: 0; }
+  .mk-bars { display: flex; align-items: flex-end; justify-content: center; gap: 0.25rem; height: 10rem; padding-bottom: 1px; border-bottom: 1px solid var(--line-2); }
+  .mk-col { display: flex; flex: 1 1 0; flex-direction: column; justify-content: flex-end; align-items: stretch; max-width: 2.75rem; height: 100%; text-align: center; }
+  .mk-val { display: block; height: 1.125rem; color: var(--ink-2); font-size: 0.75rem; font-weight: 600; line-height: 1.125rem; }
+  .mk-val.is-zero { color: var(--muted); font-weight: 400; }
+  .mk-bar { display: block; width: 100%; border-radius: 4px 4px 0 0; background: var(--site); }
+  .mk-e { --site: var(--green); }
+  .mk-p { --site: #3f5a8c; }
+  .mk-label { display: block; margin-top: 0.3rem; color: var(--muted); font-size: 0.75rem; text-align: center; line-height: 1.25; }
+  .mk-sources { margin: 0.5rem 0 0; padding: 0; list-style: none; }
+  .mk-src { display: grid; grid-template-columns: 7rem minmax(0, 1fr); gap: 0.15rem 0.75rem; align-items: center; padding: 0.55rem 0; border-bottom: 1px solid var(--line); }
+  .mk-src:last-child { border-bottom: 0; }
+  .mk-src-name { font-weight: 600; }
+  .mk-track { display: block; height: 0.6rem; border-radius: 99px; background: var(--soft); border: 1px solid var(--line); overflow: hidden; }
+  .mk-fill { display: block; height: 100%; background: var(--green); }
+  .mk-src-nums { grid-column: 2; color: var(--muted); font-size: 0.8125rem; }
+  .mk-src-nums b { color: var(--ink); font-weight: 600; }
+  .mk-empty { margin-top: 0.9rem; padding: 1.25rem 1.1rem; border: 1px dashed var(--line-2); border-radius: 10px; background: var(--soft); }
+  .mk-empty h2 { font-size: 1.125rem; }
+  .mk-empty p { max-width: 46rem; color: var(--ink-2); }
+  .mk-quiet { margin: 0.75rem 0 0; padding: 0.7rem 0.4rem; color: var(--muted); }
+  .mk-more { margin-top: 0.75rem; }
+  .mk-more > summary { cursor: pointer; font-weight: 600; }
+  .mk-scroll { margin-top: 0.4rem; overflow-x: auto; }
+  .mk-scroll .mkt-table { min-width: 34rem; }
+  .mk-zero { color: var(--muted); }
+  @media (min-width: 40rem) {
+    .mk-src { grid-template-columns: 7rem minmax(6rem, 1fr) auto; }
+    .mk-src-nums { grid-column: auto; }
+  }
+  @media (min-width: 64rem) {
+    .mk-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
+  }
+  @media (max-width: 39.9375rem) {
+    .mk-value { font-size: 1.875rem; }
+    .mk-chart { gap: 0.2rem; }
+    .mk-bars { height: 8rem; gap: 0.15rem; }
+    .mk-label { font-size: 0.6875rem; }
+  }
+</style>
+CSS;
+}
+
+function webco_marketing_format_day(string $day, bool $withYear): string
+{
+    $date = DateTimeImmutable::createFromFormat('!Y-m-d', $day, new DateTimeZone('Europe/London'));
+    if (!$date instanceof DateTimeImmutable) {
+        return $day;
+    }
+
+    return $date->format($withYear ? 'j M Y' : 'D j');
+}
+
+function webco_marketing_metric_card(string $label, int $value, string $note): string
+{
+    return '<li class="mk-card' . ($value === 0 ? ' is-zero' : '') . '"><h2>' . webco_marketing_h($label)
+        . '</h2><span class="mk-value">' . number_format($value) . '</span><p class="mk-note">'
+        . webco_marketing_h($note) . '</p></li>';
+}
+
+function webco_marketing_site_card(string $class, string $name, int $views, int $visits, int $clicks): string
+{
+    $html = '<section class="mk-site mk-site-' . $class . '" aria-label="' . webco_marketing_h($name) . '">'
+        . '<h3><span class="mk-swatch" aria-hidden="true"></span>' . webco_marketing_h($name) . '</h3><dl>';
+    foreach ([['Page views', $views], ['Est. visits', $visits], ['Purchase clicks', $clicks]] as [$label, $value]) {
+        $html .= '<div><dt>' . $label . '</dt><dd' . ($value === 0 ? ' class="is-zero"' : '') . '>'
+            . number_format($value) . '</dd></div>';
+    }
+
+    return $html . '</dl></section>';
+}
+
+/**
+ * @param list<array<string, int|string>> $recent Oldest day first.
+ */
+function webco_marketing_week_chart(array $recent): string
+{
+    $max = 0;
+    foreach ($recent as $day) {
+        $max = max($max, (int) $day['essential_views'], (int) $day['professional_views']);
+    }
+    $html = '<section class="panel" aria-labelledby="mk-week"><div class="mk-head"><h2 id="mk-week">Demo page views, last 7 days</h2>'
+        . '<ul class="mk-legend" aria-label="Key"><li><span class="mk-swatch mk-e" aria-hidden="true"></span>Essential</li>'
+        . '<li><span class="mk-swatch mk-p" aria-hidden="true"></span>Professional</li></ul></div>';
+    if ($max === 0) {
+        return $html . '<p class="mk-quiet">No demo page views in the last 7 days.</p></section>';
+    }
+
+    $html .= '<ol class="mk-chart">';
+    foreach ($recent as $day) {
+        $html .= '<li class="mk-day"><div class="mk-bars">';
+        foreach ([['essential_views', 'mk-e', 'Essential'], ['professional_views', 'mk-p', 'Professional']] as [$key, $class, $name]) {
+            $value = (int) $day[$key];
+            $height = $value === 0 ? 0.0 : max(3.0, round($value / $max * 82, 1));
+            $html .= '<span class="mk-col" title="' . $name . ': ' . $value . '"><span class="mk-val'
+                . ($value === 0 ? ' is-zero' : '') . '">' . $value . '</span><span class="mk-bar ' . $class
+                . '" style="height:' . $height . '%"></span></span>';
+        }
+        $html .= '</div><span class="mk-label">' . webco_marketing_h(webco_marketing_format_day((string) $day['day'], false))
+            . '</span></li>';
+    }
+
+    return $html . '</ol></section>';
+}
+
+/**
+ * @param list<array{source: string, label: string, views: int, visits: int, clicks: int}> $sources
+ */
+function webco_marketing_sources_panel(array $sources): string
+{
+    $max = 0;
+    foreach ($sources as $source) {
+        $max = max($max, $source['views']);
+    }
+    $html = '<section class="panel" aria-labelledby="mk-sources"><h2 id="mk-sources">Traffic sources</h2>'
+        . '<p class="meta">All tracked pages. Direct mail means the link category <span class="mono">src=mail</span>. '
+        . 'Other categories come from the referring site; the full address is not stored.</p><ul class="mk-sources">';
+    foreach ($sources as $source) {
+        $width = $max === 0 || $source['views'] === 0 ? 0.0 : max(2.0, round($source['views'] / $max * 100, 1));
+        $html .= '<li class="mk-src"><span class="mk-src-name">' . webco_marketing_h($source['label'])
+            . '</span><span class="mk-track" aria-hidden="true"><span class="mk-fill" style="width:' . $width . '%"></span></span>'
+            . '<span class="mk-src-nums"><b>' . number_format($source['views']) . '</b> page views · <b>'
+            . number_format($source['visits']) . '</b> est. visits · <b>' . number_format($source['clicks'])
+            . '</b> clicks</span></li>';
+    }
+
+    return $html . '</ul></section>';
+}
+
+/**
  * @param array{
  *   end_day: string,
  *   totals: array<string, int>,
@@ -614,50 +775,55 @@ function webco_marketing_bucket(string $site, string $pathKey, string $event): ?
 function webco_marketing_overview_html(array $overview): string
 {
     $totals = $overview['totals'];
-    $html = '<p class="meta">Last 28 UK days, ending ' . webco_marketing_h($overview['end_day'])
-        . '. Counts are daily totals. Estimated visits count one open browser tab, not a person, so the same person can appear more than once. No visitor identifier is stored.</p>';
-    $html .= '<ul class="counts" aria-label="Marketing totals">';
-    $cards = [
-        ['Essential page views', $totals['essential_views']],
-        ['Essential estimated visits', $totals['essential_visits']],
-        ['Essential purchase clicks', $totals['essential_clicks']],
-        ['Professional page views', $totals['professional_views']],
-        ['Professional estimated visits', $totals['professional_visits']],
-        ['Professional purchase clicks', $totals['professional_clicks']],
-        ['HGV landing page views', $totals['hgv_views']],
-        ['HGV estimated visits', $totals['hgv_visits']],
-        ['Onboarding entries', $totals['start_entries']],
-        ['Essential onboarding', $totals['start_essential']],
-        ['Professional onboarding', $totals['start_professional']],
-        ['Onboarding without a package', $totals['start_unspecified']],
-    ];
-    foreach ($cards as [$label, $value]) {
-        $html .= '<li class="count' . ($value === 0 ? ' is-zero' : '') . '"><strong>' . (string) $value
-            . '</strong> ' . webco_marketing_h($label) . '</li>';
-    }
-    $html .= '</ul>';
+    $html = webco_marketing_styles();
+    $html .= '<p class="meta mk-intro">Last 28 UK days, ending ' . webco_marketing_h(webco_marketing_format_day($overview['end_day'], true))
+        . '. <strong>Page views</strong> count every page load. <strong>Estimated visits</strong> count one open browser tab, '
+        . 'not a person, so the same person can appear more than once. No visitor identifier is stored.</p>';
 
-    $html .= '<section class="panel"><h2>Daily trend</h2>';
-    $html .= '<table class="mkt-table"><thead><tr><th>Day</th><th>Essential views</th><th>Professional views</th>'
-        . '<th>HGV views</th><th>Onboarding</th><th>Purchase clicks</th><th>Est. visits</th></tr></thead><tbody>';
-    foreach ($overview['trend'] as $day) {
-        $html .= '<tr><td>' . webco_marketing_h((string) $day['day']) . '</td><td>' . (int) $day['essential_views']
-            . '</td><td>' . (int) $day['professional_views'] . '</td><td>' . (int) $day['hgv_views']
-            . '</td><td>' . (int) $day['start_entries'] . '</td><td>' . (int) $day['clicks']
-            . '</td><td>' . (int) $day['visits'] . '</td></tr>';
-    }
-    $html .= '</tbody></table></section>';
-
-    $html .= '<section class="panel"><h2>Traffic sources</h2>';
-    $html .= '<p class="meta">Direct mail is the link category <span class="mono">src=mail</span>. Other categories come from the referring site. The full address is not stored.</p>';
-    $html .= '<table class="mkt-table"><thead><tr><th>Source</th><th>Page views</th><th>Est. visits</th><th>Purchase clicks</th></tr></thead><tbody>';
+    $active = array_sum($totals) > 0;
     foreach ($overview['sources'] as $source) {
-        $html .= '<tr><td>' . webco_marketing_h($source['label']) . '</td><td>' . $source['views']
-            . '</td><td>' . $source['visits'] . '</td><td>' . $source['clicks'] . '</td></tr>';
+        $active = $active || $source['views'] + $source['visits'] + $source['clicks'] > 0;
     }
-    $html .= '</tbody></table></section>';
+    if (!$active) {
+        return $html . '<section class="mk-empty"><h2>No activity recorded yet</h2>'
+            . '<p>Nothing has been counted in this period. Figures appear here once someone opens a demo website or the HGV landing page. '
+            . 'Check back after the next visit; tracking is running if the demo sites carry the Webco Cloud script.</p></section>';
+    }
 
-    return $html;
+    $html .= '<ul class="mk-metrics" aria-label="Summary">'
+        . webco_marketing_metric_card('Demo page views', $totals['essential_views'] + $totals['professional_views'], 'Every page load on both demo sites.')
+        . webco_marketing_metric_card('Estimated demo visits', $totals['essential_visits'] + $totals['professional_visits'], 'One open browser tab, not a person.')
+        . webco_marketing_metric_card('Purchase CTA clicks', $totals['essential_clicks'] + $totals['professional_clicks'], 'Clicks on the floating Webco Cloud card.')
+        . webco_marketing_metric_card('HGV landing visits', $totals['hgv_visits'], 'Estimated visits. Page views: ' . number_format($totals['hgv_views']) . '.')
+        . webco_marketing_metric_card(
+            'Onboarding entries',
+            $totals['start_entries'],
+            'Essential ' . number_format($totals['start_essential']) . ' · Professional ' . number_format($totals['start_professional'])
+            . ($totals['start_unspecified'] > 0 ? ' · no package ' . number_format($totals['start_unspecified']) : '')
+        )
+        . '</ul>';
+
+    $html .= '<div class="mk-sites">'
+        . webco_marketing_site_card('essential', 'Essential demo', $totals['essential_views'], $totals['essential_visits'], $totals['essential_clicks'])
+        . webco_marketing_site_card('professional', 'Professional demo', $totals['professional_views'], $totals['professional_visits'], $totals['professional_clicks'])
+        . '</div>';
+
+    $recent = array_reverse(array_slice($overview['trend'], 0, 7));
+    $html .= '<div class="mk-grid">' . webco_marketing_week_chart($recent) . webco_marketing_sources_panel($overview['sources']) . '</div>';
+
+    $html .= '<details class="panel mk-more"><summary>Daily figures, last 28 days</summary><div class="mk-scroll">'
+        . '<table class="mkt-table"><thead><tr><th>Day</th><th>Essential views</th><th>Professional views</th>'
+        . '<th>HGV views</th><th>Onboarding</th><th>Purchase clicks</th><th>Est. visits, all sites</th></tr></thead><tbody>';
+    foreach ($overview['trend'] as $day) {
+        $html .= '<tr><td>' . webco_marketing_h(webco_marketing_format_day((string) $day['day'], true)) . '</td>';
+        foreach (['essential_views', 'professional_views', 'hgv_views', 'start_entries', 'clicks', 'visits'] as $key) {
+            $value = (int) $day[$key];
+            $html .= '<td' . ($value === 0 ? ' class="mk-zero"' : '') . '>' . $value . '</td>';
+        }
+        $html .= '</tr>';
+    }
+
+    return $html . '</tbody></table></div></details>';
 }
 
 function webco_marketing_h(string $value): string

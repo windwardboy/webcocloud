@@ -518,6 +518,7 @@ function webco_ensure_brief_detail_columns(PDO $db): bool
         'contact_details' => 'TEXT NULL',
         'opening_hours' => 'VARCHAR(400) NULL',
         'wizard_step' => 'VARCHAR(32) NULL',
+        'logo_choice' => 'VARCHAR(16) NULL',
         'call_requested' => 'TINYINT(1) NOT NULL DEFAULT 0',
         'call_number' => 'VARCHAR(40) NULL',
         'call_time' => 'VARCHAR(120) NULL',
@@ -1184,6 +1185,7 @@ function webco_project_id_for_brief_token(PDO $db, string $token): ?int
  *   branding: string,
  *   liked_sites: string,
  *   required_pages: string,
+ *   logo_choice: string,
  *   call_requested: bool,
  *   call_number: string,
  *   call_time: string,
@@ -1207,7 +1209,7 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         $statement = $db->prepare(
             'SELECT p.id, p.order_public_id, p.status, o.business_name, o.phone,
                     o.domain_name, o.package_code, o.package_name,
-                    b.summary, b.submitted_at, b.wizard_step,
+                    b.summary, b.submitted_at, b.wizard_step, b.logo_choice,
                     b.call_requested, b.call_number, b.call_time, b.call_note,
                     ' . $detailSql . '
              FROM projects p
@@ -1238,6 +1240,7 @@ function webco_customer_project(PDO $db, int $projectId): ?array
         'package_name' => (string) ($row['package_name'] ?? ''),
         'summary' => (string) ($row['summary'] ?? ''),
         'wizard_step' => (string) ($row['wizard_step'] ?? ''),
+        'logo_choice' => (string) ($row['logo_choice'] ?? ''),
         'submitted_at' => webco_nullable_string($row['submitted_at'] ?? null),
         'call_requested' => (int) ($row['call_requested'] ?? 0) === 1,
         'call_number' => (string) ($row['call_number'] ?? ''),
@@ -1631,6 +1634,7 @@ function webco_brief_save_columns(): array
 {
     return array_merge(['summary'], webco_brief_detail_columns(), [
         'wizard_step',
+        'logo_choice',
         'call_requested',
         'call_number',
         'call_time',
@@ -1699,6 +1703,13 @@ function webco_brief_input(array $fields): ?array
         }
         $stored['enquiry_route'] = $route;
     }
+    if (array_key_exists('logo_choice', $fields)) {
+        $choice = $fields['logo_choice'];
+        if (!is_string($choice) || !in_array($choice, ['', 'existing', 'design', 'discuss'], true)) {
+            return null;
+        }
+        $stored['logo_choice'] = $choice === '' ? null : $choice;
+    }
     if (array_key_exists('wizard_step', $fields)) {
         $step = $fields['wizard_step'];
         if (!is_string($step) || !webco_brief_wizard_step_valid($step)) {
@@ -1752,7 +1763,7 @@ function webco_brief_current_column(array $current, string $column): int|string|
     if ($column === 'call_requested') {
         return (int) $value === 1 ? 1 : 0;
     }
-    if (in_array($column, ['call_number', 'call_time', 'call_note', 'wizard_step'], true)) {
+    if (in_array($column, ['call_number', 'call_time', 'call_note', 'wizard_step', 'logo_choice'], true)) {
         if (!is_string($value)) {
             return null;
         }
@@ -2434,7 +2445,7 @@ function webco_list_projects_for_admin(PDO $db): array
                 p.customer_notified_at, p.internal_notified_at, p.created_at, p.archived_at,
                 o.business_name, o.contact_name, o.email, o.phone, o.domain_name,
                 o.package_name, o.care_choice, o.paid_at,
-                b.summary, b.updated_at AS brief_updated_at, b.submitted_at, b.wizard_step,
+                b.summary, b.updated_at AS brief_updated_at, b.submitted_at, b.wizard_step, b.logo_choice,
                 b.business_overview, b.years_operating, b.credentials, b.first_impression,
                 b.services, b.course_entries, b.locations, b.areas_served, b.location_entries,
                 b.goals, b.why_experience, b.why_facilities, b.why_flexibility, b.why_support,

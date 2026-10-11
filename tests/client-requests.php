@@ -75,6 +75,7 @@ $db->exec(
         contact_details TEXT,
         opening_hours TEXT,
         wizard_step TEXT,
+        logo_choice TEXT,
         call_requested INTEGER NOT NULL DEFAULT 0,
         call_number TEXT,
         call_time TEXT,

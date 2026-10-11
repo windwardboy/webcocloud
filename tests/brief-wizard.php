@@ -75,6 +75,7 @@ $db->exec(
         contact_details TEXT,
         opening_hours TEXT,
         wizard_step TEXT,
+        logo_choice TEXT,
         call_requested INTEGER NOT NULL DEFAULT 0,
         call_number TEXT,
         call_time TEXT,
@@ -153,6 +154,7 @@ $steps = [
     ],
     'branding' => [
         'branding' => 'Dark green, already on the lorries.',
+        'logo_choice' => 'design',
         'wizard_step' => 'contact',
     ],
     'contact' => [
@@ -183,6 +185,10 @@ check($row['services'] === 'Category C and Driver CPC.', 'course answers survive
 check($row['locations'] === 'Example Town yard.', 'location answers survive later steps');
 check($row['why_experience'] === 'Most learners come from vans.', 'differentiator answers survive later steps');
 check($row['branding'] === 'Dark green, already on the lorries.', 'branding answers survive later steps');
+check($row['logo_choice'] === 'design', 'the logo choice is stored');
+check(webco_save_customer_brief($db, 1, ['logo_choice' => 'someday'], false) === 'invalid', 'an unknown logo choice is refused');
+check(webco_save_customer_brief($db, 1, ['wizard_step' => 'review'], false) === 'saved', 'a later step leaves the logo choice alone');
+check(brief_row($db, 1)['logo_choice'] === 'design', 'the logo choice survives later steps');
 check((int) $row['call_requested'] === 1, 'a yes phone call is stored');
 check($row['call_number'] === '07700 900123', 'the call number is stored');
 check($row['summary'] === 'Please keep the old note.', 'the original note is kept');
@@ -429,6 +435,26 @@ $brandingPage = wizard_html([
     ],
 ], 'branding');
 check(str_contains($brandingPage, 'old-logo.jpg'), 'an existing logo is shown on the branding step');
+check(str_contains($brandingPage, 'What would you like to do about your logo?'), 'the branding step asks about the logo');
+check(
+    substr_count($brandingPage, 'name="logo_choice"') === 3
+        && str_contains($brandingPage, 'Use my existing logo')
+        && str_contains($brandingPage, 'complimentary logo design or refresh')
+        && str_contains($brandingPage, 'let’s discuss it'),
+    'the three logo options are offered'
+);
+check(strpos($brandingPage, 'name="logo_choice"') < strpos($brandingPage, '</form>'), 'the logo choice is inside the brief form');
+check(!str_contains($brandingPage, 'value="existing" checked'), 'no logo option is pre-selected');
+$chosenPage = wizard_html([
+    'package_code' => 'essential',
+    'business_name' => 'Kent Training',
+    'order_public_id' => 'wc_wizardessential',
+    'status' => 'brief_in_progress',
+    'logo_choice' => 'design',
+    'assets' => ['logo' => [], 'photo' => [], 'document' => []],
+], 'branding');
+check(str_contains($chosenPage, 'value="design" checked'), 'a saved logo choice is selected again');
+check(str_contains($reviewText, 'Logo I’d like the complimentary logo design or refresh'), 'review includes the logo choice');
 check(str_contains($brandingPage, 'multiple'), 'photos and documents can be chosen together');
 check(str_contains($brandingPage, 'Uploading'), 'choosing a file starts the upload');
 check(!str_contains($brandingPage, '>Upload<'), 'there is no separate upload button');

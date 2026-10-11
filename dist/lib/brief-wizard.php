@@ -155,6 +155,7 @@ function webco_brief_review_sections(array $project): array
     $add('why', 'Customer support', webco_brief_show_value($project, 'why_support'));
     $add('why', 'What sets you apart', webco_brief_show_value($project, 'why_difference'));
 
+    $add('branding', 'Logo', webco_brief_logo_choice_label(webco_brief_show_value($project, 'logo_choice')));
     $add('branding', 'Brand colours you already use', webco_brief_show_value($project, 'branding'));
     $add('contact', 'Preferred enquiry route', webco_brief_enquiry_label(webco_brief_show_value($project, 'enquiry_route')));
     $add('contact', 'Contact details', webco_brief_show_value($project, 'contact_details'));
@@ -172,6 +173,26 @@ function webco_brief_review_sections(array $project): array
     }
 
     return $sections;
+}
+
+/**
+ * What the customer wants to do about their logo. Shown on the branding step, the review and the admin brief.
+ * The stored value is the key, so these labels can change without touching saved briefs.
+ *
+ * @return array<string, string>
+ */
+function webco_brief_logo_choices(): array
+{
+    return [
+        'existing' => 'Use my existing logo',
+        'design' => 'I’d like the complimentary logo design or refresh',
+        'discuss' => 'I’m not sure yet — let’s discuss it',
+    ];
+}
+
+function webco_brief_logo_choice_label(string $choice): string
+{
+    return webco_brief_logo_choices()[$choice] ?? '';
 }
 
 function webco_brief_enquiry_label(string $route): string
@@ -377,11 +398,19 @@ function webco_brief_render_step(array $project, string $step, string $package, 
     }
     if ($step === 'branding') {
         echo '<p class="hint">Use what you already have. You do not need to invent a new visual style. If you have no logo or colours yet, leave those blank and we will follow the website you chose.</p>';
+        $logoChoice = webco_brief_show_value($project, 'logo_choice');
+        echo '<fieldset class="call"><legend>What would you like to do about your logo?</legend>';
+        foreach (webco_brief_logo_choices() as $value => $label) {
+            echo '<label class="choice"><input type="radio" name="logo_choice" value="' . webco_html($value) . '"'
+                . ($logoChoice === $value ? ' checked' : '') . '> ' . webco_html($label) . '</label>';
+        }
+        echo '<p class="hint">Both website packages include a complimentary simple logo design or refresh at no extra charge. If you are happy with your current logo, we will use that.</p>';
+        echo '</fieldset>';
         webco_brief_area($project, 'branding', 'Brand colours you already use', 'Only if you already have them, for example “dark green and cream”.', 2000, 3);
         // The upload forms must start after this form closes. A form nested inside it is discarded, so choosing a logo would not be posted.
         echo '</form>';
         echo '<h3>Logo</h3>';
-        echo '<p class="hint">Add your existing logo if you have one.</p>';
+        echo '<p class="hint">Add your existing logo, or an example of a logo you like, if you have one. JPEG, PNG or WebP.</p>';
         webco_brief_auto_uploads(webco_brief_assets_for_request(
             is_array($project['assets'] ?? null) ? $project['assets'] : [],
             null

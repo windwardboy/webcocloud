@@ -190,6 +190,15 @@ if (is_file($path)) {
     unlink($path);
 }
 
+$logoProject = $active;
+$logoProject['logo_choice'] = 'design';
+$logoDetail = admin_html_detail($logoProject);
+check(
+    str_contains($logoDetail, 'Logo preference') && str_contains($logoDetail, 'complimentary logo design or refresh'),
+    'the admin brief shows the logo preference'
+);
+check(!str_contains(admin_html_detail($active), 'Logo preference'), 'a brief with no logo choice shows no logo line');
+
 echo $failures === 0 ? "passed\n" : "{$failures} failed\n";
 exit($failures === 0 ? 0 : 1);
 

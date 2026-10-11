@@ -290,7 +290,7 @@ function webco_brief_posted_fields(string $step): array
         'courses' => ['services'],
         'locations' => ['locations', 'areas_served'],
         'why' => ['why_experience', 'why_facilities', 'why_flexibility', 'why_support', 'why_difference'],
-        'branding' => ['branding'],
+        'branding' => ['branding', 'logo_choice'],
         'contact' => ['enquiry_route', 'contact_details', 'opening_hours', 'call_number', 'call_time', 'call_note'],
         'other' => ['summary'],
         default => [],

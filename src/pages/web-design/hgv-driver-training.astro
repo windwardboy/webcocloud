@@ -52,6 +52,7 @@ const jsonLd = [
 const comparison = [
   { label: "Enquiry and contact path", essential: true, professional: true },
   { label: "Core course and service information", essential: true, professional: true },
+  { label: "Complimentary logo design or refresh included", essential: true, professional: true },
   { label: "First year of hosting, SSL, domain setup and business email", essential: true, professional: true },
   { label: "One main training location", essential: true, professional: false, professionalNote: "Several locations" },
   { label: "A page for each course", essential: false, professional: true },
@@ -125,9 +126,17 @@ const faqGroups = [
         ],
       },
       {
+        q: "What if I don't have a logo, or my current one needs updating?",
+        a: [
+          "Both website packages include a complimentary simple logo design or refresh.",
+          "We can create a clean logo using your business name, appropriate typography and a relevant icon, with colours that complement your new website. If you're happy with your existing logo, we'll use that instead.",
+          "You'll receive the completed logo as PNG files, including a transparent-background version, which you can also use for social media, paperwork and other business materials. One round of minor adjustments is included at no additional charge.",
+        ],
+      },
+      {
         q: "How much can the design be customised?",
         a: [
-          "Your logo and brand colours (if you have them), your wording, images, courses, locations and contact details are all tailored to you. If you have no logo or colours yet, we follow the look of the demo you chose.",
+          "Your logo and brand colours (if you have them), your wording, images, courses, locations and contact details are all tailored to you. If you have no logo or colours yet, we can design a simple logo for you (see the logo question above), and we follow the look of the demo you chose.",
           "The design can change a long way from the demo if you want it to. Because how far depends on what you have in mind, we talk it through first, and we will tell you honestly what is realistic for the package before you commit.",
         ],
       },
@@ -472,6 +481,7 @@ const demoAlt = {
             <li><LandingIcon name="check" size={18} />One main training location</li>
             <li><LandingIcon name="check" size={18} />Core course and service information</li>
             <li><LandingIcon name="check" size={18} />Enquiry and contact path</li>
+            <li><LandingIcon name="check" size={18} />Complimentary logo design or refresh included</li>
             <li><LandingIcon name="check" size={18} />First year of hosting, SSL, domain setup and business email</li>
           </ul>
           <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${essential.startPackage}`}>
@@ -495,6 +505,7 @@ const demoAlt = {
             <li><LandingIcon name="check" size={18} />A page for each training location</li>
             <li><LandingIcon name="check" size={18} />Stronger local search structure</li>
             <li><LandingIcon name="check" size={18} />A fuller path from a course through to enquiry</li>
+            <li><LandingIcon name="check" size={18} />Complimentary logo design or refresh included</li>
             <li><LandingIcon name="check" size={18} />First year of hosting, SSL, domain setup and business email</li>
           </ul>
           <a class="lp-btn lp-btn-primary lp-btn-block" href={`/start/?package=${professional.startPackage}`}>

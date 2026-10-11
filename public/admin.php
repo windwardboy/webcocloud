@@ -917,6 +917,7 @@ function webco_admin_brief(array $project): void
             ['What sets them apart', (string) ($project['why_difference'] ?? '')],
         ],
         'Branding' => [
+            ['Logo preference', webco_brief_logo_choice_label((string) ($project['logo_choice'] ?? ''))],
             ['Brand colours they already use', (string) ($project['branding'] ?? '')],
         ],
         'Contact preferences' => [

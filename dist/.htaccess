@@ -5,4 +5,8 @@ ErrorDocument 404 /404.html
   <FilesMatch "\.(css|js|svg|webp|avif|woff2)$">
     Header set Cache-Control "public, max-age=604800"
   </FilesMatch>
+  <Files "marketing.js">
+    Header set Cache-Control "public, max-age=3600"
+    Header set Cross-Origin-Resource-Policy "cross-origin"
+  </Files>
 </IfModule>

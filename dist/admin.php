@@ -11,6 +11,7 @@ require_once __DIR__ . '/lib/projects.php';
 require_once __DIR__ . '/lib/brief-wizard.php';
 require_once __DIR__ . '/lib/billing-portal.php';
 require_once __DIR__ . '/lib/enquiries.php';
+require_once __DIR__ . '/lib/marketing.php';
 
 if (basename((string) ($_SERVER['SCRIPT_FILENAME'] ?? '')) === 'admin.php') {
     webco_handle_admin();
@@ -255,6 +256,9 @@ function webco_admin_dashboard(): void
     if (($_GET['section'] ?? '') === 'enquiries') {
         webco_admin_enquiries($db, $csrf, $notice);
     }
+    if (($_GET['section'] ?? '') === 'marketing') {
+        webco_admin_marketing($db, $csrf, $notice);
+    }
 
     try {
         $projects = webco_list_projects_for_admin($db);
@@ -319,11 +323,13 @@ function webco_admin_section_nav(PDO $db, string $current): void
     $new = webco_ensure_enquiries_table($db) ? webco_count_new_enquiries($db) : 0;
     $projectsCurrent = $current === 'projects' ? ' aria-current="page"' : '';
     $enquiriesCurrent = $current === 'enquiries' ? ' aria-current="page"' : '';
+    $marketingCurrent = $current === 'marketing' ? ' aria-current="page"' : '';
 
     echo '<nav class="views" aria-label="Sections">';
     echo '<a href="/admin.php"' . $projectsCurrent . '>Projects</a>';
     echo '<a href="/admin.php?section=enquiries"' . $enquiriesCurrent . '>Enquiries <span class="tab-count">'
         . (string) $new . ' new</span></a>';
+    echo '<a href="/admin.php?section=marketing"' . $marketingCurrent . '>Marketing</a>';
     echo '</nav>';
 }
 
@@ -405,6 +411,44 @@ function webco_admin_enquiries(PDO $db, string $csrf, string $notice): void
 }
 
 /**
+ * Read-only daily totals. It does not change orders, enquiries or projects.
+ */
+function webco_admin_marketing(PDO $db, string $csrf, string $notice): void
+{
+    webco_admin_page_open(false, 'Marketing');
+    echo '<header class="bar"><div><p class="eyebrow">Webco Cloud · Admin</p><h1>Marketing</h1></div>';
+    echo '<form method="post" action="/admin.php"><input type="hidden" name="csrf" value="' . webco_html($csrf) . '">';
+    echo '<input type="hidden" name="action" value="logout"><button class="btn btn-secondary btn-sm" type="submit">Sign out</button></form></header>';
+    if ($notice !== '') {
+        echo '<p class="notice" role="status">' . webco_html($notice) . '</p>';
+    }
+    webco_admin_section_nav($db, 'marketing');
+
+    if (!webco_ensure_marketing_daily($db)) {
+        echo '<p class="empty">Marketing counts are unavailable just now.</p></main></body></html>';
+        exit;
+    }
+
+    $end = webco_marketing_london_day(time());
+    $from = webco_marketing_shift_day($end, -27);
+    $cutoff = webco_marketing_shift_day($end, -400);
+    if ($from === null || $cutoff === null) {
+        echo '<p class="empty">Marketing counts are unavailable just now.</p></main></body></html>';
+        exit;
+    }
+    webco_marketing_purge($db, $cutoff);
+    $rows = webco_marketing_rows($db, $from);
+    if ($rows === null) {
+        echo '<p class="empty">Marketing counts are unavailable just now.</p></main></body></html>';
+        exit;
+    }
+
+    echo webco_marketing_overview_html(webco_marketing_overview($rows, $end, 28));
+    echo '</main></body></html>';
+    exit;
+}
+
+/**
  * @param array<string, mixed> $enquiry
  */
 function webco_admin_enquiry_card(array $enquiry, string $csrf, string $filter): void
@@ -461,11 +505,11 @@ function webco_admin_enquiry_card(array $enquiry, string $csrf, string $filter):
     echo '</div></article>';
 }
 
-function webco_admin_page_open(bool $narrow): void
+function webco_admin_page_open(bool $narrow, string $title = 'Projects'): void
 {
     echo '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8">';
     echo '<meta name="viewport" content="width=device-width, initial-scale=1">';
-    echo '<meta name="robots" content="noindex, nofollow"><title>Projects</title>';
+    echo '<meta name="robots" content="noindex, nofollow"><title>' . webco_html($title) . '</title>';
     echo webco_admin_styles();
     echo '</head><body><main' . ($narrow ? ' class="narrow"' : '') . '>';
 }
@@ -1566,6 +1610,10 @@ function webco_admin_styles(): string
       .file-name { font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; }
       .file-info .meta { line-height: 1.3; }
       .panel .group-title + .meta { margin-top: 0.2rem; }
+      .mkt-table { width: 100%; border-collapse: collapse; margin-top: 0.45rem; font-size: 0.875rem; }
+      .mkt-table th, .mkt-table td { padding: 0.35rem 0.45rem; border-bottom: 1px solid var(--line); text-align: right; }
+      .mkt-table th:first-child, .mkt-table td:first-child { text-align: left; }
+      .mkt-table th { color: var(--muted); font-size: 0.75rem; letter-spacing: 0.04em; text-transform: uppercase; }
 
       .admin-zone { margin-top: 1.5rem; padding-top: 0.9rem; border-top: 1px solid var(--line-2); }
       .zone-grid { display: grid; gap: 0.75rem; margin-top: 0.4rem; }

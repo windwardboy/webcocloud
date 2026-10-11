@@ -1,11 +1,12 @@
 <?php
 /**
- * Idempotent payment and provisioning schema migration.
+ * Idempotent payment, provisioning and marketing schema migration.
  *
  *   php bin/provision-schema.php
  *
- * CLI only. Uses webco_ensure_orders_table() and
- * webco_ensure_project_provisioning_columns() from the application.
+ * CLI only. Uses webco_ensure_orders_table(),
+ * webco_ensure_project_provisioning_columns() and
+ * webco_ensure_marketing_daily() from the application.
  * Does not call webco_ensure_paid_project() or webco_ensure_project_tables(),
  * so it does not create project rows, asset folders, briefs, or send mail.
  * No Stripe and no 20i calls.
@@ -23,6 +24,7 @@ if (PHP_SAPI !== 'cli') {
 
 require dirname(__DIR__) . '/public/lib/db.php';
 require dirname(__DIR__) . '/public/lib/projects.php';
+require dirname(__DIR__) . '/public/lib/marketing.php';
 
 /**
  * @param list<string> $orderColumns
@@ -331,12 +333,15 @@ function webco_schema_run(array $argv): int
 
     $ordersEnsured = webco_ensure_orders_table($db);
     $projectsEnsured = webco_ensure_project_provisioning_columns($db);
+    $marketingEnsured = webco_ensure_marketing_daily($db);
 
     $after = webco_schema_snapshot($db, $orderColumns, $projectColumns, $eventColumns, $constraints);
-    $failed = !$ordersEnsured || !$projectsEnsured;
+    $marketingTable = webco_schema_table($db, 'marketing_daily');
+    $failed = !$ordersEnsured || !$projectsEnsured || !$marketingEnsured;
 
     webco_schema_say('orders ensure: ' . ($ordersEnsured ? 'ok' : 'failed'));
     webco_schema_say('projects ensure: ' . ($projectsEnsured ? 'ok' : 'failed'));
+    webco_schema_say('marketing_daily ensure: ' . ($marketingEnsured ? 'ok' : 'failed'));
 
     foreach ($orderColumns as $column) {
         webco_schema_say(
@@ -424,6 +429,7 @@ function webco_schema_run(array $argv): int
     } else {
         webco_schema_say('verify paid_waiting_payment: ok');
     }
+    $failed = !webco_schema_verify_flag($marketingTable, 'marketing_daily') || $failed;
 
     webco_schema_say('summary: ' . ($failed ? 'failure' : 'success'));
 

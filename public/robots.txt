@@ -3,5 +3,6 @@ Allow: /
 Disallow: /admin.php
 Disallow: /brief.php
 Disallow: /brief-upload.php
+Disallow: /marketing-collect.php
 
 Sitemap: https://webcocloud.net/sitemap-index.xml
